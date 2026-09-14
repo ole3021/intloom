@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, master, 'feat-*']
+    branches: [main, 'feat-*']
   workflow_dispatch:
 
 permissions:
@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      SITE_CHANNEL: ${{ github.ref == 'refs/heads/master' && 'production' || 'preview' }}
+      SITE_CHANNEL: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
       WRANGLER_SEND_METRICS: 'false'
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -32,7 +32,7 @@ jobs:
       - run: bun run --cwd apps/site ci:check
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: >-
-          github.event_name != 'pull_request' && github.ref_type == 'branch' && (github.ref_name == 'master' || (startsWith(github.ref_name, 'feat-') && !contains(github.ref_name, '/')))
+          github.event_name != 'pull_request' && github.ref_type == 'branch' && (github.ref_name == 'main' || (startsWith(github.ref_name, 'feat-') && !contains(github.ref_name, '/')))
         with:
           name: site-dist
           path: apps/site/dist
@@ -42,14 +42,14 @@ jobs:
   deploy:
     needs: check
     if: >-
-      github.event_name != 'pull_request' && github.ref_type == 'branch' && (github.ref_name == 'master' || (startsWith(github.ref_name, 'feat-') && !contains(github.ref_name, '/')))
+      github.event_name != 'pull_request' && github.ref_type == 'branch' && (github.ref_name == 'main' || (startsWith(github.ref_name, 'feat-') && !contains(github.ref_name, '/')))
     concurrency:
       group: site-${{ github.ref }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
-      name: ${{ github.ref == 'refs/heads/master' && 'production' || 'preview' }}
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
       url: ${{ steps.deploy.outputs.deployment-url }}
     env:
       WRANGLER_SEND_METRICS: 'false'

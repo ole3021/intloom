@@ -2,28 +2,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { selectDeploymentTarget } from "../scripts/deployment-target.mjs";
 
-test("only master selects a production deployment", () => {
-  assert.deepEqual(selectDeploymentTarget("master"), {
+test("only main selects a production deployment", () => {
+  assert.deepEqual(selectDeploymentTarget("main"), {
     script: "ci:deploy",
     alias: "",
   });
   for (const branch of [
     undefined,
     "",
-    "main",
+    "master",
     "fix-bug",
     "feat/search",
     "feat-search/nested",
   ]) {
-    assert.throws(
-      () => selectDeploymentTarget(branch),
-      /Only master and feat-/,
-    );
+    assert.throws(() => selectDeploymentTarget(branch), /Only main and feat-/);
   }
   for (const refType of ["tag", ""]) {
     assert.throws(
-      () => selectDeploymentTarget("master", refType),
-      /Only master and feat-/,
+      () => selectDeploymentTarget("main", refType),
+      /Only main and feat-/,
     );
   }
 });
