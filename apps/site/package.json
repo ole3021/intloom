@@ -1,0 +1,19 @@
+{
+  "name": "@intloom/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "rspress dev",
+    "build": "rspress build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.mjs",
+    "ci:check": "wrangler deploy --dry-run",
+    "ci:deploy": "wrangler deploy",
+    "ci:preview": "wrangler versions upload"
+  },
+  "devDependencies": {
+    "@rspress/core": "2.0.21",
+    "wrangler": "4.131.1"
+  }
+}

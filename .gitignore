@@ -7,3 +7,14 @@ coverage/
 .env.*
 !.env.example
 .DS_Store
+
+# Cloudflare 本地状态与临时产物
+.wrangler/
+.rspress/
+.dev.vars
+.dev.vars.*
+
+# dotenvx：仅允许加密文件入库，私钥始终忽略
+!.env.encrypted
+.env.keys
+.env.keys.*

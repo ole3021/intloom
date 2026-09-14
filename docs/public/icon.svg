@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>intloom</title>
+  <rect width="64" height="64" rx="16" fill="#2563eb" />
+  <path d="M20 16v32M32 16v32M44 16v32M16 24h32M16 40h32" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="4" />
+</svg>
