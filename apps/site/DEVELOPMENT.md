@@ -90,8 +90,8 @@ GitHub Actions 直接调用工作区内的三个入口：
 1. 在 Cloudflare 准备账户和 Workers 的 `workers.dev` 子域名。
 2. 为目标账户创建具有 Workers 发布权限的 API Token。
 3. 在 GitHub 仓库 **Settings → Secrets and variables → Actions** 添加 `CLOUDFLARE_API_TOKEN` 和 `CLOUDFLARE_ACCOUNT_ID`。
-4. 工作流使用 `production` 和 `preview` GitHub Environments。可以提前创建，并将生产环境的部署分支限制为 `master`。当前流程不要求人工审批；也可以将凭据改存相应 Environment Secrets，名称不变。
-5. 将包含工作流和网站的变更推送到 `master`，完成首次生产部署，然后再推送 `feat-*` 分支进行版本预览。
+4. 工作流使用 `production` 和 `preview` GitHub Environments。可以提前创建，并将生产环境的部署分支限制为 `main`。当前流程不要求人工审批；也可以将凭据改存相应 Environment Secrets，名称不变。
+5. 将包含工作流和网站的变更推送到 `main`，完成首次生产部署，然后再推送 `feat-*` 分支进行版本预览。
 
 配置文件本身不会创建账户或设置 Secrets。网站发布由 GitHub Actions 负责，避免同时启用 Cloudflare Git 自动构建而重复发布。
 
@@ -99,11 +99,10 @@ GitHub Actions 直接调用工作区内的三个入口：
 
 | 分支或事件 | 行为 |
 | --- | --- |
-| 推送 `master` | 检查成功后执行 `ci:deploy`，更新生产版本 |
+| 推送 `main` | 检查成功后执行 `ci:deploy`，更新生产版本 |
 | 推送 `feat-*` | 检查成功后执行 `ci:preview`，上传带分支别名的预览版本，不切换生产流量 |
 | Pull Request | 只检查，不上传部署产物，不提供 Cloudflare 发布密钥 |
-| 推送 `main` | 只检查，不上传部署产物 |
-| 手动触发 CI | 运行检查；仅选中的 `master` 或 `feat-*` 分支上传产物并发布，其余分支跳过部署 |
+| 手动触发 CI | 运行检查；仅选中的 `main` 或 `feat-*` 分支上传产物并发布，其余分支跳过部署 |
 
 `feat-*` 指 `feat-search` 这类分支名，不包含 `/`。工作流可手动触发时，在 GitHub Actions 中选择 **CI → Run workflow**，再选择需要检查或发布的分支。
 

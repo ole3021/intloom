@@ -46,7 +46,7 @@ Turbo 缓存构建产物及成功的检查、测试结果；共享 TypeScript �
 
 ## 网站发布
 
-网站使用 Workers Static Assets，由 GitHub Actions 发布：`master` 更新生产，`feat-*` 上传带固定分支别名的预览版本。Pull Request 和当前的 `main` 分支只运行 CI。首次发布需要在 GitHub Secrets 设置 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`，并先从 `master` 初始化 Worker。
+网站使用 Workers Static Assets，由 GitHub Actions 发布：`main` 更新生产，`feat-*` 上传带固定分支别名的预览版本。Pull Request 只运行检查，不部署。首次发布需要在 GitHub Secrets 设置 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`，并先从 `main` 初始化 Worker。
 
 具体设置、预览地址和部署验证见 [网站开发维护指南](./apps/site/DEVELOPMENT.md)。
 

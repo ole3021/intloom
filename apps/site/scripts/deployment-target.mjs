@@ -6,11 +6,11 @@ export function selectDeploymentTarget(branch, refType = "branch") {
     refType !== "branch" ||
     !branch ||
     branch.includes("/") ||
-    (branch !== "master" && !branch.startsWith("feat-"))
+    (branch !== "main" && !branch.startsWith("feat-"))
   ) {
-    throw new Error("Only master and feat-* branches may deploy the site.");
+    throw new Error("Only main and feat-* branches may deploy the site.");
   }
-  if (branch === "master") return { script: "ci:deploy", alias: "" };
+  if (branch === "main") return { script: "ci:deploy", alias: "" };
 
   const hash = createHash("sha256").update(branch).digest("hex").slice(0, 10);
   // 预览别名最多 31 个字符，为 Worker 名称保留 31 个字符。
