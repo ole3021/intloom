@@ -14,6 +14,11 @@
   },
   "devDependencies": {
     "@rspress/core": "2.0.21",
+    "@types/react": "19.3.0",
     "wrangler": "4.131.1"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   }
 }

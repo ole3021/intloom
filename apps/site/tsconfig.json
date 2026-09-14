@@ -11,5 +11,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["rspress.config.ts", "theme/**/*.ts", "theme/**/*.tsx"]
+  "include": [
+    "rspress.config.ts",
+    "theme/**/*.ts",
+    "theme/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx"
+  ]
 }

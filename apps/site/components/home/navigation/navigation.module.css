@@ -1,0 +1,82 @@
+.root {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #090b12f5;
+  border-bottom: 1px solid #a8c8ff10;
+}
+.navInner {
+  max-width: 1304px;
+  margin: auto;
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+.desktopNav {
+  display: flex;
+  gap: 30px;
+  margin-left: auto;
+  color: var(--home-muted);
+  font-size: 14px;
+}
+.desktopNav a:hover {
+  color: var(--home-fg);
+}
+.github {
+  font-size: 14px;
+  border-left: 1px solid var(--home-line);
+  padding-left: 28px;
+}
+.github span {
+  margin-left: 8px;
+  color: var(--home-muted);
+}
+.mobileMenu {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .desktopNav {
+    gap: 20px;
+  }
+  .navInner {
+    gap: 25px;
+  }
+}
+@media (max-width: 720px) {
+  .navInner {
+    padding: 16px 22px;
+    gap: 20px;
+  }
+  .desktopNav {
+    display: none;
+  }
+  .github {
+    margin-left: auto;
+    border-left: 0;
+    padding: 0;
+  }
+  .mobileMenu {
+    display: block;
+    font-size: 14px;
+  }
+  .mobileMenu summary {
+    cursor: pointer;
+    padding: 6px 0;
+  }
+  .mobileMenu nav {
+    position: absolute;
+    right: 18px;
+    top: 64px;
+    padding: 12px;
+    background: #141c2b;
+    border: 1px solid var(--home-line);
+    border-radius: 6px;
+    min-width: 170px;
+    box-shadow: 0 10px 35px #00000066;
+  }
+  .mobileMenu nav a {
+    display: block;
+    padding: 11px 18px;
+  }
+}

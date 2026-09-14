@@ -15,16 +15,22 @@ bun run dev --filter=@intloom/site
 
 打开终端输出的本地地址，修改站点后查看热更新结果。按 Ctrl+C 停止服务。
 
+### 首页开发
+
+开发服务的 `/` 为用户确认的四模块首页，工具选择、KV 理念和交互边界见 [设计与交互指南](./DESIGN.md)。早期 A/B/C/D 预览页面与比较入口已移除。
+
+首页入口位于 `components/home/Home.tsx`；导航和四个模块分目录维护，各模块组件与样式放在一起。首页与 KV 的局部样式采用 `*.module.css`，首页公共样式位于 `common.module.css`，可复用 KV 独立维护在 `components/key-visuals/`。首屏与进度区共用 `ActionLink.tsx`，新模块优先组合现有共享样式，只有实际重复结构才提取组件。内容数据位于 `components/home/content.ts`，更新进度时同步核验日期。使用文档保持现有路由与内容。
+
 ## 构建与验证
 
 | 命令 | 用途 |
 | --- | --- |
 | `bun run build --filter=@intloom/site` | 生成静态网站，产物输出到 `apps/site/dist/` |
 | `bun run typecheck --filter=@intloom/site` | 检查网站 TypeScript 配置与组件类型 |
-| `bun run test --filter=@intloom/site` | 通过 Turbo 先构建网站，再执行发布分支规则测试 |
+| `bun run test --filter=@intloom/site` | 通过 Turbo 先构建网站，再执行发布分支规则、聚合动画生命周期与页面样式分包测试 |
 | `bun run check` | 执行全仓库 lint、格式和类型检查 |
 
-`test` 当前不覆盖页面样式或浏览器交互。影响页面展示的改动需要在本地查看实际效果。生成的 `dist/` 不直接编辑；全仓库 `lint`、`format` 等命令沿用根配置。
+`test` 覆盖构建产物中的首页样式隔离、首页首次绘制样式链接、发布分支规则及聚合动画的暂停、恢复、阶段切换、可见性、减少动画与资源释放；绘制测试使用模拟时钟及 Canvas 指令，不替代实际浏览器检查。`test` 不覆盖视觉布局或完整浏览器交互。影响页面展示的改动需要在本地查看实际效果。生成的 `dist/` 不手工编辑；首页样式链接由构建钩子自动写入。全仓库 `lint`、`format` 等命令沿用根配置。
 
 ### Cloudflare 本地验证
 

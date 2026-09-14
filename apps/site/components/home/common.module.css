@@ -1,0 +1,138 @@
+.theme {
+  --home-bg: #090b12;
+  --home-fg: #e5ebfa;
+  --home-muted: #a7aec5;
+  --home-line: #272d40;
+  --home-accent: #a8c8ff;
+  color-scheme: dark;
+  font:
+    16px / 1.7 Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
+}
+.theme * {
+  box-sizing: border-box;
+}
+.theme :where(h1, h2, h3, p, figure) {
+  margin: 0;
+}
+.theme :where(h1, h2, h3) {
+  font-weight: 500;
+  color: inherit;
+  border: 0;
+  text-wrap: balance;
+}
+.theme :where(h2) {
+  font-size: clamp(32px, 3.5vw, 48px);
+  line-height: 1.3;
+  letter-spacing: -0.045em;
+}
+.theme :where(h3) {
+  font-size: 22px;
+  line-height: 1.45;
+  letter-spacing: -0.025em;
+}
+.theme :where(p) {
+  text-wrap: pretty;
+}
+.theme :where(a) {
+  color: inherit;
+  text-decoration: none;
+}
+.theme :where(button) {
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.theme :where(fieldset) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.theme :is(button, a, summary):focus-visible {
+  outline: 2px solid var(--home-accent);
+  outline-offset: 5px;
+}
+.eyebrow {
+  font:
+    12px / 1.7 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  letter-spacing: 0.13em;
+  color: var(--home-muted);
+}
+.brand {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -1px;
+}
+.brand img {
+  border-radius: 6px;
+}
+.button {
+  display: inline-flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 25px;
+  padding: 12px 22px;
+  border-radius: 28px;
+  font-size: 14px;
+  transition:
+    transform 160ms,
+    background 160ms;
+}
+.buttonPrimary {
+  background: var(--home-fg);
+  color: var(--home-bg);
+}
+.buttonPrimary:hover {
+  background: #fff;
+  transform: translateY(-2px);
+}
+.textLink {
+  display: inline-flex;
+  gap: 18px;
+  align-items: center;
+  padding: 10px 0;
+  font-size: 14px;
+  color: var(--home-muted);
+}
+.textLink:hover {
+  color: var(--home-fg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme *,
+  .theme *::before,
+  .theme *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: Accessibility preferences override component animation. */
+    animation: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: Accessibility preferences override component transitions. */
+    transition: none !important;
+  }
+}
+
+@media (pointer: coarse) {
+  .theme :is(button, summary) {
+    min-height: 44px;
+  }
+}
+
+.section {
+  max-width: 1240px;
+  margin: auto;
+  padding: 100px 32px;
+  scroll-margin-top: 90px;
+}
+@media (max-width: 720px) {
+  .section {
+    padding: 70px 22px;
+  }
+}

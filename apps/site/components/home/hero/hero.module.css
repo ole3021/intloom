@@ -1,0 +1,127 @@
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 28px;
+  margin-top: 28px;
+}
+.root {
+  max-width: 1440px;
+  margin: auto;
+  padding: 52px 0 30px;
+  text-align: center;
+}
+.copy {
+  padding: 0 24px;
+}
+.root h1 {
+  font-size: clamp(52px, 6.7vw, 88px);
+  letter-spacing: -0.055em;
+  line-height: 1.15;
+  margin-top: 22px;
+}
+.root h1 span {
+  background: linear-gradient(100deg, #e5ebfa 12%, #a8c8ff 55%, #b7abff 95%);
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.description {
+  margin-top: 24px;
+  color: var(--home-muted);
+  font-size: 18px;
+}
+.convergence {
+  position: relative;
+  height: 300px;
+  margin-top: -12px;
+}
+.fieldLabels {
+  position: absolute;
+  bottom: 20px;
+  left: 7%;
+  right: 7%;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  font:
+    12px ui-monospace,
+    monospace;
+  color: #919bb7;
+  pointer-events: none;
+}
+.fieldControls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  padding: 0 22px;
+  flex-wrap: wrap;
+}
+.fieldControls fieldset {
+  display: flex;
+  border: 1px solid var(--home-line);
+  border-radius: 30px;
+  padding: 4px;
+}
+.fieldControls fieldset button {
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  padding: 8px 22px;
+  border-radius: 24px;
+  color: var(--home-muted);
+}
+.fieldControls fieldset button span {
+  font-size: 12px;
+  margin-right: 9px;
+  color: #8c97b1;
+}
+.fieldControls fieldset button[aria-pressed="true"] {
+  background: #20273a;
+  color: var(--home-fg);
+}
+.motionButton {
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  padding: 10px;
+  color: var(--home-muted);
+}
+.phaseCaption {
+  font-size: 14px;
+  color: var(--home-muted);
+  margin-top: 16px;
+}
+@media (max-width: 720px) {
+  .root {
+    padding-top: 44px;
+  }
+  .root h1 {
+    font-size: clamp(54px, 12vw, 76px);
+  }
+  .description {
+    font-size: 16px;
+  }
+  .actions {
+    gap: 20px;
+  }
+  .convergence {
+    height: 235px;
+    margin-top: 6px;
+  }
+  .fieldLabels {
+    left: 22px;
+    right: 22px;
+    font-size: 11px;
+  }
+  .fieldControls {
+    gap: 14px;
+  }
+  .fieldControls fieldset button {
+    padding: 9px 15px;
+  }
+  .fieldControls fieldset button span {
+    display: none;
+  }
+}
