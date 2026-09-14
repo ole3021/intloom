@@ -18,6 +18,11 @@
     "test": {
       "dependsOn": ["build"],
       "outputs": []
+    },
+    "@intloom/site#build": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/**"],
+      "outputs": ["dist/**"],
+      "env": ["SITE_CHANNEL"]
     }
   }
 }

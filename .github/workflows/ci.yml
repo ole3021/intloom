@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master, 'feat-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SITE_CHANNEL: ${{ github.ref == 'refs/heads/master' && 'production' || 'preview' }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run test
+      - run: bun run --cwd apps/site ci:check
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: >-
+          github.event_name != 'pull_request' && github.ref_type == 'branch' && (github.ref_name == 'master' || (startsWith(github.ref_name, 'feat-') && !contains(github.ref_name, '/')))
+        with:
+          name: site-dist
+          path: apps/site/dist
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    needs: check
+    if: >-
+      github.event_name != 'pull_request' && github.ref_type == 'branch' && (github.ref_name == 'master' || (startsWith(github.ref_name, 'feat-') && !contains(github.ref_name, '/')))
+    concurrency:
+      group: site-${{ github.ref }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: ${{ github.ref == 'refs/heads/master' && 'production' || 'preview' }}
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: site-dist
+          path: apps/site/dist
+      - name: Select deployment target and reject stale commits
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node apps/site/scripts/deployment-target.mjs
+      - name: Deploy static assets
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOY_SCRIPT: ${{ steps.target.outputs.script }}
+          PREVIEW_ALIAS: ${{ steps.target.outputs.alias }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/site-deploy.ndjson
+        run: |
+          args=()
+          if [ -n "$PREVIEW_ALIAS" ]; then
+            args+=(--preview-alias "$PREVIEW_ALIAS")
+          fi
+          bun run --cwd apps/site "$DEPLOY_SCRIPT" "${args[@]}"
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from "node:fs";
+          const entries = readFileSync(process.env.WRANGLER_OUTPUT_FILE_PATH, "utf8")
+            .trim().split("\n").map(line => JSON.parse(line));
+          const result = entries.findLast(entry => entry.type === "deploy" || entry.type === "version-upload");
+          const url = result?.type === "version-upload" ? result.preview_url : result?.targets?.[0];
+          if (!url || new URL(url).protocol !== "https:") throw new Error("Missing HTTPS deployment URL in Wrangler output.");
+          appendFileSync(process.env.GITHUB_OUTPUT, `deployment-url=${url}\n`);
+          NODE
+      - name: Verify deployment
+        env:
+          SITE_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: node apps/site/scripts/verify-deployment.mjs
