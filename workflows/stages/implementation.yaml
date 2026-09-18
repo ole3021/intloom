@@ -1,0 +1,35 @@
+stage:
+  id: implementation
+  input: []
+  state:
+    schema: "@schemas/implementation-work"
+  entry: implement
+
+  steps:
+    implement:
+      type: agent
+      agent: "@agents/implementation-developer"
+      skills: []
+      tools: []
+      on:
+        ready:
+          target: check
+
+    check:
+      type: code
+      code: "@codes/implementation/check"
+      on:
+        repair_required:
+          target: implement
+        passed:
+          target: finalize
+
+    finalize:
+      type: code
+      code: "@codes/implementation/finalize"
+      on:
+        # 最终代码需要重新检查时返回 Check。
+        recheck_required:
+          target: check
+        complete:
+          end: true

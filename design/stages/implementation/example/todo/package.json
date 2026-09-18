@@ -1,0 +1,18 @@
+{
+  "name": "intloom-todomvc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run build && bun scripts/serve.ts",
+    "start": "bun scripts/serve.ts",
+    "build": "bun build ./index.html --outdir ./dist --minify",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test ./test",
+    "check": "bun run typecheck && bun test ./test && bun run build"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "happy-dom": "20.14.5",
+    "typescript": "7.0.2"
+  }
+}
