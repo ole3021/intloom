@@ -1,6 +1,6 @@
 # intloom
 
-intloom 的实现工作区，使用 Bun Workspaces + Turborepo + TypeScript，使用 Biome 统一 lint 和 format。项目仍处于初始化阶段，产品能力将随 Intent Loom 设计确认逐步落地。
+intloom 的实现工作区，使用 Bun Workspaces + Turborepo + TypeScript，使用 Biome 统一 lint 和 format。项目仍处于初始化阶段，产品能力将随 IntLoom 设计确认逐步落地。
 
 Bun 用于依赖管理、开发运行和测试。TypeScript 通过 `NodeNext` 输出 Node.js ESM、类型声明和 source map，不打包 Bun 运行时，不安装 Bun 类型或运行时依赖。运行环境为 Node.js 24+，开发使用 Bun 1.4.0。
 

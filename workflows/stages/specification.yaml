@@ -1,0 +1,50 @@
+stage:
+  id: specification
+  input:
+    - intent
+  state:
+    schema: "@schemas/specification-work"
+  entry: analyze
+
+  steps:
+    analyze:
+      type: agent
+      agent: "@agents/requirement-analyst"
+      skills: []
+      tools: []
+      on:
+        clarification_required:
+          target: clarify
+        repair_required:
+          target: analyze
+        ready:
+          target: confirm
+
+    clarify:
+      use: "@kernel:client-questions"
+      preHook: "@codes/specification/hooks:clarify-preHook"
+      postHook: "@codes/specification/hooks:clarify-postHook"
+      input:
+        questions: "$preHook.output.questions"
+      on:
+        complete:
+          target: analyze
+
+    confirm:
+      use: "@kernel:client-confirm"
+      preHook: "@codes/specification/hooks:confirm-preHook"
+      postHook: "@codes/specification/hooks:confirm-postHook"
+      input:
+        context: "$preHook.output.context"
+      on:
+        feedback:
+          target: analyze
+        confirmed:
+          target: finalize
+
+    finalize:
+      type: code
+      code: "@codes/specification/finalize"
+      on:
+        complete:
+          end: true

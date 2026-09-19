@@ -1,0 +1,10 @@
+import './styles.css';
+import { mountTodo } from './ui.ts';
+import { TodoStore } from './modules/todo-state.ts';
+import { FilterRouter } from './modules/filter-router.ts';
+import { TodoPersistence } from './modules/todo-persistence.ts';
+const root = document.querySelector<HTMLElement>('#app');
+if (!root) throw new Error('App root is missing');
+const store = new TodoStore(new TodoPersistence(() => window.localStorage, 'vanilla'));
+const router = new FilterRouter(window);
+mountTodo(root, store, router);

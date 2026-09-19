@@ -1,0 +1,31 @@
+stage:
+  id: validation
+  input: []
+  state:
+    schema: "@schemas/validation-work"
+  entry: validate
+
+  steps:
+    validate:
+      type: agent
+      agent: "@agents/validation-analyst"
+      skills: []
+      tools: []
+      on:
+        ready:
+          target: check
+
+    check:
+      type: code
+      code: "@codes/validation/check"
+      on:
+        # 验证记录有效，不代表产品全部通过。
+        valid:
+          target: finalize
+
+    finalize:
+      type: code
+      code: "@codes/validation/finalize"
+      on:
+        complete:
+          end: true

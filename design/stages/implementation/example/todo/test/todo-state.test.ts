@@ -1,0 +1,15 @@
+import {expect,test} from 'bun:test';
+import {TodoStore} from '../src/modules/todo-state.ts';
+test('snapshot copies cannot mutate owned data',()=>{const s=new TodoStore();s.add('A');const copy=s.snapshot();copy[0].title='Changed';copy.length=0;expect(s.snapshot()[0].title).toBe('A');});
+test('identity is independent of title',()=>{const s=new TodoStore();s.add('A');s.add('A');expect(s.snapshot()[0].id).not.toBe(s.snapshot()[1].id);});
+test('completion leaves identities and order stable',()=>{const s=new TodoStore();s.add('A');s.add('B');const ids=s.snapshot().map(t=>t.id);s.setCompleted(ids[0],true);expect(s.snapshot().map(t=>t.id)).toEqual(ids);expect(s.snapshot()[1].completed).toBe(false);});
+test('rename changes only the identified title',()=>{const s=new TodoStore();s.add('A');s.add('A');const id=s.snapshot()[0].id;s.rename(id,'  B  C ');expect(s.snapshot().map(t=>t.title)).toEqual(['B  C','A']);});
+test('empty/all/some completion projection',()=>{const s=new TodoStore();expect(s.read().allCompleted).toBe(false);s.add('A');s.setAll(true);expect(s.read().allCompleted).toBe(true);s.add('B');expect(s.read().allCompleted).toBe(false);});
+test('filter is a projection, global values do not filter',()=>{const s=new TodoStore();s.add('A');s.add('B');s.add('C');s.setCompleted(s.snapshot()[1].id,true);const v=s.read('completed');expect(v.visible.map(t=>t.title)).toEqual(['B']);expect(v.remaining).toBe(2);expect(v.hasCompleted).toBe(true);expect(s.snapshot()).toHaveLength(3);});
+test('bulk and clear always affect hidden items',()=>{const s=new TodoStore();s.add('A');s.add('B');s.read('completed');s.setAll(true);expect(s.read('active').visible).toEqual([]);s.clearCompleted();expect(s.read('all').empty).toBe(true);});
+test('save failure is exposed while current page result is retained',()=>{const s=new TodoStore({save:()=>({ok:false,reason:'unavailable'})});s.add('A');expect(s.snapshot()).toHaveLength(1);expect(s.saveResult.ok).toBe(false);});
+test('all mutation paths save newest complete snapshot in order',()=>{const saved:any[]=[];const s=new TodoStore({save:todos=>{saved.push(structuredClone(todos));return {ok:true};}});
+s.add('A');s.add('B');const [a,b]=s.snapshot();s.rename(a.id,'Renamed');s.setCompleted(a.id,true);s.setAll(false);s.setAll(true);s.clearCompleted();expect(saved.at(-1)).toEqual([]);
+s.add('C');s.rename(s.snapshot()[0].id,' ');expect(saved.at(-1)).toEqual([]);s.add('D');s.remove(s.snapshot()[0].id);expect(saved.at(-1)).toEqual([]);expect(saved[2][0].id).toBe(a.id);expect(saved[2][1].id).toBe(b.id);
+});
+test('constructor, reads, invalid commands and no-ops never save',()=>{let writes=0;const s=new TodoStore({save:()=>{writes++;return {ok:true};}});s.read('all');s.add(' ');s.remove('missing');expect(writes).toBe(0);s.add('A');s.rename(s.snapshot()[0].id,'A');s.setAll(false);expect(writes).toBe(1);});

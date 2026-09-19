@@ -22,9 +22,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
-    "@types/node": "^24.0.0",
-    "turbo": "2.10.12",
-    "typescript": "7.0.2",
-    "@dotenvx/dotenvx": "2.24.1"
+    "@dotenvx/dotenvx": "2.24.1",
+    "@types/node": "^26",
+    "turbo": "^2.11.2",
+    "typescript": "7.0.2"
   }
 }

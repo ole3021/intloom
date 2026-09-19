@@ -1,0 +1,29 @@
+# 项目技术配置草案：保存供 Solution 设计使用的预设条件与已确定约束。
+# 仅用于 refactor 讨论；不是当前 Kernel 可加载的配置，不替代根目录实际配置。
+# 以下为结构模板与示意值，不代表当前项目已采用这些技术；未知内容可省略。
+# 本文件不包含模型连接、凭据或工具权限；不扩展为通用配置系统。
+apps:
+  # 与 Solution Artifact 的 App name 对应；不另设 id 或展示名。
+  - name: "app-name"
+    type: "service" # 应用形态，例如 web、service、native；不是运行环境。
+    runtime: "nodejs" # 运行环境；未明确或不适用时省略，不用猜测补齐。
+    # platforms: [ios, android] # 按实际需要记录目标平台。
+    # 只保存影响设计的指定依赖或选型偏好，框架与 ORM 都归这里。
+    # 不另维护重复的 framework 字段；完整已安装清单与锁定版本归工程文件。
+    dependencies:
+      - name: "dependency-name"
+        description: |
+          〔用途、必须遵守或优先采用的含义；必要时说明版本约束与依据〕
+    # 只保存预设架构模式或设计偏好；可以组合，不作为互斥枚举。
+    patterns:
+      - name: "pattern-name"
+        description: |
+          〔适用范围、理由及必须遵守或优先考虑的含义〕
+# 可选：仅在共享包有独立技术约束时列出；不复制 Artifact 的完整包清单。
+packages: []
+# 包项使用实际 name，按需填写 runtime、platforms、dependencies、patterns。
+# dependencies/patterns 无预设约束时可省略或 []；空列表不表示禁止使用。
+# 职责、接口、数据模型与协作机制归 Solution 正文；技术决策分工见 solution/README.md。
+# 具体怎样使用依赖、采用某种机制的设计理由留在所属设计正文，不重复技术清单。
+# 新需求需要改变技术约束时先形成明确决定，再落实配置与工程文件；不静默覆盖。
+# 本草案不声明已安装、已迁移或已接入运行；实际配置兼容与加载方式另行设计。

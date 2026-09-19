@@ -1,0 +1,54 @@
+stage:
+  id: solution
+  input: []
+  state:
+    schema: "@schemas/solution-work"
+  entry: design
+
+  steps:
+    design:
+      type: agent
+      agent: "@agents/solution-designer"
+      skills: []
+      tools: []
+      # 检查拟确认的 Changes；需要澄清时允许设计尚未完整。
+      postHook: "@codes/solution/hooks:design-postHook"
+      on:
+        clarification_required:
+          target: clarify
+        repair_required:
+          target: design
+        ready:
+          target: confirm
+
+    clarify:
+      use: "@kernel:client-questions"
+      preHook: "@codes/solution/hooks:clarify-preHook"
+      postHook: "@codes/solution/hooks:clarify-postHook"
+      input:
+        questions: "$preHook.output.questions"
+      on:
+        complete:
+          target: design
+
+    confirm:
+      use: "@kernel:client-confirm"
+      preHook: "@codes/solution/hooks:confirm-preHook"
+      postHook: "@codes/solution/hooks:confirm-postHook"
+      input:
+        context: "$preHook.output.context"
+      on:
+        feedback:
+          target: design
+        confirmed:
+          target: finalize
+
+    finalize:
+      type: code
+      code: "@codes/solution/finalize"
+      on:
+        # 仅用于保存前发现的可修正业务问题；修改后重新确认。
+        repair_required:
+          target: design
+        complete:
+          end: true
