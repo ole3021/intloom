@@ -24,7 +24,7 @@
     "@biomejs/biome": "2.5.13",
     "@dotenvx/dotenvx": "2.24.1",
     "@types/node": "^26",
-    "turbo": "2.10.12",
+    "turbo": "^2.11.2",
     "typescript": "7.0.2"
   }
 }
