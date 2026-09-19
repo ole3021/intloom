@@ -1,6 +1,10 @@
 /** Solution 本轮分析、问答、确认和修正的工作状态。 */
 
-import type { RUN_ID, STATE_FEEDBACK_STRUCTURE, STATE_QUESTION_STRUCTURE } from "../const.type.js";
+import type {
+  RUN_ID,
+  STATE_FEEDBACK_STRUCTURE,
+  STATE_QUESTION_STRUCTURE,
+} from "../const.type.js";
 import type { SolutionRecord } from "./record.js";
 
 export interface SolutionState {

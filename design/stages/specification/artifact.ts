@@ -2,10 +2,7 @@
  * Specification 完整需求结构；需求模型与维护规则见 README.md。
  */
 
-import type {
-  RUN_ID,
-  LIFE_CYCLE_STATUS,
-} from "../const.type.js";
+import type { RUN_ID, LIFE_CYCLE_STATUS } from "../const.type.js";
 
 // Specification Artifact
 export type SDOMAIN_ID = `SDOM-${string}`; // 业务领域；example: SDOM-order

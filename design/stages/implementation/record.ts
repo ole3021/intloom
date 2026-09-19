@@ -1,9 +1,6 @@
 /** Implementation 本轮代码改动和已处理反馈的历史记录。 */
 
-import type {
-  RECORD_FEEDBACK_STRUCTURE,
-  RUN_ID,
-} from "../const.type.js";
+import type { RECORD_FEEDBACK_STRUCTURE, RUN_ID } from "../const.type.js";
 import type { SOLUTION_CHANGE_REFS } from "../solution/record.js";
 import type { SPEC_CHANGE_REFS } from "../specification/record.js";
 

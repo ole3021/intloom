@@ -13,18 +13,17 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
-export type PATCH_STRUCTURE = (
+export type PATCH_STRUCTURE =
   | {
-    op: "test" | "add" | "replace";
-    path: "" | `/${string}`; // 相对目标对象；嵌套内容在所属对象内修改。
-    value: JsonValue;
-  }
+      op: "test" | "add" | "replace";
+      path: "" | `/${string}`; // 相对目标对象；嵌套内容在所属对象内修改。
+      value: JsonValue;
+    }
   | {
-    op: "remove";
-    path: "" | `/${string}`;
-    value?: never;
-  }
-)
+      op: "remove";
+      path: "" | `/${string}`;
+      value?: never;
+    };
 
 export type STATE_QUESTION_STRUCTURE = {
   id: QUESTION_ID;
@@ -38,7 +37,7 @@ export type STATE_QUESTION_STRUCTURE = {
   answer?: string;
   isBlock: boolean; // 是否仍阻塞本轮设计成立。
   isSolved: boolean; // 本轮是否已处理完成。
-}
+};
 export type RECORD_QUESTION_STRUCTURE = {
   id: QUESTION_ID;
   question: string;
@@ -49,7 +48,7 @@ export type RECORD_QUESTION_STRUCTURE = {
 export type STATE_FEEDBACK_STRUCTURE = {
   source: "user" | "check";
   content: string;
-}
+};
 
 export type RECORD_FEEDBACK_STRUCTURE = {
   source: "user" | "check";

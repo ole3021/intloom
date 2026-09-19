@@ -2,8 +2,21 @@
  * Specification 历史记录结构；Changes 契约与内容筛选规则见 README.md。
  */
 
-import type { PATCH_STRUCTURE, RECORD_FEEDBACK_STRUCTURE, RECORD_QUESTION_STRUCTURE, RUN_ID } from "../const.type.js";
-import type { SACCEPTANCE_ID, SCONSTRAINT_ID, SDEFERRED_ID, SDOMAIN_ID, SFEATURE_ID, SRELATION_ID, SREQUIREMENT_ID } from "./artifact.js";
+import type {
+  PATCH_STRUCTURE,
+  RECORD_FEEDBACK_STRUCTURE,
+  RECORD_QUESTION_STRUCTURE,
+  RUN_ID,
+} from "../const.type.js";
+import type {
+  SACCEPTANCE_ID,
+  SCONSTRAINT_ID,
+  SDEFERRED_ID,
+  SDOMAIN_ID,
+  SFEATURE_ID,
+  SRELATION_ID,
+  SREQUIREMENT_ID,
+} from "./artifact.js";
 
 export type SPEC_CHANGE_REFS =
   | SDOMAIN_ID
@@ -14,7 +27,7 @@ export type SPEC_CHANGE_REFS =
 export type SOLUTION_CHANGE_SUB_REFS =
   | SACCEPTANCE_ID
   | SRELATION_ID
-  | SDEFERRED_ID
+  | SDEFERRED_ID;
 
 export interface SpecificationRecord {
   id: RUN_ID;

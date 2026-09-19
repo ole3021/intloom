@@ -1,8 +1,6 @@
 /** Validation 在评估、记录检查和结果生成之间共享的工作状态。 */
 
-import type {
-  RUN_ID
-} from "../const.type.js";
+import type { RUN_ID } from "../const.type.js";
 import type { ValidationArtifact } from "./artifact.js";
 
 export interface ValidationState {
