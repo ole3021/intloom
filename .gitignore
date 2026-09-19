@@ -18,3 +18,5 @@ coverage/
 !.env.encrypted
 .env.keys
 .env.keys.*
+
+backup/

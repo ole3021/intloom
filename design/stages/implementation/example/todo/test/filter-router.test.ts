@@ -1,0 +1,7 @@
+import {afterEach,expect,test} from 'bun:test';
+import {Window as TestWindow} from 'happy-dom';
+import {FilterRouter,parseFilter} from '../src/modules/filter-router.ts';
+const windows:TestWindow[]=[];afterEach(()=>{for(const w of windows.splice(0))w.close();});
+test('canonical address mapping and unspecified default',()=>{expect(parseFilter('')).toBe('all');expect(parseFilter('#/')).toBe('all');expect(parseFilter('#/active')).toBe('active');expect(parseFilter('#/completed')).toBe('completed');});
+test('select is deterministic and repeating selected category does not append history',()=>{const w=new TestWindow({url:'http://localhost/'});windows.push(w);const r=new FilterRouter(w as unknown as Window);r.select('active');expect(w.location.hash).toBe('#/active');const len=w.history.length;r.select('active');expect(w.history.length).toBe(len);r.dispose();});
+test('external history/address events publish selection without writing it back',()=>{const w=new TestWindow({url:'http://localhost/'});windows.push(w);const r=new FilterRouter(w as unknown as Window);const seen:string[]=[];r.subscribe(f=>seen.push(f));w.location.hash='#/completed';const len=w.history.length;w.dispatchEvent(new w.HashChangeEvent('hashchange'));expect(seen.at(-1)).toBe('completed');expect(w.history.length).toBe(len);r.dispose();w.location.hash='#/active';w.dispatchEvent(new w.HashChangeEvent('hashchange'));expect(seen.at(-1)).toBe('completed');});
