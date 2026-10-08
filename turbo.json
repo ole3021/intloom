@@ -74,6 +74,8 @@
       "env": ["SITE_CHANNEL"]
     },
     "@intloom/cli#typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": [],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/publication.ts"]
     }
   },
