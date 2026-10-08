@@ -1,0 +1,33 @@
+{
+  "name": "intloom",
+  "version": "0.0.1",
+  "description": "IntLoom command-line entry backed by @intloom/cli",
+  "type": "module",
+  "bin": {
+    "intloom": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@intloom/cli": "0.0.1"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ole3021/intloom.git",
+    "directory": "apps/cli"
+  },
+  "homepage": "https://github.com/ole3021/intloom",
+  "bugs": {
+    "url": "https://github.com/ole3021/intloom/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

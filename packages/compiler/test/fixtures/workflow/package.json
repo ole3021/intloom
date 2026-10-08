@@ -1,0 +1,23 @@
+{
+  "name": "@intloom/compiler-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/workflow.generated.d.ts",
+      "default": "./dist/workflow.generated.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "zod": "^4.6.5",
+    "@intloom/workflow-sdk": "0.0.1"
+  },
+  "intloom": {
+    "type": "workflow",
+    "version": "2026-10-08"
+  }
+}

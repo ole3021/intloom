@@ -1,1 +1,38 @@
-["introduction", "getting-started", "workflow"]
+[
+  {
+    "type": "section-header",
+    "label": "Understand IntLoom"
+  },
+  "introduction",
+  "workflow",
+  "status",
+  {
+    "type": "section-header",
+    "label": "Get started"
+  },
+  "getting-started",
+  {
+    "type": "dir",
+    "name": "quickstart",
+    "label": "Quick start",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "usage",
+    "label": "Using IntLoom",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "development",
+    "label": "Build workflows",
+    "collapsed": true
+  },
+  {
+    "type": "dir",
+    "name": "reference",
+    "label": "Reference",
+    "collapsed": true
+  }
+]

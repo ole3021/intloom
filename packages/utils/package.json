@@ -1,0 +1,46 @@
+{
+  "name": "@intloom/utils",
+  "version": "0.0.1",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "nanoid": "^5.1.6",
+    "pino": "^10.4.0"
+  },
+  "scripts": {
+    "dev": "node --test --watch \"src/**/*.spec.ts\"",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"src/**/*.spec.ts\"",
+    "test:intg": "node --test \"test/**/*.intg.ts\"",
+    "pack": "node ../../scripts/pack-package.ts ."
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ole3021/intloom.git",
+    "directory": "packages/utils"
+  },
+  "homepage": "https://github.com/ole3021/intloom",
+  "bugs": {
+    "url": "https://github.com/ole3021/intloom/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "pino-pretty": "^13.2.0"
+  }
+}

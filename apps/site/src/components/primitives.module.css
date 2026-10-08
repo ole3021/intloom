@@ -1,0 +1,16 @@
+.eyebrow {
+  font: var(--site-type-label);
+  letter-spacing: 0.07em;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-transform: uppercase;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  background: var(--site-color-accent);
+  border-radius: 50%;
+  flex-shrink: 0;
+}

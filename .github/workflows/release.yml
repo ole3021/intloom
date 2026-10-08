@@ -1,0 +1,141 @@
+name: npm release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Packages to prepare (comma-separated names, or all). Rerun failed jobs to reuse an existing release.'
+        required: true
+        default: all
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-release
+  queue: max
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      has-release: ${{ steps.plan.outputs.has-release }}
+    env:
+      RELEASE_REF: ${{ github.ref }}
+      RELEASE_BASE: ${{ github.event.before }}
+      RELEASE_PACKAGES: ${{ inputs.packages }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Select packages with new versions
+        id: plan
+        run: node scripts/plan-release.ts
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        if: steps.plan.outputs.has-release == 'true'
+        with:
+          bun-version-file: package.json
+      - name: Check release notes and selected versions
+        if: steps.plan.outputs.has-release == 'true'
+        run: node scripts/validate-release.ts
+      - name: Validate and pack the reviewed commit
+        if: steps.plan.outputs.has-release == 'true'
+        run: |
+          bun install --frozen-lockfile
+          bun run check
+          bun run test
+          bun run test:intg
+          node scripts/pack-package.ts --selected
+          node scripts/release-manifest.ts --selected
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.plan.outputs.has-release == 'true'
+        with:
+          name: npm-release
+          path: .release/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: prepare
+    if: needs.prepare.outputs.has-release == 'true' && vars.NPM_PUBLISH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RELEASE_REF: ${{ github.ref }}
+      RELEASE_PUBLISH_ENABLED: ${{ vars.NPM_PUBLISH_ENABLED }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@11.21.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: npm-release
+          path: .release/
+      - run: node scripts/publish-release.ts
+
+  verify:
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ['24', '26']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: npm-release
+          path: .release/
+      - run: node scripts/verify-published.ts
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: npm-release
+          path: .release/
+      - name: Record package releases after consumer verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/finalize-release.ts

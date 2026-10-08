@@ -1,0 +1,38 @@
+[
+  {
+    "type": "section-header",
+    "label": "了解 IntLoom"
+  },
+  "introduction",
+  "workflow",
+  "status",
+  {
+    "type": "section-header",
+    "label": "开始使用"
+  },
+  "getting-started",
+  {
+    "type": "dir",
+    "name": "quickstart",
+    "label": "快速开始",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "usage",
+    "label": "使用 IntLoom",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "development",
+    "label": "开发工作流",
+    "collapsed": true
+  },
+  {
+    "type": "dir",
+    "name": "reference",
+    "label": "参考",
+    "collapsed": true
+  }
+]

@@ -1,0 +1,10 @@
+[
+  "cli",
+  "configuration",
+  "workflow-yaml",
+  "sdk",
+  "compiler",
+  "mcp",
+  "project-client",
+  "errors"
+]

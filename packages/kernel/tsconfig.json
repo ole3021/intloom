@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@intloom/kernel": ["./src/index.ts"],
+      "@intloom/kernel/workflow": ["./src/workflow/index.ts"],
+      "@intloom/kernel/storage/file": ["./src/storage/file/open.ts"],
+      "@intloom/kernel/storage/sqlite": ["./src/storage/sqlite/open.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "drizzle.config.ts"]
+}

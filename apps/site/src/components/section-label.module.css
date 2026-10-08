@@ -1,0 +1,33 @@
+.section-label {
+  font: var(--site-type-label);
+  letter-spacing: 0.09em;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 0 0 34px;
+  color: var(--site-color-muted);
+}
+.section-label > span:first-child {
+  white-space: nowrap;
+  flex-shrink: 0;
+  opacity: 1;
+  color: var(--site-color-accent);
+}
+.section-label > span:last-child {
+  margin-left: auto;
+  font-size: var(--site-text-control);
+  color: #727a69;
+}
+
+@media (max-width: 650px) {
+  .section-label {
+    padding-bottom: 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-label {
+    padding-bottom: 28px;
+    gap: 10px;
+  }
+}

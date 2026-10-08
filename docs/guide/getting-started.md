@@ -1,12 +1,36 @@
 ---
-title: 开始使用
-description: intloom 的可用版本与后续使用文档安排。
+title: Getting started
+description: Set up a project and choose the CLI or MCP execution path.
 ---
 
-# 开始使用
+# Getting started
 
-intloom 尚未发布可安装版本，目前没有正式的安装命令或产品 CLI 使用步骤。
+IntLoom runs a local project service. Install the CLI, initialize an empty project, and install a compatible Workflow package before asking the service to execute it.
 
-首个可用版本发布后，本页将提供环境要求、安装方式、项目配置和一次完整运行示例。
+## Choose your path
 
-现在可以先阅读[开发流程](./workflow.md)，或在 [GitHub](https://github.com/ole3021/intloom) 查看项目进展。
+| Path | Agent reasoning happens in | Model setup |
+| --- | --- | --- |
+| [MCP](./quickstart/mcp.md) | Connected IDE or other capable MCP client | No project `llms` required with default `useMcpAgent: true` |
+| [CLI](./quickstart/cli.md) | The project service | Configure `llms.default` and provide credentials before execution |
+
+Start with [Installation and project setup](./quickstart/installation.md). It covers both the source checkout and the release installation path. The CLI does not bundle a business Workflow.
+
+## The first-run sequence
+
+1. Install or build the CLI.
+2. Initialize a new or empty project directory.
+3. Install the Workflow package you want to run.
+4. Choose MCP or CLI and prepare that entry's execution environment.
+5. Start the service, inspect `flows`, and create one Run.
+6. Answer its questions and confirmations using the same Run.
+7. Inspect the outputs the Workflow actually committed.
+
+`start` starts a service. `flow` starts a Workflow Run. A successfully started service can have no installed Workflows, or Workflows that still need model configuration for the selected entry.
+
+## After your first Run
+
+- [Run management](./usage/runs.md): continue, inspect, and cancel work.
+- [Results](./usage/results.md): query and export committed data.
+- [Diagnostics](./usage/diagnostics.md): investigate loading or execution failures.
+- [Create a Workflow](./development/create.md): define a process of your own.

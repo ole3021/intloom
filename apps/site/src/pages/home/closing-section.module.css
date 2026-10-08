@@ -1,0 +1,100 @@
+.eyebrow {
+  composes: eyebrow from "../../components/primitives.module.css";
+}
+.field-end {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px 32px;
+  text-align: left;
+  margin: 0;
+  padding: 42px var(--site-section-inset);
+  background: radial-gradient(
+    ellipse at 100% 100%,
+    color-mix(in srgb, var(--site-color-accent) 3.53%, transparent),
+    transparent 65%
+  );
+  overflow: hidden;
+  padding-block: 20px 24px;
+}
+.field-end > .eyebrow {
+  grid-column: 1;
+  font-size: var(--site-text-label);
+  color: #858e7a;
+}
+.field-end h2 {
+  grid-column: 1;
+  font-size: var(--site-text-section);
+  text-transform: uppercase;
+  font-weight: var(--site-weight-heading);
+  letter-spacing: -0.055em;
+  line-height: var(--site-leading-heading);
+  margin: 0;
+}
+.field-end h2 > span {
+  color: var(--site-color-accent);
+}
+.field-end > div {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+}
+.field-end > div > a {
+  font: var(--site-type-label);
+  font-size: var(--site-text-caption);
+  transition: color 0.25s var(--site-motion-ease);
+  border-bottom: 1px solid #424d38;
+  padding: 10px 0;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.field-end > div > a:first-child {
+  color: var(--site-color-accent);
+}
+.field-end > div > a:hover {
+  border-color: var(--site-color-text);
+  color: var(--site-color-accent);
+}
+.field-end a > span {
+  display: inline-block;
+  transition: transform 0.35s var(--site-motion-ease);
+}
+.field-end a:hover > span {
+  transform: translate(3px, -3px);
+}
+
+@media (max-width: 760px) {
+  .field-end {
+    grid-template-columns: 1fr;
+    padding: 32px var(--site-section-inset);
+    padding-block: 16px 24px;
+  }
+  .field-end > div {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .field-end {
+    padding: 28px 20px;
+    padding-block: 12px 20px;
+  }
+  .field-end h2 {
+    margin-block: 4px;
+  }
+  .field-end > div {
+    gap: 12px;
+  }
+  .field-end > div > a {
+    justify-content: space-between;
+    padding: 10px 0;
+  }
+}

@@ -1,0 +1,46 @@
+stage:
+  name: implementation
+  state:
+    schema: "@schemas/implementation-state"
+    initialize: "@initializers/implementation"
+  entry: init
+  steps:
+    init:
+      type: code
+      code: "@codes/implementation/init"
+      on:
+        complete:
+          target: implement
+    implement:
+      type: agent
+      agent: "@agents/implementation-developer"
+      llm: coding
+      outputSchema: "@schemas/implementation-result"
+      skills: []
+      tools:
+        - "@tools/implementation:readImplementationContext"
+        - "@tools/implementation:submitImplementation"
+        - "@tools/engineering:listProject"
+        - "@tools/engineering:readProject"
+        - "@tools/engineering:writeProject"
+        - "@tools/engineering:removeProject"
+        - "@tools/engineering:runProject"
+      on:
+        ready:
+          target: check
+    check:
+      type: code
+      code: "@codes/implementation/check"
+      on:
+        repair_required:
+          target: implement
+        passed:
+          target: finalize
+    finalize:
+      type: code
+      code: "@codes/implementation/finalize"
+      on:
+        recheck_required:
+          target: check
+        complete:
+          end: true

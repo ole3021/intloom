@@ -1,19 +1,25 @@
 {
-  "name": "@intloom/site",
-  "version": "0.0.0",
+  "name": "intloom-site",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "rspress dev",
     "build": "rspress build",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test scripts/*.spec.ts",
     "ci:check": "wrangler deploy --dry-run",
     "ci:deploy": "wrangler deploy",
-    "ci:preview": "wrangler versions upload"
+    "ci:preview": "wrangler versions upload",
+    "test:intg": "node --test test/*.intg.ts"
   },
   "devDependencies": {
     "@rspress/core": "2.0.21",
+    "@types/react": "19.3.0",
     "wrangler": "4.131.1"
+  },
+  "dependencies": {
+    "motion": "14.0.0",
+    "react": "19.3.0"
   }
 }

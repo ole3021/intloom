@@ -1,0 +1,35 @@
+.coming-soon {
+  display: grid;
+  place-items: center;
+  min-height: calc(100svh - 168px);
+  padding: 90px 24px;
+  text-align: center;
+}
+.coming-soon h1 {
+  font-size: var(--site-text-display);
+  letter-spacing: -0.06em;
+  margin: 28px 0 20px;
+  line-height: 1;
+}
+.coming-soon h1 span {
+  color: var(--site-color-accent);
+}
+.coming-soon p {
+  color: var(--site-color-muted);
+  font-size: var(--site-text-body);
+}
+.coming-soon a {
+  display: inline-flex;
+  gap: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #3a4832;
+  margin-top: 44px;
+  font: var(--site-type-label);
+}
+
+.eyebrow {
+  composes: eyebrow from "../components/primitives.module.css";
+}
+.status-dot {
+  composes: status-dot from "../components/primitives.module.css";
+}

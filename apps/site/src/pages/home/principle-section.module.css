@@ -1,0 +1,50 @@
+.field-principle {
+  composes: section from "../../components/section.module.css";
+}
+.field-statement {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8vw;
+  padding: 12px 0 28px;
+}
+.field-statement h2 {
+  text-align: center;
+  font-size: var(--site-text-section);
+  line-height: 1.14;
+  font-weight: var(--site-weight-heading);
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+.field-statement em {
+  font-style: normal;
+  color: var(--site-color-accent);
+}
+.field-bracket {
+  font-size: 130px;
+  font-weight: 200;
+  color: #283024;
+  line-height: 1;
+}
+.field-principle > p {
+  margin: 0 auto;
+  max-width: 680px;
+  color: var(--site-color-muted);
+  font-size: var(--site-text-lead);
+  text-align: center;
+  line-height: var(--site-leading-body);
+}
+
+@media (max-width: 480px) {
+  .field-statement {
+    gap: 10px;
+    padding: 0 0 25px;
+  }
+  .field-statement h2 {
+    letter-spacing: -0.045em;
+    line-height: 1.25;
+  }
+  .field-bracket {
+    display: none;
+  }
+}

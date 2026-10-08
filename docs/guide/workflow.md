@@ -1,22 +1,62 @@
 ---
-title: 开发流程
-description: intloom 围绕需求、方案与实现组织开发的整体方向。
+title: Core concepts
+description: Projects, Workflows, Runs, stages, execution capabilities, and formal results.
 ---
 
-# 开发流程
+# Core concepts
 
-intloom 的整体方向是将开发工作组织为相互衔接的三个阶段。以下介绍帮助理解项目目标，具体交互与执行规则仍在确认中。
+A project hosts installed Workflows. Calling `flow` selects one by its `flowName` and creates a Run with a new `runId`. The Runtime enters the first Stage, initializes its business State, executes Steps, and follows their outcomes.
 
-## 需求
+```text
+Project service
+  → installed Workflow / Blueprint
+    → Run
+      → Stage → Step → outcome → next Step or Stage
+        → waiting for an Agent task or a human action
+        → completed or failed
+```
 
-从用户意图出发，梳理目标、约束和验收要求，通过必要的澄清与确认建立后续工作的依据。
+## Definitions and executions
 
-## 方案
+| Term | Meaning |
+| --- | --- |
+| Workflow package | Installable ESM package containing executable resources |
+| Blueprint | The compiled topology: entry Stage, Steps, and outcome routes |
+| Stage | A part of the process with its own Schema and initialized State |
+| Step | One Code or Agent execution |
+| Run | One execution with an original intent, identity, status, and cursor |
+| Cursor | The current `{ stageName, stepName }` location |
 
-围绕确认的需求形成设计，说明模块职责、协作关系和实施安排。
+The package name, `flowName`, and `runId` identify different things. Use `workflow list` for installed package declarations, `flows` for loaded Workflows, and `runs` for executions in the current host.
 
-## 实现
+## Code, Agents, and humans
 
-依据需求与方案完成代码变更，并通过实际检查和测试验证结果。
+**Code** performs deterministic operations. It can read and write Stage State, commit formal data, and ask the user questions or request confirmation.
 
-各阶段的最终使用方式会在对应功能发布后补充到文档中。
+**Agents** reason within a Step. Their declared Tools execute in the host, with access to Stage State and read-only formal Storage. The Agent cannot directly commit formal results or use the Code interaction API. It returns an outcome after using its Tools.
+
+**Humans** answer explicit pending actions. A model's final response is not a human confirmation. The host matches answers to the original Run and action.
+
+Every Step returns only `{ outcome: "..." }`. Business values travel through Stage State and committed data, not arbitrary Step result fields. See [Stages and routing](./development/stages.md).
+
+## Three different kinds of data
+
+| Data | Owner and lifetime |
+| --- | --- |
+| Run control state | Runtime-owned status, cursor, and pending action/task |
+| Stage State | Current Stage's Schema-validated business draft; released when leaving the Stage |
+| Artifacts and Records | Explicitly committed formal data that survives service restart |
+
+An Artifact is the current result for a Workflow/Stage, with a revision used for conflict detection. A Record is an immutable stored entry; its ID is chosen by Workflow Code. Do not assume it equals the Run ID. Artifact revision does not provide historical-version lookup.
+
+Recovery checkpoints preserve selected execution boundaries for a later host startup. They are separate from formal Storage and do not make every interrupted operation restartable.
+
+## Execution paths
+
+CLI uses the project's service model configuration. External MCP clients use client Agent tasks when `useMcpAgent: true`, the default; `false` selects the service model path. Transport alone does not select the executor: the CLI also communicates with the host through an internal MCP endpoint.
+
+## Completion and failure
+
+`completed` means the Workflow reached its configured end. A workflow may save a report containing incomplete or failed checks and still complete its own process. Inspect its outputs to decide whether the business goal was met.
+
+A failed or cancelled Run may already have committed data or edited files. Cancellation revokes future execution access; it does not undo previous effects. Read [Results](./usage/results.md) and [Recovery](./usage/recovery.md) before starting replacement work.

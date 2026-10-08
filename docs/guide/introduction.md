@@ -1,20 +1,48 @@
 ---
-title: 认识 intloom
-description: 了解 intloom 的目标、项目状态与文档范围。
+title: About IntLoom
+description: Understand the framework, its public packages, and the path from intent to recorded results.
 ---
 
-# 认识 intloom
+# About IntLoom
 
-intloom 希望将用户的开发意图连接到需求澄清、方案设计和实现验证，帮助开发过程保留清晰的目标与依据。
+IntLoom is a local workflow framework for coordinating agents, code, and human decisions. A project service loads installed Workflow packages, executes their steps, handles questions and confirmations, and stores the results that those workflows commit.
 
-项目以 IntLoom 正在打磨的整体方向和流程为基础，具体行为将随设计确认和实现逐步落地。
+Use it when a task needs an explicit process: reasoning, deterministic checks, human review, and recorded outputs. A Workflow defines that process. The framework runs it; it does not prescribe the business stages every package must contain.
 
-## 当前状态
+## What you work with
 
-intloom 目前处于初始化阶段，尚未发布可供安装使用的正式版本。本网站是项目介绍和用户文档的入口；页面中的流程介绍描述项目方向，具体功能以实际发布版本的使用说明为准。
+- **A project** holds configuration, installed Workflow declarations, source files, and saved results.
+- **A Workflow** describes executable stages and steps. Installing a package makes its registered workflow available to the host.
+- **A Run** is one execution of a Workflow for an original intent. Questions and feedback continue that Run.
+- **Artifacts and Records** are formal results saved by Workflow Code. Their meaning belongs to the package that creates them.
 
-## 阅读路径
+See [Core concepts](./workflow.md) for the execution and data boundaries.
 
-- [开始使用](./getting-started.md)：查看安装与使用说明的当前状态。
-- [开发流程](./workflow.md)：了解需求、方案与实现之间的关系。
-- [GitHub 仓库](https://github.com/ole3021/intloom)：查看源码与开发进展。
+## Choose how to work
+
+| Goal | Start here |
+| --- | --- |
+| Use a connected IDE's reasoning environment | [Run through MCP](./quickstart/mcp.md) |
+| Run from a terminal with a project-configured model | [Run through CLI](./quickstart/cli.md) |
+| Define a process of your own | [Create a Workflow](./development/create.md) |
+| Build a trusted Node.js client | [ProjectClient reference](./reference/project-client.md) |
+
+Both execution paths use the same local service and business Tools. The executor is fixed when the Run is created; changing project configuration does not switch an existing Run to another model environment.
+
+## Public package boundaries
+
+| Package | Purpose |
+| --- | --- |
+| `intloom` | Lightweight command entry, depending on the matching CLI version |
+| `@intloom/cli` | CLI, project service, MCP endpoints, and Node.js ProjectClient |
+| `@intloom/workflow-sdk` | Public Workflow contracts and Agent Tool helpers |
+| `@intloom/compiler` | Build-time Workflow compiler |
+| `@intloom/utils` | Shared logging, errors, and identifiers |
+
+`@intloom/kernel` is private and included with the CLI. Workflow authors depend on the SDK at runtime and the Compiler during development. They do not need a public Kernel installation. Workflow packages are installed separately from the CLI.
+
+## Documentation scope
+
+These pages describe the framework: setup, operation, extension, and reference. Package-specific business manuals and a gallery of complete applications are outside this documentation set. Check [Current capabilities](./status.md) before treating a supported interface as proof of a particular model, client, or deployment environment.
+
+Continue with [Getting started](./getting-started.md).

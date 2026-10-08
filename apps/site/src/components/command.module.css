@@ -1,0 +1,68 @@
+.command-line {
+  position: relative;
+  min-width: 0;
+}
+.command-line button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 17px 18px;
+  border: 1px solid #394a34;
+  background: #0d150eef;
+  color: var(--site-color-text);
+  text-align: left;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+.command-line button:hover {
+  border-color: var(--site-color-accent);
+  background: #142315;
+}
+.command-line code {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: var(--site-type-code);
+  font-size: var(--site-text-control);
+}
+.command-line svg {
+  flex-shrink: 0;
+  color: #8d9f86;
+}
+.command-prompt {
+  color: var(--site-color-accent);
+  align-self: flex-start;
+  font: var(--site-type-code);
+  font-size: var(--site-text-control);
+}
+.command-feedback {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  right: 0;
+  background: var(--site-color-background);
+  color: var(--site-color-accent);
+  font: var(--site-type-note);
+}
+
+@media (max-width: 480px) {
+  .command-line button {
+    padding: 13px;
+  }
+}
+
+.command-line[data-compact="true"] button {
+  padding: 10px 12px;
+  background: #0b100b;
+}
+.command-line[data-compact="true"] code {
+  font: var(--site-type-code);
+}
+@media (max-width: 480px) {
+  .command-line[data-compact="true"] button {
+    gap: 8px;
+    padding-inline: 8px;
+  }
+}

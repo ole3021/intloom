@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { appendFileSync } from "node:fs";
 
+/** @param {string | undefined} branch @param {string} [refType] */
 export function selectDeploymentTarget(branch, refType = "branch") {
   if (
     refType !== "branch" ||
@@ -13,7 +14,7 @@ export function selectDeploymentTarget(branch, refType = "branch") {
   if (branch === "main") return { script: "ci:deploy", alias: "" };
 
   const hash = createHash("sha256").update(branch).digest("hex").slice(0, 10);
-  // 预览别名最多 31 个字符，为 Worker 名称保留 31 个字符。
+  // Preview aliases use at most 31 characters, leaving 31 characters for the Worker name.
   const slug = branch
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-")
@@ -29,7 +30,7 @@ if (import.meta.main) {
     process.env.GITHUB_REF_TYPE ?? "",
   );
 
-  // 发布前检查分支当前提交，拒绝已经落后的任务。
+  // Check the branch's current commit before deployment and reject outdated jobs.
   const response = await fetch(
     `https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/git/ref/heads/${encodeURIComponent(branch)}`,
     {

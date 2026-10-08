@@ -10,8 +10,10 @@
     "exactOptionalPropertyTypes": true,
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
     "noEmitOnError": true,
     "declaration": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "rewriteRelativeImportExtensions": true
   }
 }

@@ -1,0 +1,61 @@
+{
+  "name": "@intloom/cli",
+  "version": "0.0.1",
+  "description": "IntLoom project CLI and local MCP execution host",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "intloom": "./dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./bin": {
+      "types": "./dist/bin.d.ts",
+      "default": "./dist/bin.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@intloom/utils": "0.0.1",
+    "@intloom/kernel": "0.0.1",
+    "@clack/prompts": "1.8.1",
+    "commander": "15.0.0",
+    "picocolors": "1.1.1",
+    "@modelcontextprotocol/server": "2.3.1",
+    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/node": "2.1.1",
+    "yaml": "^2.8.1",
+    "zod": "^4.6.5",
+    "@ai-sdk/anthropic": "3.0.103",
+    "@ai-sdk/provider": "3.0.14",
+    "@mastra/core": "1.67.0",
+    "drizzle-orm": "0.45.3",
+    "better-sqlite3": "13.0.3",
+    "@intloom/workflow-sdk": "0.0.1"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ole3021/intloom.git",
+    "directory": "apps/cli"
+  },
+  "homepage": "https://github.com/ole3021/intloom",
+  "bugs": {
+    "url": "https://github.com/ole3021/intloom/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bundleDependencies": [
+    "@intloom/kernel"
+  ]
+}

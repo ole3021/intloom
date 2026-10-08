@@ -1,0 +1,77 @@
+.status-dot {
+  composes: status-dot from "../../components/primitives.module.css";
+}
+.project-status > a {
+  font: var(--site-type-label);
+  letter-spacing: 0.07em;
+  margin-left: auto;
+  flex-shrink: 0;
+  color: #b4c0a6;
+}
+.project-status {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  border-block: 1px solid var(--site-color-border);
+  padding: 26px 56px;
+  margin: 28px;
+  border: 1px solid var(--site-color-border);
+  background: #11140f;
+  margin-bottom: 10px;
+}
+.project-status p {
+  color: var(--site-color-muted);
+  font-size: var(--site-text-body);
+  max-width: 850px;
+  line-height: var(--site-leading-body);
+}
+.project-status strong {
+  font-weight: var(--site-weight-emphasis);
+  color: var(--site-color-text);
+}
+
+@media (max-width: 650px) {
+  .project-status {
+    padding: 25px 22px;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .project-status .status-dot {
+    margin-top: 6px;
+  }
+  .project-status p {
+    flex: 1;
+    min-width: 0;
+    flex-basis: calc(100% - 30px);
+  }
+  .project-status > a {
+    margin-left: 21px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .project-status {
+    padding: 25px 30px;
+  }
+}
+
+@media (max-width: 760px) {
+  .project-status {
+    margin: 22px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .project-status {
+    margin: 22px 15px;
+    padding: 20px 16px;
+    gap: 12px;
+  }
+  .project-status p {
+    min-width: 0;
+  }
+  .project-status > a {
+    margin-left: 18px;
+  }
+}

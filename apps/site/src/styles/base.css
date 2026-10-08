@@ -1,0 +1,62 @@
+/* biome-ignore-all lint/complexity/noImportantStyles: Motion preferences must override component animation declarations. */
+html {
+  background: var(--site-color-background);
+  scroll-padding-top: 0;
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  margin: 0;
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+::selection {
+  background: var(--site-color-accent);
+  color: var(--site-color-background);
+}
+a,
+button {
+  touch-action: manipulation;
+}
+button,
+input,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+:where(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--site-color-accent);
+  outline-offset: 4px;
+}
+[hidden] {
+  display: none;
+}
+html:has([data-site-frame][data-paused="false"]) {
+  scroll-behavior: smooth;
+}
+html:has([data-site-frame][data-paused="true"]) {
+  scroll-behavior: auto;
+}
+[data-site-frame][data-paused="true"] *,
+[data-site-frame][data-paused="true"] *::before,
+[data-site-frame][data-paused="true"] *::after {
+  animation-play-state: paused !important;
+  transition-duration: 0s !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  [data-site-frame] *,
+  [data-site-frame] *::before,
+  [data-site-frame] *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+}

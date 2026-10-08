@@ -1,0 +1,45 @@
+{
+  "name": "@intloom/workflow-sdk",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Public contracts and stateless capabilities for compiled IntLoom Workflows",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@intloom/utils": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "scripts": {
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"src/**/*.spec.ts\"",
+    "test:intg": "node --test \"test/**/*.intg.ts\"",
+    "pack": "node ../../scripts/pack-package.ts ."
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ole3021/intloom.git",
+    "directory": "packages/workflow-sdk"
+  },
+  "homepage": "https://github.com/ole3021/intloom",
+  "bugs": {
+    "url": "https://github.com/ole3021/intloom/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

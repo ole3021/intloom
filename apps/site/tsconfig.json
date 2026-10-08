@@ -9,7 +9,17 @@
     "declaration": false,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "allowJs": true
   },
-  "include": ["rspress.config.ts", "theme/**/*.ts", "theme/**/*.tsx"]
+  "include": [
+    "rspress.config.ts",
+    "theme/**/*.ts",
+    "theme/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "scripts/**/*.ts",
+    "test/**/*.ts",
+    "scripts/**/*.mjs"
+  ]
 }
