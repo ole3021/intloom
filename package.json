@@ -14,16 +14,18 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "pack": "turbo run pack",
     "typecheck": "turbo run typecheck",
+    "check": "biome check . && turbo run typecheck",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "check": "biome check . && turbo run typecheck",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "test:intg": "turbo run test:intg"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
     "@dotenvx/dotenvx": "2.24.1",
-    "@types/node": "^26",
+    "@types/node": "^24",
     "turbo": "^2.11.2",
     "typescript": "7.0.2"
   }

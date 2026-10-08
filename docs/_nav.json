@@ -1,7 +1,17 @@
 [
   {
-    "text": "使用文档",
+    "text": "Docs",
     "link": "/guide/introduction",
     "activeMatch": "^/guide/"
+  },
+  {
+    "text": "Workflows",
+    "link": "/workflows",
+    "activeMatch": "^/workflows/?$"
+  },
+  {
+    "text": "Examples",
+    "link": "/examples",
+    "activeMatch": "^/examples/?$"
   }
 ]

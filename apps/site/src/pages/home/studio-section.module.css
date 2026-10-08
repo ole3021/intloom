@@ -1,0 +1,114 @@
+.field-studio {
+  composes: section from "../../components/section.module.css";
+}
+.status-dot {
+  composes: status-dot from "../../components/primitives.module.css";
+}
+.eyebrow {
+  composes: eyebrow from "../../components/primitives.module.css";
+}
+.field-studio {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5vw;
+  align-items: center;
+}
+.field-studio h2 {
+  font-size: var(--site-text-section);
+  line-height: 1.07;
+  text-transform: uppercase;
+  font-weight: var(--site-weight-heading);
+  letter-spacing: -0.05em;
+  margin: 16px 0 28px;
+}
+.field-studio h2 > span {
+  color: var(--site-color-accent);
+}
+.field-studio > div > p {
+  font-size: var(--site-text-body);
+  color: var(--site-color-muted);
+  line-height: var(--site-leading-body);
+  max-width: 440px;
+}
+.studio-status {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 28px;
+  color: #99ad8d;
+  font: var(--site-type-label);
+}
+.studio-preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 34px;
+  min-height: 290px;
+  padding: 24px 16px;
+  text-align: center;
+  overflow: hidden;
+  border: 1px dashed #36422f;
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in srgb, var(--site-color-accent) 4.31%, transparent),
+    transparent 65%
+  );
+}
+.studio-preview > .eyebrow {
+  font-size: var(--site-text-label);
+  color: #7e8c74;
+}
+.studio-preview .loom-mark {
+  width: 100px;
+  opacity: 0.5;
+}
+.studio-signal {
+  position: absolute;
+  width: 100%;
+  height: 1px;
+  top: 50%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--site-color-accent) 50.20%, transparent),
+    transparent
+  );
+  animation: studio-signal 6s ease-in-out infinite;
+}
+@keyframes studio-signal {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scaleX(0.45);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scaleX(1);
+  }
+}
+
+@media (max-width: 1100px) {
+  .field-studio {
+    gap: 30px;
+  }
+}
+
+@media (max-width: 760px) {
+  .field-studio {
+    grid-template-columns: 1fr;
+  }
+  .field-studio > div > p {
+    max-width: 420px;
+  }
+}
+
+@media (max-width: 480px) {
+  .field-studio h2 {
+    margin: 0 0 24px;
+  }
+  .studio-preview {
+    min-height: 220px;
+  }
+}

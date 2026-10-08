@@ -1,0 +1,25 @@
+stage:
+  name: first
+  state:
+    schema: "@schemas/state"
+    initialize: "@initializers/state"
+  entry: run
+  steps:
+    run:
+      type: code
+      code: "@codes/run"
+      on:
+        complete:
+          target: review
+    review:
+      type: agent
+      agent: "@agents/reviewer"
+      llm: reasoning
+      outputSchema: "@schemas/result"
+      skills: ["@skills/review"]
+      tools: ["@tools/echo:echoTool"]
+      on:
+        retry:
+          target: run
+        complete:
+          end: true

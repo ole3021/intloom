@@ -1,0 +1,245 @@
+.status-dot {
+  composes: status-dot from "../../components/primitives.module.css";
+}
+.eyebrow {
+  composes: eyebrow from "../../components/primitives.module.css";
+}
+.hero-instrument-label {
+  letter-spacing: 0.05em;
+  font: var(--site-type-label);
+  color: #828b79;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 3px;
+}
+.field-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 735px;
+  height: calc(100svh - 175px);
+  max-height: 900px;
+  border-bottom: 1px solid var(--site-color-border);
+  background: linear-gradient(
+    90deg,
+    transparent calc(50% - 0.5px),
+    #ffffff05 50%,
+    transparent calc(50% + 0.5px)
+  );
+}
+.field-hero::before {
+  content: "+";
+  position: absolute;
+  color: #82897c;
+  font: var(--site-type-label);
+  top: -10px;
+  z-index: 2;
+  left: -4px;
+}
+.field-hero::after {
+  content: "+";
+  position: absolute;
+  color: #82897c;
+  font: var(--site-type-label);
+  top: -10px;
+  z-index: 2;
+  right: -4px;
+}
+.field-hero-top {
+  display: flex;
+  justify-content: space-between;
+  padding: 21px 28px 0;
+}
+.field-hero-top > .eyebrow {
+  color: #788071;
+  font-size: var(--site-text-label);
+}
+.field-hero-heading {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding-top: 28px;
+  pointer-events: none;
+}
+.field-heading-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #a0a79a;
+  font: var(--site-type-label);
+  letter-spacing: 0.1em;
+}
+.pixel-sigil {
+  display: block;
+  width: 8px;
+  height: 8px;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--site-color-accent) 0 1px,
+    transparent 1px 3px
+  );
+}
+.field-hero h1 {
+  font-size: var(--site-text-display);
+  line-height: 1.02;
+  font-weight: var(--site-weight-heading);
+  text-transform: uppercase;
+  letter-spacing: -0.065em;
+  margin: 20px 0;
+}
+.field-hero h1 em {
+  color: var(--site-color-accent);
+  font-style: normal;
+}
+.field-hero-description {
+  font: var(--site-type-note);
+  font-size: var(--site-text-body);
+  text-transform: uppercase;
+  color: var(--site-color-muted);
+  letter-spacing: 0.01em;
+}
+.field-visual {
+  position: absolute;
+  inset: 0 -2%;
+  overflow: hidden;
+}
+.field-visual::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    var(--site-color-background) 5%,
+    color-mix(in srgb, var(--site-color-background) 75%, transparent) 20%,
+    transparent 44%,
+    transparent 80%,
+    var(--site-color-background)
+  );
+}
+.field-visual canvas {
+  position: absolute;
+  inset: 0;
+}
+.field-axis {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.5;
+}
+.axis-x {
+  top: 55%;
+  width: 100%;
+  border-top: 1px dashed #72816a35;
+}
+.axis-y {
+  left: 50%;
+  height: 100%;
+  border-left: 1px dashed #72816a35;
+}
+.field-hero-bottom {
+  position: relative;
+  z-index: 3;
+  margin-top: auto;
+  padding: 0 27px 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: end;
+  gap: 25px;
+}
+.hero-instrument-label i {
+  width: 5px;
+  height: 5px;
+  background: var(--site-color-accent);
+}
+.hero-instrument-hint {
+  justify-self: end;
+}
+.hero-instrument-hint > span {
+  color: var(--site-color-accent);
+  font-size: var(--site-text-lead);
+}
+.hero-command {
+  position: relative;
+  pointer-events: auto;
+  width: min(100%, 380px);
+  margin: 26px auto 0;
+}
+.hero-command > p {
+  font: var(--site-type-note);
+  margin-top: 15px;
+  color: var(--site-color-muted);
+}
+.hero-command > a {
+  font: var(--site-type-note);
+  display: inline-flex;
+  gap: 12px;
+  color: var(--site-color-accent);
+  margin-top: 7px;
+}
+
+@media (min-width: 1700px) {
+  .field-hero-heading {
+    padding-top: 48px;
+  }
+  .field-hero {
+    min-height: 820px;
+  }
+}
+
+@media (max-width: 760px) {
+  .field-hero {
+    min-height: 700px;
+    height: auto;
+  }
+  .field-hero-heading {
+    padding-top: 50px;
+  }
+  .field-hero-top {
+    padding-inline: 20px;
+  }
+  .field-hero-bottom {
+    grid-template-columns: 1fr;
+    padding-inline: 20px;
+  }
+  .hero-instrument-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .field-hero {
+    min-height: 720px;
+  }
+  .field-hero-top {
+    padding: 17px 16px 0;
+  }
+  .field-hero-top > .eyebrow {
+    gap: 6px;
+  }
+  .field-hero-heading {
+    padding: 44px 8px 0;
+  }
+  .field-heading-label {
+    gap: 7px;
+  }
+  .field-hero h1 {
+    margin: 20px 0 18px;
+    line-height: 1.07;
+    letter-spacing: -0.055em;
+  }
+  .field-hero-description {
+    line-height: 1.9;
+  }
+  .field-hero-bottom {
+    padding: 0 16px 18px;
+    gap: 16px;
+  }
+  .hero-instrument-label {
+    max-width: none;
+    line-height: 1.7;
+    gap: 7px;
+  }
+  .hero-command {
+    max-width: 270px;
+  }
+}

@@ -5,10 +5,13 @@ const origin = new URL(process.env.SITE_URL);
 const checks = [
   ["/", 200],
   ["/guide/introduction", 200],
+  ["/zh/guide/introduction", 200],
+  ["/workflows", 200],
+  ["/examples", 200],
   ["/__intloom_missing_page__", 404],
 ];
 
-// 允许边缘部署短暂传播；检查失败仍使发布任务明确失败。
+// Allow brief edge propagation; failed verification still fails the deployment job explicitly.
 for (const [path, status] of checks) {
   let passed = false;
   for (let attempt = 0; attempt < 3; attempt += 1) {

@@ -1,0 +1,53 @@
+{
+  "name": "@intloom/workflow-intent",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/workflow.generated.d.ts",
+      "default": "./dist/workflow.generated.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@intloom/compiler": "workspace:*",
+    "@intloom/kernel": "workspace:*"
+  },
+  "dependencies": {
+    "zod": "^4.6.5",
+    "@intloom/utils": "workspace:*",
+    "@intloom/workflow-sdk": "workspace:*"
+  },
+  "scripts": {
+    "dev": "node --test --watch \"codes/**/*.spec.ts\" \"schemas/**/*.spec.ts\" \"src/**/*.spec.ts\" \"tools/**/*.spec.ts\"",
+    "build": "node build.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"codes/**/*.spec.ts\" \"schemas/**/*.spec.ts\" \"build/**/*.spec.ts\" \"src/**/*.spec.ts\" \"tools/**/*.spec.ts\"",
+    "test:intg": "node --test \"test/**/*.intg.ts\"",
+    "pack": "node ../../scripts/pack-package.ts dist"
+  },
+  "intloom": {
+    "type": "workflow",
+    "version": "2026-10-08"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ole3021/intloom.git",
+    "directory": "packages/intent"
+  },
+  "homepage": "https://github.com/ole3021/intloom",
+  "bugs": {
+    "url": "https://github.com/ole3021/intloom/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

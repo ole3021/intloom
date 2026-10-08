@@ -1,0 +1,11 @@
+{
+  "navDocs": { "en": "Docs", "zh": "文档" },
+  "navWorkflows": { "en": "Workflows", "zh": "工作流" },
+  "navExamples": { "en": "Examples", "zh": "示例" },
+  "siteHome": { "en": "IntLoom home", "zh": "IntLoom 首页" },
+  "siteNavigation": { "en": "Main navigation", "zh": "主导航" },
+  "siteGithub": { "en": "GitHub repository", "zh": "GitHub 仓库" },
+  "siteSkip": { "en": "Skip to content", "zh": "跳到正文" },
+  "siteMotion": { "en": "Motion", "zh": "动效" },
+  "sitePauseMotion": { "en": "Pause motion", "zh": "暂停动效" }
+}

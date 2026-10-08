@@ -2,21 +2,28 @@ node_modules/
 dist/
 .turbo/
 coverage/
+.intloom/
 *.tsbuildinfo
 .env
 .env.*
 !.env.example
 .DS_Store
 
-# Cloudflare 本地状态与临时产物
+# Cloudflare local state and temporary artifacts
 .wrangler/
 .rspress/
 .dev.vars
 .dev.vars.*
 
-# dotenvx：仅允许加密文件入库，私钥始终忽略
+# dotenvx: commit only encrypted files; always ignore private keys
 !.env.encrypted
 .env.keys
 .env.keys.*
 
 backup/
+
+# Prepared npm delivery and verified release archives
+.release/
+
+# Local-only first npm publication entry
+/scripts/bootstrap-release.local.ts

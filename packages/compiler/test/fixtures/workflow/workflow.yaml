@@ -1,0 +1,14 @@
+workflow:
+  name: compiler_fixture
+  entry: first
+  stages:
+    first:
+      stage: "@stages/first"
+      on:
+        complete:
+          target: second
+    second:
+      stage: "@stages/second"
+      on:
+        complete:
+          end: true

@@ -1,6 +1,6 @@
 {
   "$schema": "https://v2-11-2.turborepo.dev/schema.json",
-  "globalDependencies": ["tsconfig.base.json"],
+  "globalDependencies": ["tsconfig.base.json", "LICENSE"],
   "tasks": {
     "dev": {
       "dependsOn": ["^build"],
@@ -19,10 +19,74 @@
       "dependsOn": ["build"],
       "outputs": []
     },
-    "@intloom/site#build": {
+    "intloom-site#build": {
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/**"],
       "outputs": ["dist/**"],
       "env": ["SITE_CHANNEL"]
+    },
+    "@intloom/utils#test": {
+      "dependsOn": [],
+      "outputs": []
+    },
+    "@intloom/workflow-intent#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@intloom/cli#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test:intg": {
+      "dependsOn": ["build"],
+      "outputs": [],
+      "cache": false
+    },
+    "@intloom/compiler#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@intloom/cli#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".publish/**", ".publish-intloom/**"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/publication.ts"]
+    },
+    "@intloom/workflow-sdk#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "pack": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "outputs": []
+    },
+    "@intloom/workflow-intent#test:intg": {
+      "dependsOn": ["build", "@intloom/cli#build"],
+      "cache": false,
+      "outputs": []
+    },
+    "intloom-site#test": {
+      "dependsOn": [],
+      "outputs": []
+    },
+    "intloom-site#test:intg": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "env": ["SITE_CHANNEL"]
+    },
+    "@intloom/cli#typecheck": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/publication.ts"]
     }
-  }
+  },
+  "globalPassThroughEnv": [
+    "GITHUB_ACTIONS",
+    "GITHUB_EVENT_NAME",
+    "GITHUB_SHA",
+    "GITHUB_REF",
+    "GITHUB_REPOSITORY",
+    "GITHUB_OUTPUT",
+    "RELEASE_REF",
+    "RELEASE_BASE",
+    "RELEASE_PACKAGES",
+    "RELEASE_PUBLISH_ENABLED"
+  ]
 }

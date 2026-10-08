@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": [
+    "src/**/*.ts",
+    "codes/**/*.ts",
+    "initializers/**/*.ts",
+    "schemas/**/*.ts",
+    "tools/**/*.ts"
+  ],
+  "exclude": ["**/*.spec.ts", "**/*.intg.ts", "test"]
+}

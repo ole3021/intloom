@@ -1,0 +1,13 @@
+stage:
+  name: second
+  state:
+    schema: "@schemas/state"
+    initialize: "@initializers/state"
+  entry: run
+  steps:
+    run:
+      type: code
+      code: "@codes/run:default"
+      on:
+        complete:
+          end: true

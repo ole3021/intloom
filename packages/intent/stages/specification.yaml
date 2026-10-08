@@ -1,0 +1,60 @@
+stage:
+  name: specification
+  state:
+    schema: "@schemas/specification-state"
+    initialize: "@initializers/specification"
+  entry: init
+  steps:
+    init:
+      type: code
+      code: "@codes/specification/init"
+      on:
+        complete:
+          target: analyze
+    analyze:
+      type: agent
+      agent: "@agents/intent-analyst"
+      llm: reasoning
+      outputSchema: "@schemas/specification-analysis-result"
+      skills:
+        - "@skills/specification-analysis"
+        - "@skills/specification-clarification"
+        - "@skills/specification-review"
+      tools:
+        - "@tools/specification:readSpecification"
+        - "@tools/specification:submitSpecification"
+      on:
+        clarification_required:
+          target: clarify
+        ready:
+          target: check
+    check:
+      type: code
+      code: "@codes/specification/check"
+      on:
+        clarification_required:
+          target: clarify
+        repair_required:
+          target: analyze
+        ready:
+          target: confirm
+    clarify:
+      type: code
+      code: "@codes/specification/clarify"
+      on:
+        complete:
+          target: analyze
+    confirm:
+      type: code
+      code: "@codes/specification/confirm"
+      on:
+        feedback:
+          target: analyze
+        confirmed:
+          target: finalize
+    finalize:
+      type: code
+      code: "@codes/specification/finalize"
+      on:
+        complete:
+          end: true

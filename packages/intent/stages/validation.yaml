@@ -1,0 +1,39 @@
+stage:
+  name: validation
+  state:
+    schema: "@schemas/validation-state"
+    initialize: "@initializers/validation"
+  entry: init
+  steps:
+    init:
+      type: code
+      code: "@codes/validation/init"
+      on:
+        complete:
+          target: validate
+    validate:
+      type: agent
+      agent: "@agents/validation-analyst"
+      llm: review
+      outputSchema: "@schemas/validation-result"
+      skills: []
+      tools:
+        - "@tools/validation:readValidationContext"
+        - "@tools/validation:submitValidation"
+        - "@tools/engineering:listProject"
+        - "@tools/engineering:readProject"
+      on:
+        ready:
+          target: check
+    check:
+      type: code
+      code: "@codes/validation/check"
+      on:
+        valid:
+          target: finalize
+    finalize:
+      type: code
+      code: "@codes/validation/finalize"
+      on:
+        complete:
+          end: true

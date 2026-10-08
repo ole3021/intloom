@@ -1,0 +1,59 @@
+stage:
+  name: solution
+  state:
+    schema: "@schemas/solution-state"
+    initialize: "@initializers/solution"
+  entry: init
+  steps:
+    init:
+      type: code
+      code: "@codes/solution/init"
+      on:
+        complete:
+          target: design
+    design:
+      type: agent
+      agent: "@agents/solution-designer"
+      llm: reasoning
+      outputSchema: "@schemas/solution-result"
+      skills: []
+      tools:
+        - "@tools/solution:readSolutionContext"
+        - "@tools/solution:submitSolution"
+        - "@tools/engineering:listProject"
+        - "@tools/engineering:readProject"
+      on:
+        ready:
+          target: check
+        clarification_required:
+          target: clarify
+    clarify:
+      type: code
+      code: "@codes/solution/clarify"
+      on:
+        complete:
+          target: design
+    check:
+      type: code
+      code: "@codes/solution/check"
+      on:
+        repair_required:
+          target: design
+        clarification_required:
+          target: clarify
+        ready:
+          target: confirm
+    confirm:
+      type: code
+      code: "@codes/solution/confirm"
+      on:
+        feedback:
+          target: design
+        confirmed:
+          target: finalize
+    finalize:
+      type: code
+      code: "@codes/solution/finalize"
+      on:
+        complete:
+          end: true

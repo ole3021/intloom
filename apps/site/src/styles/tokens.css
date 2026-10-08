@@ -1,0 +1,72 @@
+:root {
+  --site-color-background: #0b0d0c;
+  --site-color-surface: #101510;
+  --site-color-surface-raised: #182018;
+  --site-color-text: #f7f7fb;
+  --site-color-muted: #a2aca0;
+  --site-color-border: #2b302c;
+  --site-color-accent: #0ec614;
+  --site-color-accent-light: #42d646;
+  --site-font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --site-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --site-text-display: clamp(2.5rem, 6vw, 6rem);
+  --site-text-section: clamp(1.75rem, 3.6vw, 3.5rem);
+  --site-text-title: clamp(1.625rem, 2.5vw, 2.125rem);
+  --site-text-lead: clamp(1.125rem, 1.5vw, 1.25rem);
+  --site-text-body: clamp(1rem, 1.3vw, 1.125rem);
+  --site-text-control: 1rem;
+  --site-text-note: 0.875rem;
+  --site-text-label: 0.8125rem;
+  --site-text-caption: 0.75rem;
+  --site-text-nav: var(--site-text-label);
+  --site-weight-normal: 400;
+  --site-weight-heading: 500;
+  --site-weight-emphasis: 600;
+  --site-weight-strong: 700;
+  --site-leading-body: 1.75;
+  --site-leading-heading: 1.12;
+  --site-type-label:
+    var(--site-weight-emphasis) var(--site-text-label) / 1.5
+    var(--site-font-mono);
+  --site-type-note:
+    var(--site-weight-normal) var(--site-text-note) / 1.7 var(--site-font-mono);
+  --site-type-code:
+    var(--site-weight-normal) var(--site-text-note) / 1.75 var(--site-font-mono);
+  --site-header-height: 84px;
+  --site-rail-width: 28px;
+  --site-section-inset: 58px;
+  --site-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: dark;
+}
+@media (min-width: 1700px) {
+  :root {
+    --site-rail-width: 40px;
+    --site-section-inset: 75px;
+  }
+}
+@media (max-width: 1100px) {
+  :root {
+    --site-rail-width: 20px;
+    --site-section-inset: 30px;
+  }
+}
+@media (max-width: 760px) {
+  :root {
+    --site-text-display: clamp(2rem, 7.5vw, 3.5rem);
+    --site-text-control: 0.9375rem;
+    --site-text-note: 0.8125rem;
+    --site-text-label: 0.75rem;
+    --site-text-caption: 0.6875rem;
+    --site-rail-width: 12px;
+    --site-section-inset: 24px;
+  }
+}
+@media (max-width: 480px) {
+  :root {
+    --site-text-display: clamp(1.75rem, 9.5vw, 2.875rem);
+    --site-text-nav: 0.6875rem;
+    --site-rail-width: 7px;
+    --site-section-inset: 16px;
+    --site-header-height: 72px;
+  }
+}
