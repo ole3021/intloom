@@ -4,19 +4,13 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
-import { registryVersion } from "./registry.ts";
+import { verifyPublishedEntries } from "./registry.ts";
 import { readReleaseManifest } from "./release-files.ts";
 
 const release = await readReleaseManifest();
 if (process.env.GITHUB_SHA && release.commit !== process.env.GITHUB_SHA)
   throw new Error("Release commit mismatch.");
-for (const entry of release.entries) {
-  if (
-    (await registryVersion(entry.name, entry.version))?.integrity !==
-    entry.integrity
-  )
-    throw new Error(`Registry integrity mismatch: ${entry.name}`);
-}
+await verifyPublishedEntries(release.entries);
 const temporary = await mkdtemp(resolve(tmpdir(), "intloom-published-"));
 const run = promisify(execFile);
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
