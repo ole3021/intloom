@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Retry npm publication visibility before consumer verification, and distinguish unavailable versions from actual archive integrity conflicts.
 - Reserve CLI start/stop for service lifecycle and use flow, cancelRun, and cancelAllRuns for Kernel/Runtime execution.
 - Standardize RunView.cursor across CLI/MCP, query and answer names, and Workflow initialization diagnostic types.
 - Deprecate Query and SnapshotCategory in favor of StorageQuery and StorageCategory; retain compatibility aliases.
