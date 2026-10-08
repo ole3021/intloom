@@ -33,7 +33,7 @@
       "outputs": []
     },
     "@intloom/cli#test": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build"],
       "outputs": []
     },
     "test:intg": {
@@ -77,6 +77,10 @@
       "dependsOn": ["^build"],
       "outputs": [],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/publication.ts"]
+    },
+    "@intloom/workflow-intent#typecheck": {
+      "dependsOn": ["^build", "build"],
+      "outputs": []
     }
   },
   "globalPassThroughEnv": [

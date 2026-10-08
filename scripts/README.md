@@ -46,6 +46,6 @@ CLI-specific distribution preparation lives in `apps/cli/build/prepare-package.t
 
 ## Checks
 
-Root `check` retains repository-wide Biome validation. These scripts have no dedicated TypeScript configuration or test suite. Release-time plan, archive, registry, and consumer validation remain in their command entry points.
+Root `check` runs repository-wide Biome validation, `task-graph.spec.ts`, and workspace type checks. The task-graph tests inspect Turbo's resolved build, typecheck, unit-test, integration-test, and pack graphs: workspace dependencies must build first, generated self-import declarations must exist before type checking, CLI unit tests must build the public entry used by their shared fixture, and cached builds must restore their outputs. Integration tests and packing must wait for their own builds and always run. These scripts have no dedicated TypeScript configuration; release-time plan, archive, registry, and consumer validation remain in their command entry points.
 
 Local validation does not establish a successful remote publication or OIDC authentication.
