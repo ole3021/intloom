@@ -1,6 +1,6 @@
 {
   "name": "@intloom/cli",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "IntLoom project CLI and local MCP execution host",
   "type": "module",
   "engines": {

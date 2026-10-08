@@ -35,6 +35,12 @@ async function prepareCliPackage(root: string): Promise<void> {
     dependencies[name] = range;
   }
   manifest.dependencies = dependencies;
+  // Kernel is embedded rather than independently installed. Its runtime
+  // dependencies are installed by the CLI, so leaving them here makes npm
+  // treat them as missing bundled subtrees during a global install.
+  delete kernel.dependencies;
+  delete kernel.peerDependencies;
+  delete kernel.optionalDependencies;
   const bundled = resolve(destination, "node_modules/@intloom/kernel");
   await mkdir(bundled, { recursive: true });
   for (const file of ["dist", "migrations", "README.md", "LICENSE"])

@@ -42,6 +42,11 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
       stdout.trim(),
     );
   }
+  function archiveFor(name: string): string {
+    const archive = packages[name];
+    assert.ok(archive, `Missing archive for ${name}`);
+    return archive;
+  }
   for (const launcher of ["@intloom/cli", "intloom"])
     await t.test(launcher, async () => {
       const project = join(
@@ -53,7 +58,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
         join(project, "package.json"),
         JSON.stringify({
           type: "module",
-          dependencies: { [launcher]: `file:${packages[launcher]}` },
+          dependencies: { [launcher]: `file:${archiveFor(launcher)}` },
           overrides: Object.fromEntries(
             Object.entries(packages).map(([name, file]) => [
               name,
@@ -100,15 +105,14 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
           "node_modules/@intloom/kernel/migrations/storage-sqlite/meta/_journal.json",
         ),
       );
-      assert.deepEqual(
-        JSON.parse(
-          await readFile(
-            join(installed, "node_modules/@intloom/kernel/package.json"),
-            "utf8",
-          ),
-        ).private,
-        true,
+      const embeddedKernel = JSON.parse(
+        await readFile(
+          join(installed, "node_modules/@intloom/kernel/package.json"),
+          "utf8",
+        ),
       );
+      assert.equal(embeddedKernel.private, true);
+      assert.equal(embeddedKernel.dependencies, undefined);
       assert.equal(
         files.some((file) =>
           /(?:\.spec\.|\.intg\.|^test\/|^src\/)/u.test(file),
@@ -121,9 +125,26 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
       const kernelManifest = JSON.parse(
         await readFile(resolve(root, "packages/kernel/package.json"), "utf8"),
       );
+      const utilsManifest = JSON.parse(
+        await readFile(resolve(root, "packages/utils/package.json"), "utf8"),
+      );
+      const workflowSdkManifest = JSON.parse(
+        await readFile(
+          resolve(root, "packages/workflow-sdk/package.json"),
+          "utf8",
+        ),
+      );
       assert.equal(
         manifest.dependencies["@intloom/kernel"],
         kernelManifest.version,
+      );
+      assert.equal(
+        manifest.dependencies["@intloom/utils"],
+        utilsManifest.version,
+      );
+      assert.equal(
+        manifest.dependencies["@intloom/workflow-sdk"],
+        workflowSdkManifest.version,
       );
       assert.deepEqual(manifest.bundleDependencies, ["@intloom/kernel"]);
       assert.match(
@@ -203,5 +224,28 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
         ).status,
         "attention",
       );
+      const prefix = join(project, "global");
+      await run(
+        "npm",
+        [
+          "install",
+          "--global",
+          "--prefix",
+          prefix,
+          "--no-audit",
+          "--no-fund",
+          archiveFor(launcher),
+          archiveFor("@intloom/cli"),
+          archiveFor("@intloom/utils"),
+          archiveFor("@intloom/workflow-sdk"),
+        ],
+        { cwd: project, timeout: 90_000, maxBuffer: 1024 * 1024 },
+      );
+      const bin =
+        process.platform === "win32"
+          ? join(prefix, "intloom.cmd")
+          : join(prefix, "bin/intloom");
+      const globalVersion = await run(bin, ["--version"], { cwd: project });
+      assert.equal(globalVersion.stdout.trim(), manifest.version);
     });
 });
