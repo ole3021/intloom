@@ -6,6 +6,11 @@
 - Standardize RunView.cursor across CLI/MCP, query and answer names, and Workflow initialization diagnostic types.
 - Deprecate Query and SnapshotCategory in favor of StorageQuery and StorageCategory; retain compatibility aliases.
 
+## @intloom/cli@0.0.2
+
+- Fix global installation of `@intloom/cli` and `intloom` by letting the CLI install the private Kernel's external runtime dependencies.
+- Verify both global CLI entries from local release archives before publication.
+
 ## @intloom/cli@0.0.1
 
 - Deliver the Node CLI, project host, and local MCP service with the private Kernel, declarations, and SQLite migrations.
