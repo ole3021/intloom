@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
-import { verifyPublishedEntries } from "./registry.ts";
+import { retryPublishedInstall, verifyPublishedEntries } from "./registry.ts";
 import { readReleaseManifest } from "./release-files.ts";
 
 const release = await readReleaseManifest();
@@ -32,11 +32,23 @@ try {
       resolve(project, "package.json"),
       JSON.stringify({ type: "module", dependencies }),
     );
-    await run(npm, ["install", "--engine-strict", "--no-audit", "--no-fund"], {
-      cwd: project,
-      timeout: 180_000,
-      maxBuffer: 1024 * 1024,
-    });
+    await retryPublishedInstall(release.entries, () =>
+      run(
+        npm,
+        [
+          "install",
+          "--prefer-online",
+          "--engine-strict",
+          "--no-audit",
+          "--no-fund",
+        ],
+        {
+          cwd: project,
+          timeout: 180_000,
+          maxBuffer: 1024 * 1024,
+        },
+      ),
+    );
     await writeFile(
       resolve(project, "consumer.mjs"),
       `
@@ -65,19 +77,22 @@ for (const [specifier, options] of [["file",{directory:resolve("file-store")}],[
     });
     // Isolated global prefixes exercise each advertised install command without changing the user's global bin.
     const prefix = resolve(project, "global");
-    await run(
-      npm,
-      [
-        "install",
-        "--global",
-        "--prefix",
-        prefix,
-        "--engine-strict",
-        `${launcher}@${release.versions[launcher]}`,
-        "--no-audit",
-        "--no-fund",
-      ],
-      { cwd: project, timeout: 180_000, maxBuffer: 1024 * 1024 },
+    await retryPublishedInstall(release.entries, () =>
+      run(
+        npm,
+        [
+          "install",
+          "--global",
+          "--prefix",
+          prefix,
+          "--prefer-online",
+          "--engine-strict",
+          `${launcher}@${release.versions[launcher]}`,
+          "--no-audit",
+          "--no-fund",
+        ],
+        { cwd: project, timeout: 180_000, maxBuffer: 1024 * 1024 },
+      ),
     );
     const bin =
       process.platform === "win32"
