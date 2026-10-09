@@ -49,7 +49,7 @@ test("installs public Compiler/SDK archives and compiles a Workflow without Kern
     packages["@intloom/workflow-sdk"];
   manifest.devDependencies = {
     "@intloom/compiler": packages["@intloom/compiler"],
-    "@types/node": "^24",
+    "@types/node": "^22",
   };
   manifest.overrides = Object.fromEntries(
     Object.entries(packages).map(([name, file]) => [name, `file:${file}`]),

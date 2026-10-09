@@ -32,7 +32,7 @@ try {
       resolve(project, "package.json"),
       JSON.stringify({ type: "module", dependencies }),
     );
-    await run(npm, ["install", "--no-audit", "--no-fund"], {
+    await run(npm, ["install", "--engine-strict", "--no-audit", "--no-fund"], {
       cwd: project,
       timeout: 180_000,
       maxBuffer: 1024 * 1024,
@@ -72,6 +72,7 @@ for (const [specifier, options] of [["file",{directory:resolve("file-store")}],[
         "--global",
         "--prefix",
         prefix,
+        "--engine-strict",
         `${launcher}@${release.versions[launcher]}`,
         "--no-audit",
         "--no-fund",

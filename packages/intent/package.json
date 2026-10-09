@@ -1,6 +1,6 @@
 {
   "name": "@intloom/workflow-intent",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "exports": {
@@ -45,7 +45,7 @@
     "url": "https://github.com/ole3021/intloom/issues"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22.22.0"
   },
   "publishConfig": {
     "access": "public"

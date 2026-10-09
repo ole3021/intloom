@@ -4,7 +4,7 @@ The software-development Workflow for IntLoom. It carries one intent through Spe
 
 ## Usage
 
-Requires Node.js 24+, the IntLoom CLI, and an initialized project. See [installation and project setup](https://github.com/ole3021/intloom/blob/main/docs/guide/quickstart/installation.md) for source builds and published-release prerequisites.
+Requires Node.js 22.22.0+, the IntLoom CLI, and an initialized project. Repository development uses Node.js 24+ and Bun. See [installation and project setup](https://github.com/ole3021/intloom/blob/main/docs/guide/quickstart/installation.md) for source builds and published-release prerequisites.
 
 From the project directory, with its service stopped, install a compiled Intent archive and start the host:
 

@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="zh-CN" data-button-effect="surface">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="IntLoom 深色网站设计基准：颜色、字体、尺寸、组件与首页及文档布局。独立设计文件，不代表生产网站已同步。">
+  <title>IntLoom / Website Design Baseline V1.1</title>
+  <style id="design-tokens">
+    :root {
+      color-scheme: dark;
+      --site-color-background: #060606;
+      --site-color-surface: #101010;
+      --site-color-surface-raised: #191919;
+      --site-color-text: #F1F1F1;
+      --site-color-auxiliary: #D0D0D0;
+      --site-color-muted: var(--site-color-auxiliary);
+      --site-color-border: #333333;
+      --site-color-control-border: #6B6B6B;
+      --site-color-disabled: #777777;
+      --site-color-accent: #14DB49;
+      --site-color-accent-text: var(--site-color-accent);
+      --site-color-accent-light: var(--site-color-accent);
+      --site-color-on-accent: #3B3B3B;
+      --site-color-success: var(--site-color-accent);
+      --site-color-warning: #F6BE45;
+      --site-color-error: #FF6378;
+      --site-color-info: var(--site-color-auxiliary);
+      --site-color-on-status: #111111;
+      --site-font-sans: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      --site-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", "PingFang SC", monospace;
+      --site-text-display: clamp(2.5rem, 6vw, 5rem);
+      --site-text-section: clamp(1.75rem, 3.6vw, 3rem);
+      --site-text-title: clamp(1.25rem, 2.5vw, 1.75rem);
+      --site-text-lead: clamp(1.25rem, 2vw, 1.5rem);
+      --site-text-body: 1rem;
+      --site-text-code: 1rem;
+      --site-text-control: 0.875rem;
+      --site-text-note: 0.875rem;
+      --site-text-label: 0.8125rem;
+      --site-text-caption: 0.75rem;
+      --site-weight-normal: 400;
+      --site-weight-heading: 500;
+      --site-weight-emphasis: 600;
+      --site-weight-strong: 700;
+      --site-leading-body: 1.75;
+      --site-leading-heading: 1.12;
+      --site-space-1: 4px;
+      --site-space-2: 8px;
+      --site-space-3: 12px;
+      --site-space-4: 16px;
+      --site-space-6: 24px;
+      --site-space-8: 32px;
+      --site-space-12: 48px;
+      --site-space-16: 64px;
+      --site-space-24: 96px;
+      --site-radius-control: 4px;
+      --site-radius-card: 8px;
+      --site-radius-pill: 999px;
+      --site-container: 1280px;
+      --site-page-inset: 48px;
+      --site-header-height: 84px;
+      --site-motion-duration: 160ms;
+      --site-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --site-progress-height: 14px;
+    }
+    @media (max-width: 1100px) {
+      :root { --site-page-inset: 32px; }
+    }
+    @media (max-width: 760px) {
+      :root {
+        --site-page-inset: 20px;
+        --site-header-height: 72px;
+        --site-text-display: clamp(2rem, 7.5vw, 3.5rem);
+        --site-text-label: 0.75rem;
+      }
+    }
+  </style>
+  <style id="derived-tokens"></style>
+  <style>
+    * { box-sizing: border-box; }
+    html { background: var(--site-color-background); scroll-padding-top: 24px; }
+    body { margin: 0; color: var(--site-color-text); font: var(--site-weight-normal) var(--site-text-body)/var(--site-leading-body) var(--site-font-sans); -webkit-font-smoothing: antialiased; }
+    h1,h2,h3,h4,p { margin: 0; }
+    h1,h2,h3,h4 { font-weight: var(--site-weight-heading); }
+    a { color: inherit; text-underline-offset: 4px; }
+    button,input,textarea,summary { font: inherit; }
+    button,a,input,textarea,summary { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    button { cursor: pointer; }
+    :where(a,button,input,textarea,summary,[tabindex]):focus-visible { outline: 2px solid var(--site-color-accent); outline-offset: 4px; }
+    ::selection { color: var(--site-color-background); background: var(--site-color-accent); }
+    :root [hidden] { display: none; }
+    code,pre,.mono { font-family: var(--site-font-mono); }
+    code { overflow-wrap: anywhere; }
+    pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--site-text-code); }
+    .container { width: min(var(--site-container), calc(100% - var(--site-page-inset) * 2)); margin-inline: auto; }
+    .skip { position: absolute; left: 16px; top: -100px; z-index: 10; background: var(--site-color-surface-raised); padding: 12px; }
+    .skip:focus { top: 12px; }
+    .masthead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: center; min-height: var(--site-header-height); padding-block: 16px; border-bottom: 1px solid var(--site-color-border); }
+    .brand { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; text-decoration: none; font-size: 20px; font-weight: 600; }
+    .brand svg { width: 52px; height: 20px; flex: none; }
+    .eyebrow { font: var(--site-weight-emphasis) var(--site-text-label)/1.5 var(--site-font-mono); letter-spacing: .08em; color: var(--site-color-auxiliary); }
+    .accent { color: var(--site-color-accent); }
+    .intro { padding-block: var(--site-space-16); display: grid; grid-template-columns: 1.4fr 1fr; gap: 48px; align-items: end; }
+    .intro h1 { font-size: clamp(2rem, 4vw, 3.5rem); line-height: var(--site-leading-heading); letter-spacing: -.04em; margin-block: 16px; }
+    .intro p,.description { color: var(--site-color-auxiliary); max-width: 72ch; }
+    .badge { display: inline-block; border: 1px solid var(--site-color-control-border); border-radius: var(--site-radius-pill); padding: 4px 10px; font: 12px/1.6 var(--site-font-mono); }
+    .index { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 20px; border-block: 1px solid var(--site-color-border); }
+    .index a { text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; padding: 8px 12px; border-radius: var(--site-radius-control); font-size: 14px; }
+    .index a:hover { background: var(--site-color-surface-raised); }
+    .spec-section { padding-block: var(--site-space-16); border-bottom: 1px solid var(--site-color-border); }
+    .section-heading { display: flex; align-items: start; flex-wrap: wrap; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+    .section-heading h2 { font-size: var(--site-text-title); line-height: 1.25; }
+    .section-heading p { color: var(--site-color-auxiliary); font-size: 14px; margin-top: 8px; max-width: 76ch; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+    .card { min-width: 0; padding: 24px; border: 1px solid var(--site-color-border); border-radius: var(--site-radius-card); background: var(--site-color-surface); }
+    .card h3 { font-size: 20px; line-height: 1.3; margin-bottom: 12px; }
+    .card p { color: var(--site-color-auxiliary); font-size: 14px; }
+    .rules { padding-left: 20px; color: var(--site-color-auxiliary); margin-block: 12px 0; }
+    .rules li + li { margin-top: 8px; }
+    .notice { border-left: 3px solid var(--site-color-info); padding: 16px 20px; background: var(--site-color-surface-raised); color: var(--site-color-auxiliary); margin-top: 24px; font-size: 14px; }
+    .color-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
+    .color-card { min-width: 0; border: 1px solid var(--site-color-border); border-radius: var(--site-radius-card); overflow: hidden; }
+    .color-sample { min-height: 64px; }
+    .color-detail { padding: 12px; }
+    .color-detail strong { display: block; font-size: 14px; }
+    .color-detail code { display: block; font-size: 14px; margin-block: 4px; }
+    .color-detail small { font-size: 12px; color: var(--site-color-auxiliary); display: block; }
+    .table-scroll { overflow-x: auto; border: 1px solid var(--site-color-border); border-radius: var(--site-radius-card); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th,td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--site-color-border); vertical-align: top; }
+    th { color: var(--site-color-auxiliary); font-weight: 500; background: var(--site-color-surface); }
+    tbody tr:last-child td { border-bottom: 0; }
+    .type-samples { display: grid; gap: 24px; margin-top: 24px; }
+    .type-display { font-size: var(--site-text-display); font-weight: 500; line-height: var(--site-leading-heading); letter-spacing: -.04em; overflow-wrap: anywhere; }
+    .type-section { font-size: var(--site-text-section); font-weight: 500; line-height: 1.2; }
+    .type-lead { font-size: var(--site-text-lead); line-height: 1.6; }
+    .measure { color: var(--site-color-auxiliary); font: 12px/1.6 var(--site-font-mono); margin-top: 8px; }
+    .heading-stop { display: inline-block; width: .16em; height: .16em; margin-inline-start: .04em; background: currentColor; vertical-align: baseline; }
+    .heading-stop.cjk { width: .22em; height: .22em; margin-inline-start: .08em; margin-inline-end: .14em; vertical-align: -.11em; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+    .spacing { display: flex; flex-wrap: wrap; gap: 24px; align-items: end; margin-top: 24px; }
+    .spacing-item { color: var(--site-color-auxiliary); font: 12px/1.5 var(--site-font-mono); }
+    .spacing-item i { display: block; background: var(--site-color-accent); width: 12px; margin-bottom: 8px; }
+    .button { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border-radius: var(--site-radius-control); border: 1px solid var(--site-color-control-border); font-size: var(--site-text-control); line-height: 1.5; font-weight: 600; text-decoration: none; background: transparent; color: var(--site-color-text); transition: filter var(--site-motion-duration) var(--site-motion-ease), background-color var(--site-motion-duration) var(--site-motion-ease), transform var(--site-motion-duration) var(--site-motion-ease); }
+    .button.primary { background: var(--site-color-accent); color: var(--site-color-on-accent); border-color: var(--site-color-accent); }
+    html[data-button-effect="surface"] .button.primary:not([data-effect]):not(:disabled):hover,
+    .button.primary[data-effect="surface"]:not(:disabled):hover { filter: brightness(.94); }
+    html[data-button-effect="surface"] .button:not(.primary):not([data-effect]):not(:disabled):hover,
+    .button:not(.primary)[data-effect="surface"]:not(:disabled):hover { background: var(--site-color-surface-raised); }
+    html[data-button-effect="lift"] .button:not([data-effect]):not(:disabled):hover,
+    .button[data-effect="lift"]:not(:disabled):hover { transform: translateY(-2px); }
+    html[data-button-effect="text"] .button:not(.primary):not([data-effect]):not(:disabled),
+    .button:not(.primary)[data-effect="text"]:not(:disabled) { border-color: transparent; color: var(--site-color-auxiliary); }
+    html[data-button-effect="text"] .button:not([data-effect]):not(:disabled):hover,
+    .button[data-effect="text"]:not(:disabled):hover { text-decoration: underline; text-decoration-thickness: 2px; }
+    .button:disabled { color: var(--site-color-disabled); border-color: var(--site-color-border); cursor: not-allowed; background: var(--site-color-surface); }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+    .field { display: grid; gap: 8px; margin-top: 20px; font-size: 14px; }
+    .field input { width: 100%; min-height: 44px; min-width: 0; padding: 10px 12px; border: 1px solid var(--site-color-control-border); border-radius: var(--site-radius-control); background: var(--site-color-background); color: var(--site-color-text); }
+    .field input[aria-invalid="true"] { border-color: var(--site-color-error); }
+    .field input:disabled { color: var(--site-color-disabled); border-color: var(--site-color-border); }
+    .error-text { color: var(--site-color-error); font-size: 14px; }
+    .status-list { display: grid; gap: 12px; }
+    .status { padding: 16px; border: 1px solid var(--status-border,var(--site-color-border)); border-left: 3px solid var(--status-color); border-radius: var(--site-radius-control); background: var(--status-bg,var(--site-color-surface)); color: var(--status-color); font-size: 14px; }
+    .status strong { font-weight: 600; display: block; margin-bottom: 4px; }
+    .status-tag { display: inline-block; color: var(--site-color-on-status); background: var(--status-color); padding: 2px 8px; border-radius: var(--site-radius-control); font: 12px/1.7 var(--site-font-mono); margin-bottom: 8px; }
+    .progress { margin-block: 24px; }
+    .progress-track,.progress-labels { display: grid; grid-template-columns: repeat(var(--segment-count),minmax(0,1fr)); gap: var(--site-space-1); }
+    .progress-labels { margin-top: 12px; }
+    .progress-stage { text-align: center; min-width: 0; font: 12px/1.5 var(--site-font-mono); color: var(--site-color-auxiliary); }
+    .progress-stage.complete,.progress-stage.running { color: var(--site-color-accent); }
+    .progress-segment { display: block; width: 100%; height: var(--site-progress-height); }
+    .progress-segment path { fill: var(--site-color-control-border); }
+    .progress-segment.complete path,.progress-segment.running.is-active path { fill: var(--site-color-accent); }
+    .progress-stage small { display: block; font: 12px/1.5 var(--site-font-sans); margin-top: 8px; }
+    .site-preview { border: 1px solid var(--site-color-border); border-radius: var(--site-radius-card); overflow: hidden; background: var(--site-color-background); }
+    .sample-header { min-height: var(--site-header-height); padding: 16px 32px; border-bottom: 1px solid var(--site-color-border); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; }
+    .sample-header nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .doc-sidebar a,.doc-outline a { padding: 8px; min-height: 44px; text-decoration: none; color: var(--site-color-auxiliary); border-radius: var(--site-radius-control); }
+    .doc-sidebar a { border-left: 2px solid transparent; }
+    .sample-header nav a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; padding: 8px; text-decoration: none; color: var(--site-color-auxiliary); font: 13px/1.5 var(--site-font-mono); }
+    .sample-block { padding: 64px 48px; border-bottom: 1px solid var(--site-color-border); }
+    .sample-block:last-child { border-bottom: 0; }
+    .sample-hero { display: grid; grid-template-columns: 7fr 5fr; gap: 40px; align-items: center; }
+    .sample-hero h3 { font-size: var(--site-text-display); line-height: var(--site-leading-heading); letter-spacing: -.04em; margin-block: 20px; }
+    .sample-hero h3 em { font-style: normal; color: var(--site-color-accent); }
+    .sample-hero p { color: var(--site-color-auxiliary); font-size: var(--site-text-lead); line-height: 1.6; }
+    .sample-field { background: var(--site-color-surface); border: 1px solid var(--site-color-border); border-radius: var(--site-radius-card); padding: 24px; min-width: 0; }
+    .sample-field h4 { font-size: 20px; margin-block: 16px; }
+    .sample-field p { font-size: 14px; }
+    .command { display: flex; align-items: center; gap: 12px; border: 1px solid var(--site-color-control-border); border-radius: var(--site-radius-control); background: var(--site-color-surface); padding: 12px 16px; min-height: 48px; margin-top: 24px; font: var(--site-text-code)/1.75 var(--site-font-mono); overflow-wrap: anywhere; }
+    .command code { min-width: 0; }
+    .command .prompt { color: var(--site-color-accent); }
+    .sample-ticker { padding: 16px 48px; color: var(--site-color-auxiliary); font: 12px/1.75 var(--site-font-mono); letter-spacing: .1em; border-bottom: 1px solid var(--site-color-border); overflow-wrap: anywhere; }
+    .sample-title { font-size: var(--site-text-section); line-height: 1.2; margin-block: 16px 24px; letter-spacing: -.03em; }
+    .sample-copy { max-width: 68ch; color: var(--site-color-auxiliary); }
+    .stage-tabs { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 8px; margin-top: 24px; }
+    .stage-tab { min-width: 0; min-height: 56px; text-align: left; color: var(--site-color-auxiliary); background: var(--site-color-surface); border: 1px solid var(--site-color-control-border); border-radius: var(--site-radius-control); padding: 12px; font-size: 12px; overflow-wrap: anywhere; }
+    .stage-tab strong { font: 24px/1.3 var(--site-font-mono); display: block; margin-bottom: 6px; }
+    .stage-tab[aria-selected="true"] { color: var(--site-color-accent); border-color: var(--site-color-accent); }
+    .stage-panel { margin-top: 16px; border: 1px solid var(--site-color-border); border-radius: var(--site-radius-card); padding: 24px; background: var(--site-color-surface); }
+    .stage-panel h4 { font-size: 24px; margin-block: 8px 12px; }
+    .sample-terminal { min-width: 0; border: 1px solid var(--site-color-border); padding: 24px; background: var(--site-color-surface); border-radius: var(--site-radius-card); }
+    .sample-terminal pre { margin-block: 16px; }
+    .sample-footer { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; padding: 32px 48px; color: var(--site-color-auxiliary); font-size: 14px; }
+    .doc-preview { display: grid; grid-template-columns: 210px minmax(0,1fr) 170px; gap: 32px; padding: 32px; border: 1px solid var(--site-color-border); border-radius: var(--site-radius-card); }
+    .doc-preview > * { min-width: 0; }
+    .doc-sidebar summary { cursor: pointer; min-height: 44px; padding-block: 8px; font-size: 14px; color: var(--site-color-auxiliary); }
+    .doc-sidebar nav,.doc-outline nav { display: grid; gap: 4px; font-size: 14px; }
+    .doc-sidebar a[aria-current="page"],.doc-sidebar a[aria-current="location"] { color: var(--site-color-accent); background: var(--site-color-surface); border-left-color: var(--site-color-accent); }
+    .nav-group .subnav { padding-left: 12px; }
+    .doc-article { max-width: 72ch; }
+    .doc-article h3 { font-size: 32px; line-height: 1.2; margin-block: 12px 24px; }
+    .doc-article h4 { font-size: 20px; margin-block: 32px 12px; }
+    .doc-article p { margin-block: 16px; }
+    .doc-article pre { padding: 16px; border: 1px solid var(--site-color-border); border-radius: var(--site-radius-control); background: var(--site-color-surface); }
+    .doc-outline { color: var(--site-color-auxiliary); font-size: 12px; }
+    .doc-outline strong { display: block; margin-bottom: 12px; font-weight: 500; }
+    .metric-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-top: 24px; }
+    .metric { padding: 16px; border: 1px solid var(--site-color-border); border-radius: var(--site-radius-card); font-size: 12px; color: var(--site-color-auxiliary); }
+    .metric strong { display: block; font: 24px/1.5 var(--site-font-mono); color: var(--site-color-text); margin-block: 8px; }
+    .metric[data-pass="true"] span { color: var(--site-color-accent); }
+    .metric[data-pass="false"] span { color: var(--site-color-error); }
+    .token-output { width: 100%; min-height: 260px; resize: vertical; margin-top: 16px; border: 1px solid var(--site-color-control-border); border-radius: var(--site-radius-control); background: var(--site-color-surface); color: var(--site-color-text); padding: 16px; font: 12px/1.7 var(--site-font-mono); }
+    .footer { padding-block: 32px; color: var(--site-color-auxiliary); font-size: 12px; }
+    #announcer { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); max-width: min(560px,calc(100% - 32px)); padding: 12px 16px; border: 1px solid var(--site-color-control-border); border-radius: var(--site-radius-card); background: var(--site-color-surface-raised); color: var(--site-color-text); font-size: 14px; z-index: 20; }
+    #announcer:empty { display: none; }
+    @media (max-width: 1100px) {
+      .intro { gap: 32px; }
+      .sample-block { padding: 48px 32px; }
+      .sample-hero { gap: 24px; }
+      .sample-header { padding-inline: 24px; }
+      .doc-preview { grid-template-columns: 180px minmax(0,1fr); gap: 24px; padding: 24px; }
+      .doc-outline { display: none; }
+    }
+    @media (max-width: 760px) {
+      .intro,.grid-2,.grid-3,.sample-hero,.doc-preview { grid-template-columns: 1fr; }
+      .intro { padding-block: 40px; gap: 24px; }
+      .spec-section { padding-block: 40px; }
+      .color-grid,.metric-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .card { padding: 20px; }
+      .sample-block { padding: 40px 20px; }
+      .sample-header { padding-inline: 20px; }
+      .sample-header nav { width: 100%; gap: 4px; }
+      .sample-header nav a { padding-inline: 6px; font-size: 12px; }
+      .sample-ticker,.sample-footer { padding-inline: 20px; }
+      .sample-field { padding: 16px; }
+      .stage-tabs { gap: 4px; grid-template-columns: repeat(5,minmax(44px,1fr)); }
+      .stage-tab { padding: 8px 4px; text-align: center; }
+      .stage-tab span { display: none; }
+      .stage-panel { padding: 20px; }
+      .doc-preview { padding: 20px; }
+      .doc-sidebar { border-bottom: 1px solid var(--site-color-border); padding-bottom: 16px; }
+      .progress-stage { font-size: 12px; }
+      th,td { padding: 12px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .button { transition: none; }
+      html[data-button-effect="lift"] .button:not([data-effect]):not(:disabled):hover,
+      .button[data-effect="lift"]:not(:disabled):hover { transform: none; }
+    }
+    @media print {
+      .index,.actions,#announcer { display: none; }
+      .container { width: 100%; }
+      .spec-section,.card,.site-preview { break-inside: avoid; }
+      body { print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">跳到设计规范</a>
+  <div class="container">
+    <header class="masthead">
+      <a class="brand" href="#main" aria-label="IntLoom 设计基准">
+        <svg viewBox="0 0 340 130" aria-hidden="true"><path d="M0 70L70.6023 0H120V60L50.0726 130H0V70Z" fill="var(--site-color-accent)"/><path d="M110 70L180.602 0H230V60L160.073 130H110V70Z" fill="var(--site-color-text)"/><path d="M220 70L290.602 0H340V60L270.073 130H220V70Z" fill="var(--site-color-text)"/></svg>
+        intloom
+      </a>
+      <span class="eyebrow">WEBSITE DESIGN / V1.1 / DARK ONLY</span>
+    </header>
+    <main id="main" tabindex="-1">
+      <section class="intro">
+        <div><span class="eyebrow accent">DESIGN BASELINE · 2026-10-09</span><h1>把意图织成行动。<br>把设计收敛为<span class="accent">基准。</span></h1><p>仅针对 IntLoom 官网与文档。深黑底、鲜绿信号、中性信息，保留 terminal 的结构感，不做通用设计系统。</p></div>
+        <div><span class="badge">已确认：主绿 #14DB49 · 仅深色</span><p style="margin-top:16px">颜色范围与深色方向已确认；其余中性色沿用配色预览。字体、尺寸、组件与布局是本文件整理的 V1 基准建议，供后续评审与调整。正式网站尚未同步。</p></div>
+      </section>
+      <nav class="index" aria-label="设计文件目录">
+        <a href="#scope">01 范围</a><a href="#colors">02 颜色</a><a href="#typography">03 字体字号</a><a href="#layout">04 布局尺寸</a><a href="#components">05 组件</a><a href="#homepage">06 首页示例</a><a href="#documentation">07 文档示例</a><a href="#verification">08 动效与验收</a><a href="#next">09 可补充项</a><a href="#tokens">CSS Token</a>
+      </nav>
+      <section class="spec-section" id="scope">
+        <div class="section-heading"><div><h2>01 / 基准范围与使用规则</h2><p>一个文件、一种主题、一个品牌。保留设计意图，不复制产品能力或发布规则。</p></div></div>
+        <div class="grid-3">
+          <article class="card"><h3>只为 IntLoom</h3><p>覆盖首页、文档阅读与现有导航。Workflows / Examples 保持现有占位范围；Studio 只展示 planned / coming soon，不在此设计完整产品后台。</p></article>
+          <article class="card"><h3>一主绿、一副色</h3><p>主绿同时用于品牌、文字、按钮与成功。副色用于信息、路径、说明。表面、正文和边框的中性色负责层次，不增加第二套绿色或蓝色信息色。</p></article>
+          <article class="card"><h3>设计与实现分开</h3><p>本文件是后续视觉设计的参考入口；现站实现仍以样式 Token 和组件为实际行为来源。调整设计时先更新本文件，再同步生产消费者与验证。</p></article>
+        </div>
+        <p class="notice">网站结构与能力描述继续由现有页面、Guide 和项目状态文档维护。本文件不定义 Workflow 的执行协议，也不把 SOLVE 叙事阶段规定为所有 Workflow 必须拥有的业务阶段。旧配色实验页仅保留历史参考。</p>
+      </section>
+      <section class="spec-section" id="colors">
+        <div class="section-heading"><div><h2>02 / 颜色与语义</h2><p>色值展示从本文件的 CSS Token 读取。主绿唯一；按钮交互不另选品牌绿，也不增加外侧 hover 框。</p></div></div>
+        <div class="color-grid" id="color-grid"><p>开启 JavaScript 可查看从 CSS Token 生成的色板；主绿固定为 #14DB49。</p></div>
+        <div class="grid-2" style="margin-top:24px">
+          <article class="card"><h3>用色比例</h3><ul class="rules"><li>大面积使用黑色与中性表面，主绿是信号，不作为整页铺底。</li><li>每个主要区块只保留一个优先动作；绿色优先落在品牌、关键文字、主按钮与进度。</li><li>成功复用主绿；警告用琥珀，错误用红，信息复用副色，不引入蓝色。</li><li>状态背景 = 表面 + 10% 状态色；边框 = 表面 + 40% 状态色，均为派生混合，不另选色阶。</li></ul></article>
+          <article class="card"><h3>边界与对比</h3><ul class="rules"><li>普通文字 ≥ 4.5:1；大字 ≥ 3:1。大字按至少 24px 常规字或约 18.7px 粗体判断。</li><li>装饰分割线使用 border；必须可辨识的输入控件边界使用 control-border，目标 ≥ 3:1。</li><li>主按钮使用柔和深灰字 on-accent，不用纯黑；提示实色标签用 on-status。</li><li>disabled 只用于真正禁用的控件，不能用低对比冒充正常说明文字。</li></ul></article>
+        </div>
+      </section>
+      <section class="spec-section" id="typography">
+        <div class="section-heading"><div><h2>03 / 字体、字号与文字层次</h2><p>延续现站字体方向；增加中文系统回退。无需外部字体请求、字体包或新依赖。</p></div></div>
+        <div class="grid-2">
+          <article class="card"><h3>Sans / 阅读与标题</h3><p>Helvetica Neue → Helvetica → Arial → PingFang SC → Microsoft YaHei → sans-serif。用于正文、标题、按钮及中文内容。标题 500，正文 400，动作与强调 600；700 仅用于必要重点。</p></article>
+          <article class="card"><h3>Mono / 仪表与命令</h3><p>SFMono-Regular → Consolas → Liberation Mono → PingFang SC → monospace。用于命令、代码、标签、编号与状态。不要把整篇正文改成等宽；中文不会保证等宽宽度。</p></article>
+        </div>
+        <div class="table-scroll" style="margin-top:24px"><table><caption class="measure" style="padding:12px">基础字号以 16px 根字号计算；用户缩放与浏览器字号偏好仍应生效。</caption><thead><tr><th>角色</th><th>桌面 / 窄屏</th><th>字重 / 行高</th><th>用法</th></tr></thead><tbody>
+          <tr><td>Display</td><td>40–80px / 32–56px，自适应</td><td>500 / 1.12</td><td>首页首屏标题；通常一个页面仅一处</td></tr>
+          <tr><td>Section</td><td>28–48px，自适应</td><td>500 / 1.2</td><td>大区块标题</td></tr>
+          <tr><td>Title</td><td>20–28px，自适应</td><td>500 / 1.25</td><td>卡片与次级区块</td></tr>
+          <tr><td>Lead</td><td>20–24px，自适应</td><td>400 / 1.6</td><td>首屏简短说明</td></tr>
+          <tr><td>Body</td><td>16px</td><td>400 / 1.75</td><td>文档与正文，建议 62–72ch 阅读宽度</td></tr>
+          <tr><td>Code</td><td>16px</td><td>400 / 1.75</td><td>命令与代码块，独立于补充说明字号</td></tr>
+          <tr><td>Control / Note</td><td>14px</td><td>400–600 / 1.5–1.75</td><td>按钮、输入与补充说明</td></tr>
+          <tr><td>Label</td><td>13px / 12px</td><td>600 / 1.5</td><td>导航、编号和仪表标签</td></tr>
+          <tr><td>Caption</td><td>12px</td><td>400 / 1.6</td><td>图注与状态辅助文字，不再缩小关键内容</td></tr>
+        </tbody></table></div>
+        <div class="type-samples">
+          <div><p class="type-display">Intent into <span class="accent">action.</span></p><p class="measure" data-measure="display">Display / 实际字号待计算</p></div>
+          <div><p class="type-section">清晰的上下文。明确的方向。</p><p class="measure" data-measure="section">Section / 实际字号待计算</p></div>
+          <div><p class="type-lead">Carry intent through agents, code, and explicit decisions.</p><p class="measure" data-measure="lead">Lead / 实际字号待计算</p></div>
+          <div><p>这是正文样本。一次运行中的问题、确认与结果，应当保留清晰的语义，而不是仅依赖颜色传达状态。</p><p class="measure">Body / 16px · 400 · 1.75</p></div>
+          <div><pre><span class="accent">$</span> npx intloom start
+<span class="description"># starts the local project service; not a workflow run</span></pre><p class="measure">Code / 16px · Mono · 1.75</p></div>
+        </div>
+        <p class="notice">标题句号统一显示为实心正方形，颜色继承所在文字。英文方块边长 0.16em，对齐基线；中文方块增大至 0.22em，下移 0.11em，与中文字形笔画底部光学对齐，左侧留白 0.08em、右侧留白 0.14em。保留原始标点以供复制与辅助技术读取；正文、说明和代码中的标点不变。</p>
+      </section>
+      <section class="spec-section" id="layout">
+        <div class="section-heading"><div><h2>04 / 网格、间距与形状</h2><p>沿用现站 1100px / 760px 的响应式分界；这是设计基准建议，不新增断点系统或配置层。</p></div></div>
+        <div class="grid-3">
+          <article class="card"><h3>容器与栅格</h3><ul class="rules"><li>内容最大宽 1280px，居中。</li><li>桌面 12 列；首屏 7 / 5 分栏。</li><li>760–1100px 按 8 列规划；减少侧栏和区块内边距。</li><li>≤ 760px 按 4 列规划，主要内容改为单列。</li><li>页面左右留白：48 / 32 / 20px。</li></ul></article>
+          <article class="card"><h3>垂直节奏</h3><ul class="rules"><li>以 8px 为主节奏，4px 用于精细对齐。</li><li>页面大区块 64–96px；窄屏 40–48px。</li><li>卡片内边距 24px；窄屏 16–20px。</li><li>标题与内容间 16–24px；组件内 8–12px。</li><li>导航基础高度 84px / 72px；内容换行时允许增高。</li></ul></article>
+          <article class="card"><h3>形状与边界</h3><ul class="rules"><li>控件圆角 4px，卡片 8px。</li><li>胶囊只用于短标签，不把所有元素做成 pill。</li><li>边框常规 1px；焦点轮廓 2px，偏移 4px。</li><li>图标常规 16–20px；点击区域至少 44 × 44px。</li><li>不用大范围发光、重阴影、玻璃层或绿色页面雾化。</li></ul></article>
+        </div>
+        <div class="spacing" id="spacing"></div>
+        <p class="notice">首页建议维持现有信息顺序：Hero → 静态关键词带 → Principle → Workflow → CLI → Studio（planned）→ Project status → Closing / Footer。文档由 Rspress 负责导航、目录与搜索，设计文件不重新实现文档框架。</p>
+      </section>
+      <section class="spec-section" id="components">
+        <div class="section-heading"><div><h2>05 / 常用组件与状态</h2><p>只定义当前网站需要的组件。下面是设计样本，不连接项目服务，也不表示真实运行结果。</p></div></div>
+        <div class="grid-2">
+          <article class="card"><h3>动作与输入</h3><p>一处主动作配一个次动作。hover 不额外加外框；键盘 focus 保留主绿轮廓，这是可访问性反馈，不是 hover 效果。</p>
+            <div class="actions"><button type="button" class="button primary" data-specimen>主操作</button><button type="button" class="button" data-specimen>次操作</button><button type="button" class="button" disabled>暂不可用</button></div>
+            <label class="field" for="sample-input">项目名称 · 样式示例<input id="sample-input" value="intloom-demo" autocomplete="off"></label>
+            <label class="field" for="sample-invalid">必填字段 · 错误示例<input id="sample-invalid" value="" aria-invalid="true" aria-describedby="sample-error"></label>
+            <p class="error-text" id="sample-error">请输入项目名称；这是错误状态样本，不会提交请求。</p>
+            <label class="field" for="sample-disabled">不可编辑 · 禁用示例<input id="sample-disabled" value="coming soon" disabled></label>
+          </article>
+          <article class="card"><h3>成功、警告、错误与信息</h3><div class="status-list" id="statuses"></div></article>
+        </div>
+        <div class="section-heading" style="margin-top:32px"><div><h3>按钮交互 / 三个待选方案</h3><p>下方三组始终保留各自效果，便于悬停比较。“应用预览”只切换本页其他按钮，尚未确认最终方案。默认预览 A。</p></div></div>
+        <div class="grid-3">
+          <article class="card"><h3>A / 表面反馈</h3><p>主操作轻微压暗至 94%，文字一起派生；次操作填充中性抬升面。不移动，不增加外框，保留控件自身边界。</p><div class="actions"><button type="button" class="button primary" data-effect="surface" data-specimen>主操作</button><button type="button" class="button" data-effect="surface" data-specimen>次操作</button></div><div class="actions"><button type="button" class="button" data-choose-effect="surface" aria-pressed="true">应用 A 预览</button></div></article>
+          <article class="card"><h3>B / 轻微上浮</h3><p>主操作和次操作悬停时上浮 2px，颜色不变。不发光，不增加外框；减少动态效果时取消位移。</p><div class="actions"><button type="button" class="button primary" data-effect="lift" data-specimen>主操作</button><button type="button" class="button" data-effect="lift" data-specimen>次操作</button></div><div class="actions"><button type="button" class="button" data-choose-effect="lift" aria-pressed="false">应用 B 预览</button></div></article>
+          <article class="card"><h3>C / 实色 + 文字</h3><p>主操作保持实色绿；次操作使用无边框的副色文字。悬停只加文字下划线，更适合简洁的 terminal 风格。</p><div class="actions"><button type="button" class="button primary" data-effect="text" data-specimen>主操作</button><button type="button" class="button" data-effect="text" data-specimen>次操作 ↗</button></div><div class="actions"><button type="button" class="button" data-choose-effect="text" aria-pressed="false">应用 C 预览</button></div></article>
+        </div>
+        <article class="card" style="margin-top:24px"><div class="section-heading"><div><h3>半高 /// 连续进度</h3><p>整条轨道连续铺满可用宽度，按斜杠约 17px 宽、4px 间距动态计算总数，再均分至各阶段；余数最多相差一个。下方标题跨越对应区域，没有阶段间额外断口。字符高度 14px，完成区域保持主绿、待执行保持中性灰。BUILD 复用原有进度斜块，从左至右依次点亮，末尾重新从左侧开始；任一时刻只有一个执行块亮绿，其余保持灰色。空隙始终留空，不叠加 Logo、不平移图形、不虚构进度增长。</p></div><button type="button" class="button" id="pause-motion" aria-pressed="false">暂停示例动画</button></div><div data-progress-demo role="progressbar" aria-label="静态设计示例，非实际运行" aria-valuemin="0" aria-valuemax="4" aria-valuenow="2" aria-valuetext="示例完成两个阶段，Build 执行中，Verify 等待"></div><p class="measure">DEMO / 2 of 4 stages · not a live run. 每 256ms 切换至下一个执行块，速度为原 320ms 的 1.25 倍；不交叉渐变，确保不会同时亮起两个块。支持暂停，减少动态效果或打印时保留当前亮块、停止切换。</p></article>
+        <div class="grid-2" style="margin-top:24px">
+          <article class="card"><h3>空状态</h3><p>先说明没有什么，再给出下一步。示例：“尚无运行记录；创建项目并运行工作流后，可在这里查看。”不把空状态冒充加载或错误。</p></article>
+          <article class="card"><h3>Logo 与图标</h3><p>Logo 以现有 IntLoom 三模块结构作示意，绿色模块跟随主色，其他模块跟随正文中性色。本文件不替换现有品牌资产；最终 Logo 比例、动效与导出文件另行确认。</p></article>
+        </div>
+      </section>
+      <section class="spec-section" id="homepage">
+        <div class="section-heading"><div><h2>06 / 整体首页布局示例</h2><p>展示从导航到页尾的完整信息流。保持真实产品边界；这里只是网站设计样本，不是新版站点或在线产品。</p></div><span class="badge">LAYOUT SPECIMEN</span></div>
+        <div class="site-preview">
+          <header class="sample-header">
+            <a class="brand" href="#homepage"><svg viewBox="0 0 340 130" aria-hidden="true"><path d="M0 70L70.6023 0H120V60L50.0726 130H0V70Z" fill="var(--site-color-accent)"/><path d="M110 70L180.602 0H230V60L160.073 130H110V70Z" fill="var(--site-color-text)"/><path d="M220 70L290.602 0H340V60L270.073 130H220V70Z" fill="var(--site-color-text)"/></svg>intloom</a>
+            <nav aria-label="首页样本导航"><a href="#documentation">Docs</a><a href="#sample-workflow">Workflows</a><a href="#components">Examples</a><a href="https://github.com/ole3021/intloom" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
+          </header>
+          <section class="sample-block sample-hero" aria-labelledby="sample-hero-title">
+            <div><span class="eyebrow">SYSTEM / INTLOOM · HUMAN IN THE LOOP</span><h3 id="sample-hero-title">Give your intent<br>a loom of <em>action.</em></h3><p>Ideas become specifications. Decisions become structure. Progress leaves evidence.</p><div class="command"><span class="prompt">$</span><code>npx intloom start</code></div><p class="measure" style="font-size:12px;margin-top:12px">Start your local project service. This does not execute a workflow.</p><div class="actions"><a class="button primary" href="#documentation">阅读文档 ↗</a><a class="button" href="#sample-workflow">了解工作流</a></div></div>
+            <div class="sample-field"><span class="eyebrow">FIG. 001 / INTENT FIELD</span><h4>From intent to evidence.</h4><p>结构化决策、明确的确认点、可追溯的结果。</p><div data-progress-demo role="progressbar" aria-label="首页设计用进度示例，非实际运行" aria-valuemin="0" aria-valuemax="4" aria-valuenow="2" aria-valuetext="示例完成两个阶段，Build 执行中，Verify 等待"></div><span class="badge">HUMAN CONFIRMATION / REVIEW</span><p class="measure" style="font-size:12px;margin-top:16px">DESIGN DEMO / NOT A LIVE SESSION</p></div>
+          </section>
+          <div class="sample-ticker">INTENT / CONTEXT / DECISIONS / EXECUTION / EVIDENCE</div>
+          <section class="sample-block"><span class="eyebrow">01 / THE OPERATING PRINCIPLE</span><h3 class="sample-title">Intelligence needs <span class="accent">context.</span><br>Execution needs <span class="accent">direction.</span></h3><p class="sample-copy">IntLoom connects the two. A local workflow framework that carries human intent through agents, code, and explicit decisions.</p></section>
+          <section class="sample-block" id="sample-workflow"><span class="eyebrow">02 / WORKFLOW EXPLORER</span><h3 class="sample-title">Trace the signal.</h3><p class="sample-copy">SOLVE 是现站的工作流方向展示，并非框架强制阶段。切换下方阶段只切换设计说明，不会启动工作流。</p><div class="stage-tabs" role="tablist" aria-label="SOLVE 设计方向" id="stage-tabs"></div>
+            <!-- biome-ignore lint/a11y/noNoninteractiveTabindex: The ARIA tab panel needs a keyboard reading target because its content has no focusable controls. -->
+            <div class="stage-panel" id="stage-panel" role="tabpanel" tabindex="0" aria-label="SOLVE 阶段说明"><span class="eyebrow" id="stage-name"></span><h4 id="stage-verb">Workflow direction</h4><p class="sample-copy" id="stage-description">开启 JavaScript 可切换查看 SOLVE 设计阶段。</p><p class="measure" id="stage-status"></p></div></section>
+          <section class="sample-block grid-2" id="sample-cli"><div><span class="eyebrow">03 / INTLOOM CLI</span><h3 class="sample-title">Your terminal.<br>Your starting point.</h3><p class="sample-copy">Initialize a project, start its local service, and run workflows from the command line.</p><p class="notice">npm release in preparation. 安装与能力表述须继续以 Guide 和项目状态为准；这里不宣称已经发布。</p></div><div class="sample-terminal"><span class="eyebrow">QUICK START / DESIGN SAMPLE</span><pre><span class="accent">$</span> npx intloom start
+<span class="description"># start the project service</span>
+
+<span class="accent">$</span> intloom flows
+<span class="description"># discover installed workflows</span></pre><p class="measure">示例命令保留现站写法；不提供执行或自动安装功能。</p><a href="#doc-concepts">理解项目与 Workflow ↗</a></div></section>
+          <section class="sample-block grid-2"><div><span class="eyebrow">04 / INTLOOM STUDIO</span><h3 class="sample-title">A new way<br>into the loom.</h3><p class="sample-copy">A visual companion to IntLoom. Design and implementation are still to come.</p></div><div class="sample-field"><span class="badge">PLANNED / COMING SOON</span><h4>IntLoom Studio</h4><p>保留轻量预告，不展示虚构的已上线管理界面。</p></div></section>
+          <section class="sample-block"><span class="eyebrow">PROJECT STATUS</span><h3 style="font-size:24px;margin-block:16px">Taking shape, in the open.</h3><p class="sample-copy">IntLoom is in early development. Kernel, Compiler, persistent Storage, and CLI/MCP have implemented foundations. Specification is verified with controlled models; the wider workflow is a design direction. No production release yet.</p></section>
+          <section class="sample-block"><span class="eyebrow">THIS SYSTEM IS STILL EVOLVING.</span><h3 class="sample-title">Stay in <span class="accent">the loom.</span></h3><div class="actions"><a class="button primary" href="#documentation">Read the documentation ↗</a><a class="button" href="https://github.com/ole3021/intloom" target="_blank" rel="noopener noreferrer">Follow on GitHub</a></div></section>
+          <footer class="sample-footer"><span>intloom / intent into action</span><span>Docs · Workflows / Examples remain placeholders</span></footer>
+        </div>
+        <p class="measure">样本导航指向本文件示例，只有 GitHub 是外部链接；没有替换生产路由、搜索、语言切换或品牌动效。</p>
+      </section>
+      <section class="spec-section" id="documentation">
+        <div class="section-heading"><div><h2>07 / 文档阅读布局示例</h2><p>宽屏三栏，中屏移除右侧目录，窄屏单列。子导航缩进、分组可折叠；仅当前叶子项左侧高亮，父级保持中性色。点击左侧或页内目录同步选中项。分组仅为设计示例，不调整生产 Guide 目录。</p></div></div>
+        <div class="doc-preview">
+          <details class="doc-sidebar" open><summary>文档导航 / 可收起</summary><nav aria-label="文档布局样本导航"><a href="#doc-intro">About IntLoom</a><details class="nav-group" open><summary>Getting started</summary><nav class="subnav" aria-label="入门子导航"><a href="#doc-concepts" aria-current="location">Core concepts</a><a href="#doc-service">Local project service</a><a href="#sample-cli">CLI</a></nav></details><details class="nav-group" open><summary>Workflows</summary><nav class="subnav" aria-label="工作流子导航"><a href="#sample-workflow">Workflow direction</a></nav></details></nav></details>
+          <article class="doc-article"><span class="eyebrow">GUIDE / INTRODUCTION</span><h3 id="doc-intro">About IntLoom</h3><p>IntLoom is a local workflow framework for coordinating agents, code, and human decisions.</p><p>项目服务加载已安装的 Workflow 包、执行其步骤、处理问题与确认，并存储工作流提交的结果。</p><h4 id="doc-concepts">What you work with</h4><p>A Project holds configuration and saved results. A Workflow defines a process. A Run is one execution for an original intent.</p><p class="notice">这里只示意阅读层次与布局；业务解释与当前能力的权威来源仍是 Guide，而不是本设计文件。</p><h4 id="doc-service">Start the local service</h4><pre><code>npx intloom start</code></pre><p>在项目内启动服务。这不是启动某个 Workflow。后续阅读路径保持现有 Guide 的 CLI、MCP 与开发文档组织。</p><div class="actions"><a class="button" href="#sample-cli">返回 CLI 布局示例</a></div></article>
+          <aside class="doc-outline"><strong>ON THIS PAGE</strong><nav aria-label="文档样本页内目录"><a href="#doc-intro">About IntLoom</a><a href="#doc-concepts">Core concepts</a><a href="#doc-service">Project service</a></nav></aside>
+        </div>
+      </section>
+      <section class="spec-section" id="verification">
+        <div class="section-heading"><div><h2>08 / 动效、可访问性与验收</h2><p>动效只解释状态，不制造能力假象。以下对比度按本文件实际 Token 和派生背景计算，不是完整网站的无障碍认证。</p></div></div>
+        <div class="grid-2"><article class="card"><h3>动效边界</h3><ul class="rules"><li>按钮反馈约 160ms，不新增品牌绿；候选 A 的压暗仅为派生交互状态。</li><li>执行区每 256ms 依次点亮一个原有斜块，末尾回到首块；不移动图形，不在黑色空隙绘制绿色，不让两个执行块同时亮起。</li><li>支持手动暂停；prefers-reduced-motion 或打印时停止切换，保留一个静态亮块；减少动态效果时也取消按钮位移。</li><li>不自动轮播、滚屏、持续移动关键词带，扫描不表示真实完成量。</li></ul></article><article class="card"><h3>实现验收清单</h3><ul class="rules"><li>320、390、760、1024、1440px，无整页横向溢出；代码或表格可局部滚动。</li><li>键盘可访问导航、按钮、输入、折叠菜单与 Tab；当前项及焦点明确。</li><li>错误不能只用红色；进度不能只用颜色或动画，斜杠数量随可用宽度改变。</li><li>中英标题句号同为实心方块；子导航只有一个当前叶子项，父级不同时高亮。</li><li>放大到 200% 与系统字号调整后不丢失文字或操作。</li><li>上线前覆盖真实首页、Guide、搜索结果、空状态和错误页面；样例通过不代表消费者已同步。</li></ul></article></div>
+        <div class="metric-grid" id="metrics"><p>开启 JavaScript 查看实际对比度。</p></div>
+      </section>
+      <section class="spec-section" id="next">
+        <div class="section-heading"><div><h2>09 / 后续可补充的三个小方案</h2><p>下面均为可选补充，不自动扩大本轮范围。先把这份基准用起来，再按真实需求添加。</p></div></div>
+        <div class="grid-3">
+          <article class="card"><span class="badge">A / 发布前最小包 · 建议优先</span><h3 style="margin-top:16px">品牌与分享资产</h3><p>确认 Logo 净空、最小尺寸、favicon 和分享图；梳理页面标题与 description。仅围绕 IntLoom，不做多品牌配置。</p></article>
+          <article class="card"><span class="badge">B / 文档补齐</span><h3 style="margin-top:16px">阅读与搜索样本</h3><p>补充长表格、代码高亮、链接、Callout、搜索结果和无结果状态。继续使用 Rspress；不自建搜索系统。</p></article>
+          <article class="card"><span class="badge">C / 交互补齐</span><h3 style="margin-top:16px">真实状态与回退</h3><p>为实际上线的流程补选中、执行、待确认、失败重试与完成状态。先确认产品行为，再定义组件，暂不设计完整 Studio。</p></article>
+        </div>
+        <p class="notice">字体方案当前选零依赖的系统字体。若以后确有品牌字形需求，可另评估自托管的一套拉丁字体；须确认授权、加载成本和中文回退，不在本轮引入字体依赖。</p>
+      </section>
+      <section class="spec-section" id="tokens">
+        <div class="section-heading"><div><h2>CSS Token / 本文件的颜色与尺寸来源</h2><p>从本文件的 Token 样式生成，包含响应式字号及派生状态背景。不是已经应用到生产的补丁；后续仍需同步现有 Token、硬编码颜色、品牌与组件消费者。</p></div><button type="button" class="button" id="copy-tokens">复制 CSS Token</button></div>
+        <label for="token-output" class="eyebrow">READ-ONLY / SELECT TO COPY</label>
+        <textarea class="token-output" id="token-output" readonly spellcheck="false">开启 JavaScript 可读取本文件完整 CSS Token；也可在文件源代码中查看 design-tokens。</textarea>
+        <p class="measure">V1 · 2026-10-09：固定主绿 #14DB49；暂时取消浅色；沿用中性副色与语义状态；整理字体、布局和 /// 进度基准。后续修订更新此文件，避免维护第二份视觉规范。</p>
+        <p class="measure">V1.1：Lead 提升至 20–24px，Code 独立为 16px；补充三种无外侧 hover 框的按钮候选；进度连续且随宽度计算，执行区原有斜块逐个单亮、从左至右循环；增加仅当前子项高亮的嵌套导航；中英文标题句号采用实心方块，中文加大并下移、增加右侧留白。按钮最终方案待选择。</p>
+      </section>
+    </main>
+    <footer class="footer">INTLOOM / DESIGN BASELINE V1.1 · 独立、离线可打开 · 无外部脚本、字体或追踪请求 · 尚未修改生产样式</footer>
+  </div>
+  <div id="announcer" role="status" aria-live="polite"></div>
+  <script>
+    const root=document.documentElement;
+    const token=name=>getComputedStyle(root).getPropertyValue(`--site-${name}`).trim();
+    function rgb(hex){return hex.slice(1).match(/.{2}/g).map(v=>parseInt(v,16));}
+    function mix(base,tint,amount){return `#${rgb(base).map((v,i)=>Math.round(v*(1-amount)+rgb(tint)[i]*amount).toString(16).padStart(2,"0")).join("").toUpperCase()}`;}
+    function luminance(hex){const c=rgb(hex).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return c[0]*.2126+c[1]*.7152+c[2]*.0722;}
+    function contrast(a,b){const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);}
+    const statuses=[
+      {key:"success",name:"成功",tag:"OK",title:"验证通过",detail:"使用主绿，保留明确的文字结论。"},
+      {key:"warning",name:"警告",tag:"WARN",title:"需要人工确认",detail:"可继续但需要注意，不冒充执行失败。"},
+      {key:"error",name:"错误",tag:"ERR",title:"缺少必填配置",detail:"说明失败原因及恢复动作，不只显示红色。"},
+      {key:"info",name:"信息",tag:"INFO",title:"配置来源 / 本地",detail:"使用中性副色；普通说明不必都包装成信息卡片。"}
+    ];
+    const derived=statuses.flatMap(s=>{
+      const color=token(`color-${s.key}`);
+      s.color=color;s.bg=mix(token("color-surface"),color,.10);s.border=mix(token("color-surface"),color,.40);
+      return [`  --site-color-${s.key}-background: ${s.bg};`,`  --site-color-${s.key}-border: ${s.border};`];
+    });
+    document.getElementById("derived-tokens").textContent=`:root {\n${derived.join("\n")}\n}`;
+    const colors=[
+      ["主绿 / Brand","accent","品牌、文字、按钮与成功，唯一绿色"],
+      ["副色 / Auxiliary","auxiliary","信息、说明与路径，沿用中性方案"],
+      ["页面 / Background","background","大面积底色"],
+      ["表面 / Surface","surface","终端、卡片和阅读区"],
+      ["抬升 / Raised","surface-raised","局部面板，不用发光区分"],
+      ["正文 / Text","text","主要文字与中性 Logo 模块"],
+      ["分割 / Border","border","装饰分割线，不代替控件边界"],
+      ["控件边界 / Control","control-border","输入边界与待执行字符"],
+      ["按钮字 / On-accent","on-accent","主按钮上的柔和深灰文字"],
+      ["警告 / Warning","warning","需要注意或确认"],
+      ["错误 / Error","error","失败与恢复提示"],
+      ["禁用 / Disabled","disabled","仅用于真正禁用的控件"]
+    ];
+    document.getElementById("color-grid").innerHTML=colors.map(([name,key,detail])=>`<article class="color-card"><div class="color-sample" style="background:${token(`color-${key}`)}"></div><div class="color-detail"><strong>${name}</strong><code>${token(`color-${key}`)}</code><small>${detail}</small></div></article>`).join("");
+    document.getElementById("statuses").innerHTML=statuses.map(s=>`<div class="status" data-status="${s.key}" style="--status-color:var(--site-color-${s.key});--status-bg:var(--site-color-${s.key}-background);--status-border:var(--site-color-${s.key}-border)"><span class="status-tag">${s.tag}</span><strong>${s.title}</strong>${s.detail}</div>`).join("");
+    document.getElementById("spacing").innerHTML=[1,2,3,4,6,8,12,16,24].map(step=>`<div class="spacing-item"><i style="height:var(--site-space-${step})" aria-hidden="true"></i>${token(`space-${step}`)}</div>`).join("");
+    const progressStages=[["INTENT","complete","已完成"],["SPEC","complete","已完成"],["BUILD","running","执行中"],["VERIFY","waiting","等待"]];
+    const progressDemos=[...document.querySelectorAll("[data-progress-demo]")];
+    const progressReducedMotion=matchMedia("(prefers-reduced-motion: reduce)");
+    const progressPrint=matchMedia("print");
+    const progressScanStep=256;
+    let progressScanTimer;
+    function selectProgressBlock(container,index){
+      const blocks=container.querySelectorAll(".progress-segment.running");
+      const active=index%blocks.length;
+      container.dataset.activeBlock=String(active);
+      blocks.forEach((block,slot)=>{block.classList.toggle("is-active",slot===active);});
+    }
+    function isProgressScanPaused(){
+      return root.dataset.paused==="true"||progressReducedMotion.matches||progressPrint.matches;
+    }
+    function advanceProgressScan(){
+      if(!isProgressScanPaused())progressDemos.forEach(container=>{selectProgressBlock(container,Number(container.dataset.activeBlock)+1);});
+    }
+    function syncProgressScan(){
+      clearInterval(progressScanTimer);
+      if(!isProgressScanPaused())progressScanTimer=setInterval(advanceProgressScan,progressScanStep);
+    }
+    function renderProgress(container,width){
+      const track=container.querySelector(".progress-track");
+      const gap=parseFloat(getComputedStyle(track).columnGap);
+      const slashWidth=parseFloat(token("progress-height"))*17/14;
+      const count=Math.max(progressStages.length,Math.floor((width+gap)/(slashWidth+gap)));
+      if(container.dataset.segmentCount===String(count))return;
+      container.dataset.segmentCount=String(count);
+      container.style.setProperty("--segment-count",count);
+      const segments=[],labels=[];
+      progressStages.forEach(([name,state,label],index)=>{
+        const start=Math.round(index*count/progressStages.length);
+        const end=Math.round((index+1)*count/progressStages.length);
+        for(let slot=start;slot<end;slot++)segments.push(`<svg class="progress-segment ${state}" data-stage="${index}" viewBox="0 0 17 14" preserveAspectRatio="none" aria-hidden="true"><path d="M10 0H17L7 14H0Z"/></svg>`);
+        labels.push(`<div class="progress-stage ${state}" data-stage="${index}" style="grid-column:${start+1} / ${end+1}"><span>${name}</span><small>${label}</small></div>`);
+      });
+      track.innerHTML=segments.join("");
+      selectProgressBlock(container,Number(container.dataset.activeBlock??0));
+      container.querySelector(".progress-labels").innerHTML=labels.join("");
+    }
+    const progressObserver=new ResizeObserver(entries=>{entries.forEach(entry=>{renderProgress(entry.target,entry.contentRect.width);});});
+    progressDemos.forEach(container=>{
+      container.classList.add("progress");
+      container.innerHTML='<div class="progress-track"></div><div class="progress-labels"></div>';
+      renderProgress(container,container.getBoundingClientRect().width);
+      progressObserver.observe(container);
+    });
+    progressReducedMotion.addEventListener("change",syncProgressScan);
+    progressPrint.addEventListener("change",syncProgressScan);
+    syncProgressScan();
+    function decorateHeadingStops(scope){
+      const selector="h1,h2,h3,h4,.type-display,.type-section";
+      const headings=scope.matches?.(selector)?[scope]:scope.querySelectorAll(selector);
+      headings.forEach(heading=>{
+        const walker=document.createTreeWalker(heading,NodeFilter.SHOW_TEXT),nodes=[];
+        for(let node=walker.nextNode();node;node=walker.nextNode())if(!node.parentElement.closest(".sr-only"))nodes.push(node);
+        nodes.forEach(node=>{
+          const parts=node.data.split(/(。|\.(?=\s|$))/u);
+          if(parts.length===1)return;
+          const fragment=document.createDocumentFragment();
+          parts.forEach(part=>{
+            if(part==="。"||part==="."){
+              const stop=document.createElement("span"),text=document.createElement("span");
+              stop.className=part==="。"?"heading-stop cjk":"heading-stop";stop.setAttribute("aria-hidden","true");
+              text.className="sr-only";text.textContent=part;
+              fragment.append(stop,text);
+            }else fragment.append(part);
+          });
+          node.replaceWith(fragment);
+        });
+      });
+    }
+    const stages=[
+      {mark:"S",title:"Specification",verb:"Make the intent explicit.",description:"明确目标、约束与验收标准，先澄清再确认。",state:"Implemented with controlled-model verification."},
+      {mark:"O",title:"Solution",verb:"Give the idea a structure.",description:"将架构与技术选择关联到已确认需求。",state:"Workflow direction / planned."},
+      {mark:"L",title:"Implementation",verb:"Bring the structure to life.",description:"把方案转换为聚焦的代码变更与工作结果。",state:"Workflow direction / planned."},
+      {mark:"V",title:"Validation",verb:"Close the loop with evidence.",description:"对照需求验证结果，保留证据并暴露剩余问题。",state:"Workflow direction / planned."},
+      {mark:"E",title:"Evolution",verb:"Let every cycle move you forward.",description:"用反馈修正假设，并带到下一轮意图。",state:"Workflow direction / planned."}
+    ];
+    document.getElementById("stage-tabs").innerHTML=stages.map((s,i)=>`<button type="button" class="stage-tab" role="tab" id="stage-${i}" aria-controls="stage-panel" aria-selected="false" tabindex="-1" aria-label="${s.mark} ${s.title}"><strong>${s.mark}</strong><span>${s.title}</span></button>`).join("");
+    function selectStage(index,focus=false){
+      const stage=stages[index];
+      document.querySelectorAll(".stage-tab").forEach((tab,i)=>{tab.setAttribute("aria-selected",String(i===index));tab.tabIndex=i===index?0:-1;});
+      document.getElementById("stage-panel").setAttribute("aria-labelledby",`stage-${index}`);
+      document.getElementById("stage-name").textContent=`${stage.mark} / ${stage.title}`;
+      document.getElementById("stage-verb").textContent=stage.verb;
+      decorateHeadingStops(document.getElementById("stage-verb"));
+      document.getElementById("stage-description").textContent=stage.description;
+      document.getElementById("stage-status").textContent=stage.state;
+      if(focus)document.getElementById(`stage-${index}`).focus();
+    }
+    document.querySelectorAll(".stage-tab").forEach((tab,index)=>{
+      tab.addEventListener("click",()=>selectStage(index));
+      tab.addEventListener("keydown",event=>{
+        let next;
+        if(["ArrowRight","ArrowDown"].includes(event.key))next=(index+1)%stages.length;
+        else if(["ArrowLeft","ArrowUp"].includes(event.key))next=(index+stages.length-1)%stages.length;
+        else if(event.key==="Home")next=0;
+        else if(event.key==="End")next=stages.length-1;
+        else return;
+        event.preventDefault();selectStage(next,true);
+      });
+    });
+    selectStage(0);
+    decorateHeadingStops(document);
+    let feedbackTimer;
+    function announce(message){clearTimeout(feedbackTimer);document.getElementById("announcer").textContent=message;feedbackTimer=setTimeout(()=>document.getElementById("announcer").textContent="",6000);}
+    document.querySelectorAll("[data-specimen]").forEach(button=>{button.addEventListener("click",()=>announce("这是按钮样式示例，不会启动项目或提交请求。"));});
+    document.querySelectorAll("[data-choose-effect]").forEach(button=>{button.addEventListener("click",()=>{
+      root.dataset.buttonEffect=button.dataset.chooseEffect;
+      document.querySelectorAll("[data-choose-effect]").forEach(choice=>{choice.setAttribute("aria-pressed",String(choice===button));});
+      announce("已切换本页按钮预览；这是待选方案，不代表最终确认。");
+    });});
+    const docLinks=[...document.querySelectorAll(".doc-sidebar a")];
+    function selectDocLink(hash){
+      const current=docLinks.find(link=>link.hash===hash);
+      if(current){
+        docLinks.forEach(link=>{link.removeAttribute("aria-current");});
+        current.setAttribute("aria-current","location");
+        const group=current.closest(".nav-group");
+        if(group)group.open=true;
+      }
+    }
+    docLinks.forEach(link=>{link.addEventListener("click",()=>selectDocLink(link.hash));});
+    addEventListener("hashchange",()=>selectDocLink(location.hash));
+    selectDocLink(location.hash);
+    document.getElementById("pause-motion").addEventListener("click",event=>{
+      const paused=root.dataset.paused!=="true";root.dataset.paused=String(paused);
+      event.currentTarget.setAttribute("aria-pressed",String(paused));event.currentTarget.textContent=paused?"继续示例动画":"暂停示例动画";
+      syncProgressScan();
+    });
+    const checks=[
+      ["正文 / 页面",token("color-text"),token("color-background"),4.5],
+      ["副色 / 抬升面",token("color-auxiliary"),token("color-surface-raised"),4.5],
+      ["主绿文字 / 页面",token("color-accent"),token("color-background"),4.5],
+      ["主绿文字 / 抬升面",token("color-accent"),token("color-surface-raised"),4.5],
+      ["按钮文字 / 主绿",token("color-on-accent"),token("color-accent"),4.5],
+      ["按钮文字 / A hover",mix("#000000",token("color-on-accent"),.94),mix("#000000",token("color-accent"),.94),4.5],
+      ["次操作文字 / A hover",token("color-text"),token("color-surface-raised"),4.5],
+      ["控件边界 / 表面",token("color-control-border"),token("color-surface"),3],
+      ["待执行图形 / 表面",token("color-control-border"),token("color-surface-raised"),3],
+      ["执行亮块 / 表面",token("color-accent"),token("color-surface-raised"),3],
+      ...statuses.flatMap(s=>[[`${s.name}文字 / 提示底`,s.color,s.bg,4.5],[`${s.name}标签 / 实色`,token("color-on-status"),s.color,4.5]])
+    ];
+    document.getElementById("metrics").innerHTML=checks.map(([name,fg,bg,min])=>{const ratio=contrast(fg,bg);return `<article class="metric" data-pass="${ratio>=min}" data-ratio="${ratio}" data-min="${min}">${name}<strong>${ratio.toFixed(2)}:1</strong><span>${ratio>=min?"PASS":"FAIL"} / ≥ ${min}:1</span></article>`;}).join("");
+    document.getElementById("token-output").value=`${document.getElementById("design-tokens").textContent.trim()}\n\n${document.getElementById("derived-tokens").textContent}`;
+    document.getElementById("copy-tokens").addEventListener("click",async()=>{
+      try{await navigator.clipboard.writeText(document.getElementById("token-output").value);announce("已复制本文件完整 CSS Token，包含响应式规则。");}
+      catch(error){console.error("Design token copy failed:",error);announce("复制失败：浏览器未授权剪贴板。请手动选择下方 CSS 后复制。");}
+    });
+    function updateTypeMeasures(){
+      for(const role of ["display","section","lead"]){const sample=document.querySelector(`.type-${role}`);document.querySelector(`[data-measure="${role}"]`).textContent=`${role} / 当前实际字号 ${getComputedStyle(sample).fontSize}`;}
+    }
+    updateTypeMeasures();addEventListener("resize",updateTypeMeasures);
+  </script>
+</body>
+</html>

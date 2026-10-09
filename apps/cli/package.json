@@ -1,10 +1,10 @@
 {
   "name": "@intloom/cli",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "IntLoom project CLI and local MCP execution host",
   "type": "module",
   "engines": {
-    "node": ">=24"
+    "node": ">=22.22.0"
   },
   "bin": {
     "intloom": "./dist/bin.js"

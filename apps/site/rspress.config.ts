@@ -20,7 +20,7 @@ export default defineConfig({
   ],
   icon: new URL("./assets/favicon.svg", import.meta.url).href,
   logoText: "IntLoom",
-  route: { cleanUrls: true },
+  route: { cleanUrls: true, localeRedirect: "never" },
   plugins: [
     {
       name: "intloom-site-pages",

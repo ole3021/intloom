@@ -1,10 +1,10 @@
 {
   "name": "@intloom/cli",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "IntLoom project CLI and local MCP execution host",
   "type": "module",
   "engines": {
-    "node": ">=24"
+    "node": ">=22.22.0"
   },
   "bin": {
     "intloom": "./dist/bin.js"
@@ -25,8 +25,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@intloom/utils": "0.0.1",
-    "@intloom/kernel": "0.0.2",
+    "@intloom/utils": "0.0.2",
+    "@intloom/kernel": "0.0.3",
     "@clack/prompts": "1.8.1",
     "commander": "15.0.0",
     "picocolors": "1.1.1",
@@ -40,7 +40,7 @@
     "@mastra/core": "1.67.0",
     "drizzle-orm": "0.45.3",
     "better-sqlite3": "13.0.3",
-    "@intloom/workflow-sdk": "0.0.1"
+    "@intloom/workflow-sdk": "0.0.2"
   },
   "license": "Apache-2.0",
   "repository": {

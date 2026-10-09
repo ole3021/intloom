@@ -4,7 +4,7 @@ Public TypeScript contracts, Zod Schemas, and stateless helpers for authoring co
 
 ## Installation
 
-Requires Node.js 24+ and ESM. Add the SDK and any packages imported by your Workflow to runtime dependencies; add Compiler to development dependencies:
+Requires Node.js 22.22.0+ and ESM. Repository development uses Node.js 24+ and Bun; public contracts use the Node.js 22 type baseline. Add the SDK and any packages imported by your Workflow to runtime dependencies; add Compiler to development dependencies:
 
 ```sh
 bun add @intloom/workflow-sdk zod

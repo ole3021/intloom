@@ -2,6 +2,8 @@
 
 These Node.js 24+ scripts prepare and publish IntLoom packages. They are repository tooling, not CLI runtime code. Bun manages dependencies and Turbo orchestrates workspace tasks.
 
+Published products require Node.js 22.22.0+. Repository builds keep Node.js 24 and use Node.js 22 types to constrain product APIs. Consumer verification is the exception to the tooling runtime: the reusable consumer workflow installs repository tools under Node.js 24, then tests built packages on Linux/macOS with Node.js 22.22.0, latest 22, 24, and 26. Each isolated npm installation builds or downloads its own SQLite native binding. Both CI and release preparation run this matrix; publication waits for it to pass. `verify-published.ts` runs on the same runtime matrix after publication.
+
 All archives, release plans, manifests, and generated notes use the repository root's `.release/` directory. No environment variable changes these paths. Packing and validation do not publish packages.
 
 ## Command entry points

@@ -44,12 +44,12 @@ Use this `package.json`:
     "build": "node build.ts"
   },
   "dependencies": {
-    "@intloom/workflow-sdk": "0.0.1",
+    "@intloom/workflow-sdk": "0.0.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@intloom/compiler": "0.0.1",
-    "@types/node": "^24",
+    "@intloom/compiler": "0.0.2",
+    "@types/node": "^22",
     "typescript": "7.0.2"
   },
   "intloom": {

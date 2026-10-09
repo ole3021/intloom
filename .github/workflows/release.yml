@@ -60,14 +60,33 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: steps.plan.outputs.has-release == 'true'
         with:
+          name: npm-consumer-build
+          path: |
+            apps/cli/.publish/
+            apps/cli/.publish-intloom/
+            packages/utils/dist/
+            packages/workflow-sdk/dist/
+            packages/compiler/dist/
+            packages/intent/dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.plan.outputs.has-release == 'true'
+        with:
           name: npm-release
           path: .release/
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
 
-  publish:
+  consumers:
     needs: prepare
+    if: needs.prepare.outputs.has-release == 'true'
+    uses: ./.github/workflows/consumer.yml
+
+  publish:
+    needs: [prepare, consumers]
     if: needs.prepare.outputs.has-release == 'true' && vars.NPM_PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -100,7 +119,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node: ['24', '26']
+        node: ['22.22.0', '22', '24', '26']
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:

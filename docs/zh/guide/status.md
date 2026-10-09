@@ -32,7 +32,8 @@ description: 已实现的框架行为、验证边界和兼容性要求。
 
 ## 运行时兼容性
 
-包要求 Node.js 24 或更新版本。完整本地 CLI/MCP 验收以 Node.js 24 为基准。验证 Workflow 执行的命令时，应使用服务实际继承的 Node 版本。尤其不要把 Node 24 的 `--experimental-transform-types` 参数直接用于 Node 26，Node 26 会拒绝该参数。
+包要求 Node.js 22.22.0 或更新版本，推荐使用最新的 Node.js 24 LTS。仓库开发、构建和发布继续以 Node.js 24 为基准，产品代码与公开消费者使用 Node.js 22 类型。发布前在 Linux 和 macOS 上使用 Node.js 22.22.0、最新的 22、24 和 26 验证隔离的归档消费者；发布后使用同一矩阵验证注册源消费者。这些检查不能证明真实远程模型行为。
+
+运行时下限包含 Mastra 间接依赖的 PostHog，它在 Node.js 22 分支上要求 22.22.0。仓库锁文件不能固定 npm 消费者解析出的依赖。验证 Workflow 执行的命令时，应使用服务实际继承的 Node 版本。尤其不要把 Node 24 的 `--experimental-transform-types` 参数直接用于 Node 26，Node 26 会拒绝该参数。
 
 比较部署环境与开发文档时，查看已安装 CLI 的 `--version` 和 `--help`。升级 CLI 后重启已有服务；运行中的进程仍使用已经加载的资源。
-
