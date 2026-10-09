@@ -96,6 +96,13 @@ test("every document has a language counterpart and a working switch link", asyn
   assert.doesNotMatch(page("index.html"), /data-language-switch/);
 });
 
+test("built pages omit the automatic browser-language redirect script", () => {
+  for (const [name, html] of pages) {
+    assert.doesNotMatch(html, /rspress-visited/, name);
+    assert.doesNotMatch(html, /navigator\.language/, name);
+  }
+});
+
 test("every rendered internal page link resolves to an emitted artifact", () => {
   for (const [name, html] of pages) {
     assert.doesNotMatch(html, /class="[^"]*\bundefined\b[^"]*"/, name);

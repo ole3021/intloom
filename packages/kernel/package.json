@@ -1,6 +1,6 @@
 {
   "name": "@intloom/kernel",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "type": "module",
   "exports": {
@@ -61,6 +61,6 @@
     "url": "https://github.com/ole3021/intloom/issues"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22.22.0"
   }
 }

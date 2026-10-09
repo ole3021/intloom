@@ -7,6 +7,27 @@
 - Standardize RunView.cursor across CLI/MCP, query and answer names, and Workflow initialization diagnostic types.
 - Deprecate Query and SnapshotCategory in favor of StorageQuery and StorageCategory; retain compatibility aliases.
 
+## @intloom/cli@0.0.3
+
+- Support Node.js 22.22.0+ in both CLI entries and the embedded Kernel while retaining Node.js 24 for repository development and publication.
+- Check public contracts against Node.js 22 types and gate publication on isolated Linux/macOS consumers across Node.js 22.22.0, latest 22, 24, and 26.
+
+## @intloom/workflow-intent@0.0.2
+
+- Support Node.js 22.22.0+ with the updated public Workflow SDK and Utils packages.
+
+## @intloom/compiler@0.0.2
+
+- Support Node.js 22.22.0+ and verify standalone Workflow compilation against Node.js 22 consumer types.
+
+## @intloom/workflow-sdk@0.0.2
+
+- Support Node.js 22.22.0+ and validate public declarations with the Node.js 22 type baseline.
+
+## @intloom/utils@0.0.2
+
+- Support Node.js 22.22.0+ without changing logging, error, or identifier behavior.
+
 ## @intloom/cli@0.0.2
 
 - Fix global installation of `@intloom/cli` and `intloom` by letting the CLI install the private Kernel's external runtime dependencies.

@@ -1,6 +1,6 @@
 {
   "name": "@intloom/workflow-sdk",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "description": "Public contracts and stateless capabilities for compiled IntLoom Workflows",
   "exports": {
@@ -37,7 +37,7 @@
     "url": "https://github.com/ole3021/intloom/issues"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22.22.0"
   },
   "publishConfig": {
     "access": "public"

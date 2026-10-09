@@ -108,7 +108,7 @@ test("installs SDK archives and checks runtime and declarations without reposito
         "@intloom/utils": `file:${packages["@intloom/utils"]}`,
         zod: manifest.dependencies.zod,
       },
-      devDependencies: { "@types/node": "^24" },
+      devDependencies: { "@types/node": "^22" },
     }),
   );
   const base = JSON.parse(
@@ -127,6 +127,7 @@ test("installs SDK archives and checks runtime and declarations without reposito
     "npm",
     [
       "install",
+      "--engine-strict",
       "--ignore-scripts",
       "--no-audit",
       "--no-fund",

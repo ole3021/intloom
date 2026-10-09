@@ -1,6 +1,6 @@
 {
   "name": "@intloom/utils",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "publishConfig": {
     "access": "public"
@@ -38,7 +38,7 @@
     "url": "https://github.com/ole3021/intloom/issues"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22.22.0"
   },
   "devDependencies": {
     "pino-pretty": "^13.2.0"

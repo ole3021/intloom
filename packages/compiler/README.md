@@ -4,7 +4,7 @@ Build IntLoom Workflow source packages into ESM, TypeScript declarations, and Sk
 
 ## Usage
 
-Requires Node.js 24+. Add Compiler as a development dependency of the Workflow package; repository workspaces use `workspace:*`. Declare packages needed by the compiled Workflow in `dependencies` or `peerDependencies`.
+Requires Node.js 22.22.0+. Repository development uses Node.js 24+ and Bun. Add Compiler as a development dependency of the Workflow package; repository workspaces use `workspace:*`. Declare packages needed by the compiled Workflow in `dependencies` or `peerDependencies`.
 
 Call Compiler from a build script in the Workflow package:
 

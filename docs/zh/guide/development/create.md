@@ -44,12 +44,12 @@ capture-workflow/
     "build": "node build.ts"
   },
   "dependencies": {
-    "@intloom/workflow-sdk": "0.0.1",
+    "@intloom/workflow-sdk": "0.0.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@intloom/compiler": "0.0.1",
-    "@types/node": "^24",
+    "@intloom/compiler": "0.0.2",
+    "@types/node": "^22",
     "typescript": "7.0.2"
   },
   "intloom": {
@@ -199,4 +199,3 @@ bun run build
 预期输出包括 `dist/workflow.generated.js`、类型声明、编译后的业务模块和 source maps。生成模块导出 `blueprint`、`codes` 和 `agentSpecs`；该纯 Code 包没有 Agent 资源。
 
 接着阅读[构建、测试与分发](./build.md)，完成打包与安装。如果希望无需模型执行这个纯 Code 工作流，使用 `useMcpAgent: true` 的外部 MCP 入口。当前 CLI 的服务执行准入策略仍要求 `llms.default`。
-

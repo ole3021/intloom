@@ -14,6 +14,12 @@ The homepage is `/`. `/workflows` and `/examples` currently contain placeholder 
 
 Custom page routes are registered in [rspress.config.ts](./rspress.config.ts). Keep the homepage there rather than adding a second `docs/index.md`. Homepage effects stay under `src/pages/home/`; the shared theme must not import them.
 
+## Design baseline
+
+[DESIGN.html](./DESIGN.html) is the standalone visual reference for future IntLoom website adjustments. It fixes the confirmed primary green to `#14DB49` and limits the current design scope to the dark theme. The file includes V1 typography and spacing recommendations, component states, and homepage and documentation layout examples; it can be opened directly without installing dependencies.
+
+This reference is not a deployed redesign. The current styles and components may still differ. Keep future visual decisions in this file, then synchronize the affected production tokens, components, brand assets, and verification when implementation is approved. Product behavior and release claims remain owned by the existing source and Guide documentation.
+
 ## Commands
 
 Run commands from the repository root after installing dependencies. Tool versions and shared conventions are in the [root README](../../README.md) and [AGENTS.md](../../AGENTS.md).

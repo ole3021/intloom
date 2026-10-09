@@ -26,7 +26,7 @@ You can work through the CLI or a connected Agent IDE using MCP. Both use the sa
 
 ## Getting started
 
-Use Node.js 24+, Bun 1.4.0+, and npm. These instructions use a source checkout; see [Installation](./docs/guide/quickstart/installation.md) for published-release prerequisites and complete setup.
+Published packages support Node.js 22.22.0+; the latest Node.js 24 LTS is recommended. Working on this repository requires Node.js 24+, Bun 1.4.0+, and npm. These instructions use a source checkout; see [Installation](./docs/guide/quickstart/installation.md) for published-release prerequisites and complete setup.
 
 From the repository root, build the CLI and inspect its help:
 

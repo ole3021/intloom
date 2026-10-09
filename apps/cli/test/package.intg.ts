@@ -9,7 +9,8 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -25,11 +26,19 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
   await mkdir(archives);
   await mkdir(consumerRoot);
   const root = fileURLToPath(new URL("../../../", import.meta.url));
+  const repositoryManifest = JSON.parse(
+    await readFile(join(root, "package.json"), "utf8"),
+  );
+  const tsc = join(
+    dirname(createRequire(import.meta.url).resolve("typescript/package.json")),
+    "bin/tsc",
+  );
   const packages: Record<string, string> = {};
   for (const [name, directory] of [
     ["cli", "apps/cli/.publish"],
     ["intloom", "apps/cli/.publish-intloom"],
     ["workflow-sdk", "packages/workflow-sdk"],
+    ["workflow-intent", "packages/intent/dist"],
     ["utils", "packages/utils"],
   ] as const) {
     const { stdout } = await run(
@@ -58,7 +67,13 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
         join(project, "package.json"),
         JSON.stringify({
           type: "module",
-          dependencies: { [launcher]: `file:${archiveFor(launcher)}` },
+          dependencies: {
+            [launcher]: `file:${archiveFor(launcher)}`,
+            "@intloom/workflow-intent": `file:${archiveFor("@intloom/workflow-intent")}`,
+          },
+          devDependencies: {
+            "@types/node": repositoryManifest.devDependencies["@types/node"],
+          },
           overrides: Object.fromEntries(
             Object.entries(packages).map(([name, file]) => [
               name,
@@ -67,11 +82,15 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
           ),
         }),
       );
-      await run("npm", ["install", "--no-audit", "--no-fund"], {
-        cwd: project,
-        timeout: 90_000,
-        maxBuffer: 1024 * 1024,
-      });
+      await run(
+        "npm",
+        ["install", "--engine-strict", "--no-audit", "--no-fund"],
+        {
+          cwd: project,
+          timeout: 90_000,
+          maxBuffer: 1024 * 1024,
+        },
+      );
       if (launcher === "intloom") {
         const entry = JSON.parse(
           await readFile(
@@ -84,6 +103,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
         );
         assert.deepEqual(entry.dependencies, { "@intloom/cli": cli.version });
         assert.deepEqual(entry.bin, { intloom: "./dist/bin.js" });
+        assert.equal(entry.engines.node, ">=22.22.0");
         assert.equal(entry.bundleDependencies, undefined);
         assert.match(
           await readFile(
@@ -112,6 +132,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
         ),
       );
       assert.equal(embeddedKernel.private, true);
+      assert.equal(embeddedKernel.engines.node, ">=22.22.0");
       assert.equal(embeddedKernel.dependencies, undefined);
       assert.equal(
         files.some((file) =>
@@ -122,6 +143,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
       const manifest = JSON.parse(
         await readFile(join(installed, "package.json"), "utf8"),
       );
+      assert.equal(manifest.engines.node, ">=22.22.0");
       const kernelManifest = JSON.parse(
         await readFile(resolve(root, "packages/kernel/package.json"), "utf8"),
       );
@@ -189,9 +211,79 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
       const consumer = join(project, "consumer.mjs");
       await writeFile(
         consumer,
-        'import assert from "node:assert/strict"; import { runCli, startService, startProjectHost, connectProject, connectProjectClient, discoverProjectConnection, addWorkflow, removeWorkflow, listInstalledWorkflows, doctorProject } from "@intloom/cli"; for (const item of [runCli, startService, startProjectHost, connectProject, connectProjectClient, discoverProjectConnection, addWorkflow, removeWorkflow, listInstalledWorkflows, doctorProject]) assert.equal(typeof item, "function"); await assert.rejects(import("@intloom/kernel"), { code: "ERR_MODULE_NOT_FOUND" });',
+        `
+import assert from "node:assert/strict";
+import { writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { workflowProtocolVersion } from "@intloom/workflow-sdk";
+import { blueprint } from "@intloom/workflow-intent";
+import { runCli, startService, stopService, startProjectHost, connectProject, connectProjectClient, discoverProjectConnection, addWorkflow, removeWorkflow, listInstalledWorkflows, doctorProject } from "@intloom/cli";
+for (const item of [runCli, startService, startProjectHost, connectProject, connectProjectClient, discoverProjectConnection, addWorkflow, removeWorkflow, listInstalledWorkflows, doctorProject]) assert.equal(typeof item, "function");
+await assert.rejects(import("@intloom/kernel"), { code: "ERR_MODULE_NOT_FOUND" });
+assert.equal(blueprint.flowName, "intent");
+assert.equal(createRequire(import.meta.url)("@intloom/workflow-intent/package.json").intloom.version, workflowProtocolVersion);
+const require = createRequire(import.meta.resolve("@intloom/cli"));
+for (const backend of ["file", "sqlite"]) {
+  const projectRoot = process.argv[2] + "-" + backend;
+  assert.equal(await runCli(["init", projectRoot, "--json", "--no-interactive"]), 0);
+  const storage = await import(pathToFileURL(require.resolve("@intloom/kernel/storage/" + backend)).href);
+  const options = backend === "file" ? { directory: resolve("file-store") } : { filename: resolve("store.sqlite"), projectId: "consumer" };
+  const open = backend === "file" ? storage.openFileStorage : storage.openSqliteStorage;
+  const handle = await open(options);
+  try {
+    await handle.access.commit([{ type: "append_record", id: "consumer", payload: { flowName: "fixture", stageName: "first", data: "persisted" } }]);
+  } finally {
+    await handle.dispose();
+  }
+  const reopened = await open(options);
+  try {
+    assert.equal((await reopened.access.getRecordById("consumer")).data, "persisted");
+  } finally {
+    await reopened.dispose();
+  }
+  await writeFile(resolve(projectRoot, "intloom.yaml"), "localStorage: " + backend + "\\nworkflows: []\\nintent: { apps: [] }\\n");
+  await startService({ projectRoot });
+  try {
+    const client = await connectProject(projectRoot);
+    try {
+      assert.deepEqual(await client.listRuns(), []);
+    } finally {
+      await client.close();
+    }
+  } finally {
+    await stopService(projectRoot);
+  }
+}
+`,
       );
-      await run(process.execPath, [consumer], { cwd: project });
+      await run(process.execPath, [consumer, scaffold.projectRoot], {
+        cwd: project,
+        timeout: 30_000,
+      });
+      const types = join(project, "consumer.ts");
+      await writeFile(
+        types,
+        'import { connectProject } from "@intloom/cli"; export type Client = Awaited<ReturnType<typeof connectProject>>;',
+      );
+      await run(
+        process.execPath,
+        [
+          tsc,
+          "--noEmit",
+          "--strict",
+          "--skipLibCheck",
+          "--target",
+          "ES2023",
+          "--module",
+          "NodeNext",
+          "--types",
+          "node",
+          types,
+        ],
+        { cwd: project },
+      );
       const listed = await run(
         process.execPath,
         [
@@ -232,6 +324,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
           "--global",
           "--prefix",
           prefix,
+          "--engine-strict",
           "--no-audit",
           "--no-fund",
           archiveFor(launcher),

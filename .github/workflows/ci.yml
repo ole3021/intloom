@@ -34,6 +34,19 @@ jobs:
       - run: node scripts/release-manifest.ts
       - run: bun run --cwd apps/site ci:check
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-consumer-build
+          path: |
+            apps/cli/.publish/
+            apps/cli/.publish-intloom/
+            packages/utils/dist/
+            packages/workflow-sdk/dist/
+            packages/compiler/dist/
+            packages/intent/dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: >-
           github.event_name != 'pull_request' && github.ref_type == 'branch' && (github.ref_name == 'main' || (startsWith(github.ref_name, 'feat-') && !contains(github.ref_name, '/')))
         with:
@@ -41,6 +54,10 @@ jobs:
           path: apps/site/dist
           if-no-files-found: error
           retention-days: 7
+
+  consumers:
+    needs: check
+    uses: ./.github/workflows/consumer.yml
 
   deploy:
     needs: check

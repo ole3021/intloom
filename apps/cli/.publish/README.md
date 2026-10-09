@@ -4,7 +4,7 @@
 
 ## Usage
 
-Requires Node.js 24+ and npm. For a published release, install either `intloom` or `@intloom/cli`; both provide the same command:
+Requires Node.js 22.22.0+ and npm; the latest Node.js 24 LTS is recommended. Repository development and publication use Node.js 24+ and Bun. For a published release, install either `intloom` or `@intloom/cli`; both provide the same command:
 
 ```sh
 npm install -g intloom

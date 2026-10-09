@@ -5,7 +5,7 @@ description: 准备 CLI，初始化空项目，并安装兼容的 Workflow 包�
 
 # 安装与项目配置
 
-使用 Node.js 24 或更新版本。完整的本地验收使用 Node.js 24。安装 Workflow 要求 `PATH` 中可找到 npm；开发本仓库还需要 Bun 1.4.0 或更新版本。
+发布包要求 Node.js 22.22.0 或更新版本，推荐使用最新的 Node.js 24 LTS。开发本仓库和准备发布需要 Node.js 24 或更新版本，以及 Bun 1.4.0 或更新版本。安装 Workflow 要求 `PATH` 中可找到 npm。
 
 ## 使用当前源码
 
@@ -70,4 +70,3 @@ intloom workflow list
 预期结果是 `workflow list` 显示包声明和安装完整性。服务启动后，通过 `flows` 检查执行名称；执行名称可能不同于 npm 包名。
 
 接下来阅读 [MCP](./mcp.md) 或 [CLI](./cli.md)。升级和恢复安装的方法见[包管理](../usage/packages.md)。
-
