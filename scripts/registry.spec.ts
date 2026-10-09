@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { publications } from "./publication.ts";
-import { pendingPublications, verifyPublishedEntries } from "./registry.ts";
+import {
+  pendingPublications,
+  retryPublishedInstall,
+  verifyPublishedEntries,
+} from "./registry.ts";
 import type { PublicationVersions, ReleaseEntry } from "./release.ts";
 
 const entry: ReleaseEntry = {
@@ -194,6 +198,176 @@ test("a registry transport failure stops verification", async (t) => {
     /Transport unavailable/,
   );
 });
+
+function installFailure(stderr: string): Error {
+  return Object.assign(new Error("npm install failed"), { code: 1, stderr });
+}
+
+test("a successful npm installation runs once without waiting", async () => {
+  let installs = 0;
+  await retryPublishedInstall(
+    [entry],
+    async () => {
+      installs++;
+    },
+    async () => assert.fail("Must not wait"),
+  );
+  assert.equal(installs, 1);
+});
+
+for (const prefix of ["npm error", "npm ERR!"]) {
+  test(`${prefix} ETARGET after successful metadata checks retries the actual installation`, async (t) => {
+    const fetch = mockRegistry(t, ready);
+    await verifyPublishedEntries([entry], async () =>
+      assert.fail("Metadata is already visible"),
+    );
+    const failure = installFailure(
+      `${prefix} code ETARGET\r\n${prefix} notarget No matching version found for ${entry.name}@${entry.version}.\r\n`,
+    );
+    let installs = 0;
+    const waits: number[] = [];
+    await retryPublishedInstall(
+      [entry],
+      async () => {
+        if (++installs === 1) throw failure;
+      },
+      async (milliseconds) => {
+        waits.push(milliseconds);
+      },
+    );
+    assert.equal(fetch.mock.callCount(), 2);
+    assert.equal(installs, 2);
+    assert.deepEqual(waits, [10_000]);
+  });
+}
+
+test("persistent npm ETARGET stops at the retry limit and preserves the original error", async (t) => {
+  const log = t.mock.method(console, "log", () => {});
+  const failure = installFailure(
+    `npm error code ETARGET\nnpm error notarget No matching version found for ${entry.name}@${entry.version}.\n`,
+  );
+  let installs = 0;
+  let waits = 0;
+  await assert.rejects(
+    retryPublishedInstall(
+      [entry],
+      async () => {
+        installs++;
+        throw failure;
+      },
+      async (milliseconds) => {
+        assert.equal(milliseconds, 10_000);
+        waits++;
+      },
+    ),
+    (error: Error) => {
+      assert.match(
+        error.message,
+        /not yet installable.*31 attempts.*@intloom\/cli@0\.0\.2.*original CI artifacts/,
+      );
+      assert.equal(error.cause, failure);
+      return true;
+    },
+  );
+  assert.equal(installs, 31);
+  assert.equal(waits, 30);
+  assert.equal(log.mock.callCount(), 30);
+  assert.match(
+    log.mock.calls[0].arguments[0],
+    /Waiting for npm installation \(1\/31\): @intloom\/cli@0\.0\.2 \(ETARGET\)/,
+  );
+});
+
+for (const target of [
+  "@intloom/cli@0.0.1",
+  "@intloom/utils@0.0.1",
+  "third-party@1.0.0",
+]) {
+  test(`ETARGET for ${target} outside the published entries fails immediately`, async () => {
+    const failure = installFailure(
+      `npm error code ETARGET\nnpm error notarget No matching version found for ${target}.\n`,
+    );
+    let installs = 0;
+    await assert.rejects(
+      retryPublishedInstall(
+        [entry],
+        async () => {
+          installs++;
+          throw failure;
+        },
+        async () => assert.fail("Must not retry"),
+      ),
+      (error: Error) => error === failure,
+    );
+    assert.equal(installs, 1);
+  });
+}
+
+for (const code of [
+  "EBADENGINE",
+  "EINTEGRITY",
+  "E401",
+  "E403",
+  "E404",
+  "ECONNRESET",
+  "1",
+]) {
+  test(`npm ${code} is not treated as version propagation`, async () => {
+    const failure = installFailure(
+      `npm error code ${code}\nnpm error notarget No matching version found for ${entry.name}@${entry.version}.\n`,
+    );
+    await assert.rejects(
+      retryPublishedInstall(
+        [entry],
+        async () => {
+          throw failure;
+        },
+        async () => assert.fail("Must not retry"),
+      ),
+      (error: Error) => error === failure,
+    );
+  });
+}
+
+for (const [name, failure] of [
+  ["missing stderr", new Error("Transport unavailable")],
+  ["missing target", installFailure("npm error code ETARGET\n")],
+  [
+    "missing npm error code",
+    installFailure("No matching version found for @intloom/cli@0.0.2.\n"),
+  ],
+  [
+    "timed-out npm process",
+    Object.assign(
+      installFailure(
+        `npm error code ETARGET\nnpm error notarget No matching version found for ${entry.name}@${entry.version}.\n`,
+      ),
+      { code: null, killed: true, signal: "SIGTERM" },
+    ),
+  ],
+  [
+    "non-npm exit code",
+    Object.assign(
+      installFailure(
+        `npm error code ETARGET\nnpm error notarget No matching version found for ${entry.name}@${entry.version}.\n`,
+      ),
+      { code: "ENOENT" },
+    ),
+  ],
+]) {
+  test(`unrecognized installation failure is preserved: ${name}`, async () => {
+    await assert.rejects(
+      retryPublishedInstall(
+        [entry],
+        async () => {
+          throw failure;
+        },
+        async () => assert.fail("Must not retry"),
+      ),
+      (error: Error) => error === failure,
+    );
+  });
+}
 
 const release = {
   commit: "local",

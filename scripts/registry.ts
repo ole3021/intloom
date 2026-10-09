@@ -10,6 +10,9 @@ import {
 import { releaseDirectory } from "./release-files.ts";
 import { compareVersions, validateVersion } from "./version.ts";
 
+const visibilityChecks = 31;
+const visibilityInterval = 10_000;
+
 interface RegistryMetadata {
   version?: string;
   dist?: { integrity?: string };
@@ -74,7 +77,7 @@ export async function verifyPublishedEntries(
   wait: (milliseconds: number) => Promise<unknown> = setTimeout,
 ): Promise<void> {
   let pending = entries;
-  for (let attempt = 1; attempt <= 31; attempt++) {
+  for (let attempt = 1; attempt <= visibilityChecks; attempt++) {
     const waiting: ReleaseEntry[] = [];
     for (const entry of pending) {
       const versions = await Promise.all([
@@ -99,13 +102,56 @@ export async function verifyPublishedEntries(
     const names = waiting
       .map((entry) => `${entry.name}@${entry.version}`)
       .join(", ");
-    if (attempt === 31)
+    if (attempt === visibilityChecks)
       throw new Error(
         `Published packages are not yet available in npm version metadata and install indexes after ${attempt} checks: ${names}. Rerun verification using the original CI artifacts; do not republish or rebuild them.`,
       );
-    console.log(`Waiting for npm visibility (${attempt}/31): ${names}`);
-    await wait(10_000);
+    console.log(
+      `Waiting for npm visibility (${attempt}/${visibilityChecks}): ${names}`,
+    );
+    await wait(visibilityInterval);
     pending = waiting;
+  }
+}
+
+/** npm can still see stale metadata after the visibility check passes. */
+export async function retryPublishedInstall(
+  entries: readonly ReleaseEntry[],
+  install: () => Promise<unknown>,
+  wait: (milliseconds: number) => Promise<unknown> = setTimeout,
+): Promise<void> {
+  const published = new Set(
+    entries.map(({ name, version }) => `${name}@${version}`),
+  );
+  for (let attempt = 1; attempt <= visibilityChecks; attempt++) {
+    try {
+      await install();
+      return;
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        !("code" in error) ||
+        error.code !== 1 ||
+        !("stderr" in error) ||
+        typeof error.stderr !== "string" ||
+        !/^npm (?:error|ERR!) code ETARGET\r?$/m.test(error.stderr)
+      )
+        throw error;
+      const target =
+        /^npm (?:error|ERR!) notarget No matching version found for (\S+)\.\r?$/m.exec(
+          error.stderr,
+        )?.[1];
+      if (!target || !published.has(target)) throw error;
+      if (attempt === visibilityChecks)
+        throw new Error(
+          `Published packages are not yet installable by npm after ${attempt} attempts: ${target}. Rerun verification using the original CI artifacts; do not republish or rebuild them.`,
+          { cause: error },
+        );
+      console.log(
+        `Waiting for npm installation (${attempt}/${visibilityChecks}): ${target} (ETARGET)`,
+      );
+      await wait(visibilityInterval);
+    }
   }
 }
 
