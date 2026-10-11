@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { view, terminal } from "../../test/unit-fixture.ts";
 import { presentRun } from "./run-presentation.ts";
-import { renderRun, renderStatus } from "./render.ts";
+import { renderRun, renderRunProgress, renderStatus } from "./render.ts";
 
 test("stopped presentation preserves the authoritative JSON and omits failure guidance", () => {
   const { pendingAction: _action, ...base } = view;
@@ -63,4 +63,18 @@ test("service summary names the existing combined failure and stopped count", ()
     failedRuns: 2,
   });
   assert.match(text, /failed or stopped 2/u);
+});
+
+test("running progress keeps the original Run ID and current cursor", () => {
+  const { pendingAction: _action, ...base } = view;
+  const run = { ...base, status: "running" as const };
+  assert.equal(
+    renderRunProgress(run),
+    "Run RUN-original · first / ask · running",
+  );
+  const text = renderRun(run);
+  assert.match(text, /Run {2}RUN-original/u);
+  assert.match(text, /Status running/u);
+  assert.match(text, /Cursor first \/ ask/u);
+  assert.match(text, /Inspect intloom attach RUN-original/u);
 });

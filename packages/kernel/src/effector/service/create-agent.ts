@@ -1,5 +1,7 @@
 import { executeServiceAgent } from "./execute-agent.ts";
 import { Agent } from "@mastra/core/agent";
+import { noopLogger } from "@mastra/core/logger";
+import { Mastra } from "@mastra/core/mastra";
 import type { Tool } from "@mastra/core/tools";
 import { fail, workflowError } from "../../workflow/errors.ts";
 import type { AgentSpec } from "../../workflow/module.ts";
@@ -35,7 +37,11 @@ export async function createAgent(
       label,
     );
     const modelOptions = createModelOptions(config, apiKey, label);
+    // Pinned Mastra 1.67 uses its attached instance for internal stream Workflow logging.
+    // Match its private standalone context; ephemeral skips global scorer-hook retention.
+    const mastra = new Mastra({ logger: false, __ephemeral: true });
     const agent = new Agent({
+      mastra,
       id: options.agentId,
       name: spec.name,
       description: spec.description,
@@ -44,6 +50,9 @@ export async function createAgent(
       tools,
       skills,
     });
+    // SDK stream failures can include raw model output in their default console logger.
+    // IntLoom records only classified, bounded diagnostics at the execution boundary.
+    agent.__setLogger(noopLogger);
     // The SDK loads directory skills lazily; verify during initialization that no Skill was skipped or overwritten.
     const loadedSkills = await agent.listSkills();
     if (
@@ -64,8 +73,8 @@ export async function createAgent(
       executable: {
         agent,
         outputSchema: spec.outputSchema,
-        execute(input, access, maxSteps) {
-          return executeServiceAgent(this, input, access, maxSteps);
+        execute(input, access, maxSteps, observer) {
+          return executeServiceAgent(this, input, access, maxSteps, observer);
         },
       },
     };

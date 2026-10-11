@@ -18,14 +18,16 @@ assertRunState/toRunView, N4 execution, and N6.1–N6.3 answers/stopping are imp
 
 | API | Semantics |
 | --- | --- |
-| flow(blueprint,intent,source = "cli") | Reject blank intent, prepare the entry-specific executor before creating a Run, preserve original text, return at waiting/completed/failed |
+| startFlow(blueprint,intent,source = "cli") | Prepare the executor, register and checkpoint one Run, launch execution, then return its initial running snapshot without waiting for Code or Agent |
+| flow(blueprint,intent,source = "cli") | Same admission path, preserving original text, but return at waiting/completed/failed |
 | getRun(runId) | Current snapshot including running; missing Run throws NOT_FOUND |
 | listRuns(flowName?) | Current snapshots with optional filter, preserving updatedAt |
-| answerAsk(runId,actionId,answer) | Match pendingAction.id, validate/deliver to original call, return next stable snapshot; invalid/stale answers preserve action/time |
+| submitAnswer(runId,actionId,answer) | Match and consume the current action synchronously, return the resumed running snapshot; invalid/stale answers preserve action/time |
+| answerAsk(runId,actionId,answer) | Same validation/delivery path, but return the next stable snapshot |
 | cancelRun(runId) | Cancel one Run as failed/RUN_STOPPED, clear actions, preserve existing terminals |
 | cancelAllRuns() | Cancel all active Runs using the same rules |
 
-No separate resume exists. Human waiting retains the unfinished Code Promise/call/continuation; answerAsk continues it without replay. Continuation prepare reads authoritative requests, validates, and prepares pure delivery before consumption. No duplicate status/cursor/pendingAction is stored. Stopping never waits for or rolls back external effects.
+Immediate admission and answer receipts do not add a Run state or duplicate effects. Only the blocking methods register stable-state observers; clients can query `getRun` after an immediate receipt. No separate resume exists. Human waiting retains the unfinished Code Promise/call/continuation; answerAsk continues it without replay. Continuation prepare reads authoritative requests, validates, and prepares pure delivery before consumption. No duplicate status/cursor/pendingAction is stored. Stopping never waits for or rolls back external effects.
 
 ## Client Agent calls
 
@@ -181,6 +183,10 @@ N7.3 in Intent uses actual projects/Effector/Tools/both backends for six Steps a
 
 ## Execution logs
 
-`RuntimeOptions.logger` accepts the host-owned Utils Logger. Each Run binds its generated timestamped runId; each Step invocation adds stageName, stepName and a Run-local executionId. Looping back creates a new executionId, while waiting and answering preserve the original one. `withLogger` propagates this context into initialization, Code, Agent, Tool, State and Storage calls.
+`RuntimeOptions.logger` accepts the host-owned Utils Logger. Each Run binds its generated timestamped runId; each Step invocation adds stageName, stepName and a Run-local executionId. Looping back creates a new executionId, while waiting and answering preserve the original one. `withLogger` propagates this context into initialization, Code, Agent, Tool, State and Storage calls. A project-installed Workflow may load a separate Utils copy; Loader binds the current host Logger into that copy when invoking its Code, Code recovery entry or Agent Tool execute function. This preserves Run and Step context for those logs without adding a Logger to public execution access; see the [Workflow loading boundary](../workflow/README.md). Other Workflow callbacks remain outside that bridge, and logs are not recovery state.
 
 Info records starts, completions, waits, resumption and stopping; debug records routing, ownership loss and safe execution summaries. Step duration excludes user waiting; resumption reports waitDurationMs. Errors contain classified codes and bounded sanitized stack locations, with only the code repeated at Run level. Logs never store business values or act as execution/recovery state. The host controls file ownership and failure policy; see [logging](../../../utils/src/logger/README.md).
+
+## Service instance observation
+
+`run-observation.ts` stores metrics, sampled revisions, activity, limits, actual commit references and settled on RunState. Effector reports stable model/Tool identities; Core clients display this authoritative projection. Human waits pause execution budgets; cancellation can receive known late metadata without changing terminal state. Recovery creates a new observation scope and budget. Checkpoints explicitly serialize business fields, excluding temporary observation data. Suspension revokes calls and waits known in-flight tasks before resource release.

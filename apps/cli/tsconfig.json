@@ -4,7 +4,9 @@
     "noEmit": true,
     "paths": {
       "@intloom/cli": ["./src/index.ts"]
-    }
+    },
+    "jsx": "preserve",
+    "jsxImportSource": "@opentui/solid"
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "build/**/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "build/**/*.ts", "src/**/*.tsx"]
 }

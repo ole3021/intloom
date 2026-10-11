@@ -9,7 +9,12 @@ import {
   startService,
   serviceStatus,
 } from "@intloom/cli";
-import { cli, projectFixture, configureProject } from "./project-fixture.ts";
+import {
+  cli,
+  projectFixture,
+  configureProject,
+  untilRun,
+} from "./project-fixture.ts";
 import { packSpecification } from "./workflow-fixture.ts";
 
 test("CLI and MCP project clients retain classified model errors and safe diagnostics", {
@@ -27,28 +32,40 @@ test("CLI and MCP project clients retain classified model errors and safe diagno
         .end(JSON.stringify({ error: { message: privateText } }));
     } else if (mode === "response") {
       res
-        .writeHead(200, { "content-type": "application/json" })
-        .end(JSON.stringify({ invalid: privateText }));
+        .writeHead(200, { "content-type": "text/event-stream" })
+        .end(
+          `data: ${JSON.stringify({ invalid: privateText })}\n\ndata: [DONE]\n\n`,
+        );
     } else {
-      res.writeHead(200, { "content-type": "application/json" }).end(
-        JSON.stringify({
+      const frames = [
+        {
           id: "chatcmpl-error-fixture",
-          object: "chat.completion",
+          object: "chat.completion.chunk",
           created: 0,
           model: "fixture",
           choices: [
             {
               index: 0,
-              message: {
-                role: "assistant",
-                content: `not JSON ${privateText}`,
-              },
-              finish_reason: "stop",
+              delta: { role: "assistant", content: `not JSON ${privateText}` },
+              finish_reason: null,
             },
           ],
+        },
+        {
+          id: "chatcmpl-error-fixture",
+          object: "chat.completion.chunk",
+          created: 0,
+          model: "fixture",
+          choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
           usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-        }),
-      );
+        },
+      ];
+      res
+        .writeHead(200, { "content-type": "text/event-stream" })
+        .end(
+          frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") +
+            "data: [DONE]\n\n",
+        );
     }
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -98,10 +115,17 @@ test("CLI and MCP project clients retain classified model errors and safe diagno
       "Todo error verification",
       "--json",
     ]);
-    assert.equal(result.code, 1, result.stdout);
+    assert.equal(result.code, 0, result.stdout);
     assert.equal(result.stdout.trim().split("\n").length, 1);
-    const view = JSON.parse(result.stdout).run;
+    const receipt = JSON.parse(result.stdout).data.run;
+    assert.equal(receipt.status, "running");
+    const view = await untilRun(
+      client,
+      receipt.runId,
+      (run) => run.status === "failed",
+    );
     assert.equal(view.status, "failed");
+    assert.ok(view.lastError);
     assert.equal(view.lastError.code, code);
     assert.deepEqual(view.cursor, {
       stageName: "specification",

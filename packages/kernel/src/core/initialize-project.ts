@@ -61,6 +61,7 @@ export async function initializeProject(
         }
       : {}),
     logger,
+    ...(options.observation ? { observation: options.observation } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
     codes: registries.codes,
     agents: preparation.agents,

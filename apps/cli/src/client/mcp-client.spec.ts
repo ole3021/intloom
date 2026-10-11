@@ -131,6 +131,30 @@ test("uncertain mutations are attempted once and close is idempotent without can
   assert.equal(calls.mock.callCount(), 1);
 });
 
+test("transport failures retain a known Run ID without treating request ID as deduplication", async (t) => {
+  connected(t);
+  const calls = t.mock.method(Client.prototype, "callTool", async () => {
+    throw new Error("connection lost after acceptance");
+  });
+  const client = await connectProjectClient(connection, {
+    requestId: "correlation-only",
+  });
+  t.after(() => client.close());
+  await assert.rejects(
+    client.answerAsk(view.runId, "ACTION-original", { isConfirmed: true }),
+    {
+      code: "PROJECT_REQUEST_FAILED",
+      message: /Run RUN-original.*get_run or attach/u,
+    },
+  );
+  assert.equal(calls.mock.callCount(), 1);
+  await assert.rejects(client.flow("test", "once"), {
+    code: "PROJECT_REQUEST_FAILED",
+    message: /no Run ID was received.*list_runs/u,
+  });
+  assert.equal(calls.mock.callCount(), 2);
+});
+
 test("connection failures release the client and invalid settings are rejected before connecting", async (t) => {
   const closed = connected(t);
   const connecting = t.mock.method(Client.prototype, "connect", async () => {

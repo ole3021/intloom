@@ -5,13 +5,17 @@ import {
   writeFile,
   appendFile,
   stat,
+  cp,
+  mkdir,
+  symlink,
 } from "node:fs/promises";
 import { fork } from "node:child_process";
 import { once } from "node:events";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 import fs from "node:fs";
-import { syncBuiltinESMExports } from "node:module";
+import { findPackageJSON, syncBuiltinESMExports } from "node:module";
 import {
   connectProject,
   startService,
@@ -24,6 +28,7 @@ import {
   pending,
   projectFixture,
   refreshFixtureInstallation,
+  untilRun,
 } from "./project-fixture.ts";
 
 test("daemon logging is flat, independent of CLI level, scoped by Run, and readable after restart", {
@@ -32,10 +37,10 @@ test("daemon logging is flat, independent of CLI level, scoped by Run, and reada
   const root = await projectFixture(t);
   const started = await cli(root, ["start", "--info", "--json"]);
   assert.equal(started.code, 0, started.stdout);
-  assert.match(started.stderr, /service ready/u);
+  assert.match(started.stderr, /service_ready/u);
   assert.doesNotMatch(started.stderr, /DEBUG/u);
   assert.ok(!started.stderr.includes("\u001b"));
-  const service = JSON.parse(started.stdout).service;
+  const service = JSON.parse(started.stdout).data.service;
   assert.match(service.logFile, /^LOG-\d{8}T\d{9}Z\.jsonl$/u);
   const folder = join(root, ".intloom", "logs");
   const file = join(folder, service.logFile);
@@ -52,8 +57,9 @@ test("daemon logging is flat, independent of CLI level, scoped by Run, and reada
   ]);
   assert.equal(hidden.code, 0, hidden.stdout);
   assert.equal(hidden.stderr, "");
-  const initial = JSON.parse(hidden.stdout).run;
-  assert.match(initial.runId, /^RUN-\d{8}T\d{9}Z-[\w-]{21}$/u);
+  const initialReceipt = JSON.parse(hidden.stdout).data.run;
+  assert.equal(initialReceipt.status, "running");
+  assert.match(initialReceipt.runId, /^RUN-\d{8}T\d{9}Z-[\w-]{21}$/u);
   const visible = await cli(root, [
     "flow",
     "fixture",
@@ -63,24 +69,46 @@ test("daemon logging is flat, independent of CLI level, scoped by Run, and reada
     "--json",
   ]);
   assert.equal(visible.code, 0, visible.stdout);
-  assert.match(visible.stderr, /step started/u);
   assert.match(visible.stderr, /DEBUG/u);
   assert.doesNotMatch(visible.stderr, /PRIVATE_/u);
   assert.ok(!visible.stderr.includes("\u001b"));
-  const second = JSON.parse(visible.stdout).run;
+  const second = JSON.parse(visible.stdout).data.run;
   const client = await connectProject(root);
   try {
-    const confirm = await client.answerAsk(
+    const initial = await untilRun(
+      client,
+      initialReceipt.runId,
+      (run) => run.status === "waiting",
+    );
+    const confirmReceipt = await client.answerAsk(
       initial.runId,
-      initial.pendingAction.id,
+      pending(initial).id,
       [
         { questionId: "place", isSkipped: false, answer: "PRIVATE_ANSWER" },
         { questionId: "notes", isSkipped: true },
       ],
     );
-    const done = await client.answerAsk(confirm.runId, pending(confirm).id, {
-      isConfirmed: true,
-    });
+    assert.equal(confirmReceipt.status, "running");
+    const confirm = await untilRun(
+      client,
+      initial.runId,
+      (run) =>
+        run.status === "waiting" &&
+        run.pendingAction?.id !== initial.pendingAction?.id,
+    );
+    const doneReceipt = await client.answerAsk(
+      confirm.runId,
+      pending(confirm).id,
+      {
+        isConfirmed: true,
+      },
+    );
+    assert.equal(doneReceipt.status, "running");
+    const done = await untilRun(
+      client,
+      initial.runId,
+      (run) => run.status === "completed",
+    );
     assert.equal(done.status, "completed");
     await client.cancelRun(second.runId);
   } finally {
@@ -100,7 +128,7 @@ test("daemon logging is flat, independent of CLI level, scoped by Run, and reada
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
-  const own = rows.filter((row) => row.runId === initial.runId);
+  const own = rows.filter((row) => row.runId === initialReceipt.runId);
   assert.equal(own.filter((row) => row.event === "run_started").length, 1);
   assert.ok(!rows.some((row) => row.event === "run_created"));
   assert.ok(
@@ -119,17 +147,174 @@ test("daemon logging is flat, independent of CLI level, scoped by Run, and reada
     ),
   );
   assert.equal(rows.at(-1).event, "log_closed");
-  const history = await cli(root, ["logs", initial.runId, "--json", "--debug"]);
+  const history = await cli(root, [
+    "logs",
+    initialReceipt.runId,
+    "--json",
+    "--debug",
+  ]);
   assert.equal(history.code, 0, history.stdout);
   assert.ok(
-    history.stdout
-      .trim()
-      .split("\n")
-      .every((line) => JSON.parse(line).runId === initial.runId),
+    JSON.parse(history.stdout).data.every(
+      (row: { runId: string }) => row.runId === initialReceipt.runId,
+    ),
   );
   const restart = await startService({ projectRoot: root });
   assert.notEqual(restart.service.logFile, service.logFile);
   assert.equal((await readdir(folder)).length, 2);
+});
+
+test("Intent review warning survives Runtime failure and is visible through public CLI logs", {
+  timeout: 30_000,
+}, async (t) => {
+  const root = await projectFixture(t);
+  const installation = join(root, ".intloom/workflows/node_modules");
+  const intentPackage = join(installation, "@intloom/workflow-intent");
+  const utilsPackage = join(installation, "@intloom/utils");
+  await mkdir(dirname(intentPackage), { recursive: true });
+  await cp(
+    new URL("../../../packages/intent/dist", import.meta.url),
+    intentPackage,
+    { recursive: true },
+  );
+  const utilsManifest = findPackageJSON("@intloom/utils", import.meta.url);
+  assert.ok(utilsManifest);
+  await mkdir(utilsPackage, { recursive: true });
+  await cp(utilsManifest, join(utilsPackage, "package.json"));
+  await cp(
+    resolve(dirname(utilsManifest), "dist"),
+    join(utilsPackage, "dist"),
+    {
+      recursive: true,
+    },
+  );
+  for (const name of ["nanoid", "pino"]) {
+    const dependency = findPackageJSON(name, pathToFileURL(utilsManifest));
+    assert.ok(dependency);
+    await symlink(dirname(dependency), join(installation, name), "dir");
+  }
+  const reviewModule = pathToFileURL(
+    join(intentPackage, "src/validation/review.js"),
+  ).href;
+  const workflow = `import * as z from "zod";
+import { reviewValidation } from ${JSON.stringify(reviewModule)};
+const codeId = "CODE-123456789012345678901";
+export const blueprint = {
+  flowName: "fixture",
+  entryStageName: "validation",
+  stages: {
+    validation: {
+      stageName: "validation",
+      initializeState: ({ runId, intent }) => ({ id: runId, intent }),
+      stateSchema: z.object({ id: z.string(), intent: z.string() }),
+      entryStepName: "check",
+      steps: {
+        check: {
+          stepName: "check",
+          execution: { kind: "code", codeId },
+          on: { valid: { kind: "stage_end" } },
+        },
+      },
+      on: { valid: { kind: "workflow_end" } },
+    },
+  },
+};
+export const codes = { [codeId]: async (_input, access) => {
+  const specification = { id: "spec", revision: 1, data: {} };
+  const solution = { id: "sol", revision: 1, data: {} };
+  const fileSnapshot = { "test.ts": "0".repeat(64) };
+  const state = { id: access.state.value.id, intent: "PRIVATE_VALIDATION_INTENT",
+    specification, solution, baseline: null, implementationRecordId: "REC-test",
+    fileSnapshot, commandResults: [],
+    scope: { specification: [{ type: "acceptance", ref: "SACC-a" }], solution: [] },
+    proposal: { specification_checks: [{ target: { type: "acceptance", ref: "SACC-a" },
+      evidences: [{ id: "VEVD-a", method: "code", code_path: [{ path: "test", lines: [1] }],
+        target_ref: "SACC-a", result: "fullfill" }],
+      result: { status: "verified", reason: "source inspected" } }],
+      solution_checks: [], tests_checks: [], code_issues: [], findings: [] } };
+  await reviewValidation({ signal: access.signal, state: { value: state },
+    storage: { getArtifact: async (_flow, stage) => ({
+      ...(stage === "specification" ? specification : solution),
+      flowName: "intent", stageName: stage, createdAt: "t", updatedAt: "t" }) },
+    project: { snapshot: async () => fileSnapshot, read: async () => "assert(true);" }
+  }, state);
+  return { outcome: "valid" };
+} };
+export const agentSpecs = {};
+`;
+  await writeFile(
+    join(root, ".intloom/workflows/node_modules/fixture-workflow/workflow.js"),
+    workflow,
+  );
+  await refreshFixtureInstallation(root);
+  const started = await cli(root, ["start", "--json"]);
+  assert.equal(started.code, 0, started.stdout);
+  const listed = await cli(root, ["flows", "--json"]);
+  assert.equal(listed.code, 0, listed.stdout);
+  assert.equal(JSON.parse(listed.stdout).data[0]?.isAvailable, true);
+  const attempted = await cli(root, [
+    "flow",
+    "fixture",
+    "--intent",
+    "safe fixture",
+    "--json",
+  ]);
+  const payload = JSON.parse(attempted.stdout);
+  const receipt = payload.data.run;
+  assert.ok(
+    receipt,
+    JSON.stringify({
+      code: attempted.code,
+      keys: Object.keys(payload),
+      errorCode: payload.error?.code,
+      flows: JSON.parse(listed.stdout),
+    }),
+  );
+  assert.equal(receipt.status, "running");
+  const client = await connectProject(root);
+  const run = await untilRun(
+    client,
+    receipt.runId,
+    (view) => view.status === "failed",
+  );
+  await client.close();
+  assert.equal(run.status, "failed");
+  assert.ok(run.lastError);
+  assert.equal(run.cursor.stageName, "validation");
+  assert.equal(run.cursor.stepName, "check");
+  assert.equal(run.lastError.code, "STEP_EXECUTION_FAILED");
+  assert.equal(run.lastError.retryable, false);
+  const queried = await cli(root, ["logs", run.runId, "--json", "--debug"]);
+  assert.equal(queried.code, 0, queried.stdout);
+  const rows = JSON.parse(queried.stdout).data as Record<string, unknown>[];
+  const warning = rows.find(
+    (row) => row.event === "intent_validation_rejected",
+  );
+  assert.ok(warning);
+  assert.equal(warning.rule, "EVIDENCE_FILE_MISSING");
+  assert.equal(warning.evidenceId, "VEVD-a");
+  assert.equal(warning.path, "test");
+  assert.equal(warning.runId, run.runId);
+  assert.equal(warning.stageName, "validation");
+  assert.equal(warning.stepName, "check");
+  assert.ok(
+    Number.isSafeInteger(warning.executionId) &&
+      Number(warning.executionId) > 0,
+  );
+  const failure = rows.find((row) => row.event === "step_failed");
+  assert.ok(failure);
+  const loggedError = failure.err as {
+    code: string;
+    retryable: boolean;
+    causes: string[];
+  };
+  assert.equal(loggedError.code, "STEP_EXECUTION_FAILED");
+  assert.equal(loggedError.retryable, false);
+  assert.deepEqual(loggedError.causes, ["INVALID_INTENT_STAGE"]);
+  assert.doesNotMatch(
+    queried.stdout,
+    /PRIVATE_VALIDATION_INTENT|source inspected/u,
+  );
 });
 
 test("a commit-start logging failure cancels the Run before a durable write begins", async (t) => {
@@ -252,7 +437,12 @@ test("a poisoned log stops waiting Runs, rejects new work, and keeps status and 
   t.after(() => host.close().catch(() => undefined));
   const client = await connectProject(root);
   t.after(() => client.close());
-  const waiting = await client.flow("fixture", "private");
+  const receipt = await client.flow("fixture", "private");
+  const waiting = await untilRun(
+    client,
+    receipt.runId,
+    (run) => run.status === "waiting",
+  );
   t.mock.method(fs, "writeSync", () => {
     throw new Error("Simulated log I/O failure.");
   });

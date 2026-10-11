@@ -32,7 +32,7 @@ The compiled Workflow protocol is `2026-10-08`. It is separate from npm package 
 
 ## Runtime compatibility
 
-Package engines target Node.js 22.22.0 or later; the latest Node.js 24 LTS is recommended. Repository development, builds, and publication retain Node.js 24 as their baseline, with Node.js 22 types for product code and public consumers. Before publication, isolated archive consumers are tested on Linux and macOS with Node.js 22.22.0, the latest 22, 24, and 26; post-publication consumers use the same matrix. These checks do not establish real remote model behavior.
+CLI engines target Node.js >=26.4.0; other public packages retain Node.js >=22.22.0. Repository development, builds, and publication use Node.js 26.4.0 as their baseline, with Node.js 22 types for product code and public consumers. Before publication, isolated archive consumers are tested on Linux and macOS with Node.js 22.22.0, the latest 22, 24, minimum CLI 26.4.0, and latest 26 (CLI checks use supported runtimes only); post-publication consumers use the same matrix. These checks do not establish real remote model behavior.
 
 The runtime floor includes Mastra's indirect PostHog dependency, which requires Node.js 22.22.0 on the Node.js 22 branch. A repository lockfile does not pin the dependencies selected by npm consumers. Verify the commands executed by your Workflow on the Node version actually inherited by the host. In particular, do not copy the Node 24 `--experimental-transform-types` option into a Node 26 command: Node 26 rejects it.
 

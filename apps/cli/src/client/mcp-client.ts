@@ -94,6 +94,7 @@ export async function connectProjectClient(
     name: string,
     args: Record<string, unknown>,
     schema: z.ZodType<T>,
+    knownRunId?: string,
   ): Promise<T> {
     if (closing)
       throw failure("PROJECT_CLIENT_CLOSED", "The project client is closed.");
@@ -103,7 +104,11 @@ export async function connectProjectClient(
       .catch((cause: unknown) => {
         throw failure(
           "PROJECT_REQUEST_FAILED",
-          "The request did not return a confirmed result. Query runs/attach or the committed Record before repeating an execution.",
+          knownRunId
+            ? `The request outcome is unknown for Run ${knownRunId}. Query get_run or attach with this Run ID; do not repeat the mutation.`
+            : name === "flow"
+              ? "The flow result is unknown and no Run ID was received. Inspect list_runs and logs before considering another flow; requestId is only for log correlation."
+              : "The request did not return a confirmed result. Query runs/attach or the committed Record before repeating an execution.",
           cause,
         );
       });
@@ -150,18 +155,19 @@ export async function connectProjectClient(
       return (await call("flow", { flowName, intent }, oneRun)).run;
     },
     async getRun(runId: string) {
-      return (await call("get_run", { runId }, oneRun)).run;
+      return (await call("get_run", { runId }, oneRun, runId)).run;
     },
     async answerAsk(
       runId: string,
       actionId: string,
       answer: ReadonlyJsonValue,
     ) {
-      return (await call("answer_ask", { runId, actionId, answer }, oneRun))
-        .run;
+      return (
+        await call("answer_ask", { runId, actionId, answer }, oneRun, runId)
+      ).run;
     },
     async cancelRun(runId: string) {
-      return (await call("cancel_run", { runId }, oneRun)).run;
+      return (await call("cancel_run", { runId }, oneRun, runId)).run;
     },
     async listRuns(flowName?: string) {
       return (

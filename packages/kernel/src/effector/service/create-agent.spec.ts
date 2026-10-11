@@ -3,7 +3,11 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { test } from "node:test";
+import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import { defineAgentTool } from "@intloom/workflow-sdk";
+import { Agent } from "@mastra/core/agent";
+import { noopLogger } from "@mastra/core/logger";
 import * as z from "zod";
 import {
   agentSpec,
@@ -15,6 +19,16 @@ import { createAgent } from "./create-agent.ts";
 
 test("assembles an actual Agent, inline Skill, Tools and model defaults without calling them", async (t) => {
   credential(t);
+  const setLogger = Agent.prototype.__setLogger;
+  let safeLoggerConfigured = false;
+  t.mock.method(
+    Agent.prototype,
+    "__setLogger",
+    function (this: Agent, logger: Parameters<typeof setLogger>[0]) {
+      safeLoggerConfigured ||= logger === noopLogger;
+      return setLogger.call(this, logger);
+    },
+  );
   const fetch = t.mock.method(globalThis, "fetch", async () => {
     throw new Error("Agent initialization must not call the model");
   });
@@ -50,6 +64,7 @@ test("assembles an actual Agent, inline Skill, Tools and model defaults without 
   };
   const result = await createAgent(spec, { agentId, source, config });
   assert.equal(result.agentId, agentId);
+  assert.equal(safeLoggerConfigured, true);
   assert.equal(result.executable.outputSchema, spec.outputSchema);
   assert.equal(
     await result.executable.agent.getInstructions(),
@@ -223,4 +238,91 @@ test("rejects duplicate Tools, duplicate Skills and invalid provider options", a
     createAgent(agentSpec(), { agentId, source, config }),
     /Invalid provider options/,
   );
+});
+
+test("actual SDK gate and Tool failures never print raw errors through internal stream Workflows", () => {
+  const createAgentUrl = pathToFileURL(
+    resolve(import.meta.dirname, "create-agent.ts"),
+  ).href;
+  const accessUrl = pathToFileURL(
+    resolve(import.meta.dirname, "../../../test/effector-fixture.ts"),
+  ).href;
+  const agentFixtureUrl = pathToFileURL(
+    resolve(import.meta.dirname, "../../../test/agent-fixture.ts"),
+  ).href;
+  const workflowFixtureUrl = pathToFileURL(
+    resolve(import.meta.dirname, "../../../test/workflow-fixture.ts"),
+  ).href;
+  const script = String.raw`
+    import assert from "node:assert/strict";
+    import * as z from "zod";
+    import { defineAgentTool } from "@intloom/workflow-sdk";
+    import { LoomError, silentLogger, withLogger } from "@intloom/utils";
+    import { createAgent } from ${JSON.stringify(createAgentUrl)};
+    import { executionAccess } from ${JSON.stringify(accessUrl)};
+    import { agentSpec, testConfig } from ${JSON.stringify(agentFixtureUrl)};
+    import { agentId, source } from ${JSON.stringify(workflowFixtureUrl)};
+    const mode = process.argv[1];
+    const sentinel = "PRIVATE_SDK_CAUSE_SENTINEL";
+    let requests = 0;
+    globalThis.fetch = async () => {
+      requests++;
+      const events = [
+        { id: "fixture", object: "chat.completion.chunk", created: 1, model: "test-model", choices: [{ index: 0, delta: { role: "assistant", tool_calls: [{ index: 0, id: "call-1", type: "function", function: { name: "explode", arguments: "{}" } }] }, finish_reason: null }] },
+        { id: "fixture", object: "chat.completion.chunk", created: 1, model: "test-model", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+      ];
+      return new Response(events.map((event) => "data: " + JSON.stringify(event) + "\n\n").join("") + "data: [DONE]\n\n", { headers: { "content-type": "text/event-stream" } });
+    };
+    const tool = defineAgentTool({
+      id: "explode", description: "controlled failure", inputSchema: z.strictObject({}), outputSchema: z.json(),
+      execute: async () => { throw new Error(sentinel, { cause: new Error(sentinel) }); },
+    });
+    const { executable } = await createAgent({ ...agentSpec(), tools: mode === "tool" ? [tool] : [] }, { agentId, source, config: testConfig() });
+    assert.equal(requests, 0);
+    const rows = [];
+    const logger = { ...silentLogger, debug(event, fields = {}) { rows.push({ event, fields }); } };
+    let failed = false;
+    let code;
+    try {
+      await withLogger(logger, () => executable.execute(null, executionAccess().agent, 2, {
+        beforeStep() { if (mode === "gate") throw new LoomError("RUN_STOPPED", sentinel, { cause: new Error(sentinel) }); },
+        afterStep() {},
+      }));
+    } catch (error) {
+      failed = true;
+      assert.ok(LoomError.is(error));
+      code = error.code;
+    }
+    assert.equal(failed, true);
+    assert.equal(requests, mode === "gate" ? 0 : 1);
+    assert.equal(rows.filter((row) => row.event === "agent_failed").length, 1);
+    assert.equal(JSON.stringify(rows).includes(sentinel), false);
+    process.stdout.write(JSON.stringify({ code, requests, safeFailureLogged: true }));
+  `;
+  for (const mode of ["gate", "tool"]) {
+    const result = spawnSync(
+      process.execPath,
+      ["--input-type=module", "--eval", script, mode],
+      {
+        encoding: "utf8",
+        cwd: resolve(import.meta.dirname, "../../.."),
+        timeout: 20000,
+        env: {
+          ...process.env,
+          INTLOOM_WORKFLOW_TEST_KEY: "fixture-credential",
+        },
+      },
+    );
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, `SDK ${mode} regression child failed`);
+    assert.equal(result.stderr.includes("PRIVATE_SDK_CAUSE_SENTINEL"), false);
+    assert.equal(result.stderr, "");
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.safeFailureLogged, true);
+    assert.equal(report.requests, mode === "gate" ? 0 : 1);
+    assert.equal(
+      report.code,
+      mode === "tool" ? "TOOL_EXECUTION_FAILED" : "STEP_EXECUTION_FAILED",
+    );
+  }
 });

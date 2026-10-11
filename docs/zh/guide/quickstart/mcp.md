@@ -22,12 +22,11 @@ intloom flows
 ## 连接 Codex
 
 ```sh
-intloom config codex
+intloom mcp init --ide codex --plan
+intloom mcp init --ide codex
 ```
 
-该命令输出为当前项目生成的配置。将其合并到目标项目的 `.codex/config.toml`；命令本身不会修改 IDE 配置。配置片段指向 `/mcp/codex`，使用认证辅助程序而非直接嵌入本地令牌。通过客户端的项目信任和权限设置启用连接。
-
-通用 MCP 客户端使用经过认证的本地回环 `/mcp` 端点。客户端实现者可阅读 [MCP 参考](../reference/mcp.md)。连接元数据和任务所有权令牌应保密。
+第一条命令预览计划，第二条应用项目 `.codex/config.toml` 的 IntLoom 条目，保留无关配置。IDE 启动已安装 stdio 代理，代理发现既有 Service 并双向转发完整 MCP 消息；配置不保存令牌或动态端口。仍需项目信任和客户端权限，生成成功不等于 IDE 验收。见 [官方 Codex MCP 配置](https://developers.openai.com/codex/mcp/)。
 
 ## 运行与继续
 

@@ -124,7 +124,7 @@ export function applyChanges(
   const used = new Set(original.keys());
   const origins = new Set<string>();
   const touched = new Set<string>();
-  for (const change of changes) {
+  for (const [changeIndex, change] of changes.entries()) {
     const before = structuredClone(indexObjects(root).get(change.target_ref));
     let target = indexObjects(root).get(change.target_ref);
     const acceptance = change.target_ref.startsWith("SACC-");
@@ -157,8 +157,15 @@ export function applyChanges(
           if (target || used.has(change.target_ref))
             fail(`Object ID already used: ${change.target_ref}`);
           const item = object(structuredClone(patch.value));
-          if (item.id !== change.target_ref)
-            fail("New object ID must match target_ref");
+          if (item.id !== change.target_ref) {
+            const objectId =
+              typeof item.id === "string"
+                ? JSON.stringify(item.id.slice(0, 64))
+                : "<non-string>";
+            fail(
+              `Change[${changeIndex}] target_ref ${change.target_ref}, patch[${position}] path ${JSON.stringify(patch.path)}: New object ID ${objectId} must match target_ref; set object.id to target_ref`,
+            );
+          }
           if (
             item.record_refs !== undefined &&
             list(item.record_refs).length !== 0

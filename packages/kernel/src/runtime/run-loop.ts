@@ -1,3 +1,4 @@
+import { sampleRunObservation } from "./run-observation.ts";
 import { setImmediate } from "node:timers/promises";
 import { withLogger } from "@intloom/utils";
 import type { BlueprintStage } from "../workflow/blueprint.ts";
@@ -19,6 +20,7 @@ import { saveCheckpoint } from "./recovery/checkpoint.ts";
 /** The task owns the entire loop; API observers return independently through notifications without awaiting the task. */
 export function launchRunLoop(entry: RunEntry, options: RuntimeOptions): void {
   if (entry.task) throw RUNTIME_ERRORS.create("RUN_STATE_INVALID");
+  if (entry.state.observation) entry.state.observation.inFlight++;
   const task = Promise.resolve()
     .then(() => runLoop(entry, options))
     .catch((cause) => {
@@ -29,6 +31,10 @@ export function launchRunLoop(entry: RunEntry, options: RuntimeOptions): void {
     })
     .finally(() => {
       if (entry.task === task) delete entry.task;
+      if (entry.state.observation) {
+        entry.state.observation.inFlight--;
+        sampleRunObservation(entry.state);
+      }
     });
   entry.task = task;
   // Handle background rejections immediately; the loop converts ordinary execution errors according to current call ownership.
@@ -97,7 +103,16 @@ async function runLoop(
       if (!result) {
         saveCheckpoint(entry, "executing");
         result = await withLogger(log, () =>
-          executeStep(options, entry, executed, call),
+          options.observation
+            ? options.observation.execute(
+                entry,
+                executed.step.execution.kind,
+                executed.step.execution.kind === "agent"
+                  ? executed.step.execution.agentId
+                  : undefined,
+                () => executeStep(options, entry, executed, call),
+              )
+            : executeStep(options, entry, executed, call),
         );
       }
       if (!ownsCall(entry, call)) {

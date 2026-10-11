@@ -16,7 +16,10 @@ export function presentRun(run: RunView): RunPresentation {
       ],
     };
   if (run.status === "failed" && run.lastError?.code === "RUN_STOPPED")
-    return { title: "Stopped", details: ["Committed data is retained."] };
+    return {
+      title: "Stopped",
+      details: [run.lastError.message, "Committed data is retained."],
+    };
   const titles = {
     running: "Running",
     waiting: "Waiting for an answer",

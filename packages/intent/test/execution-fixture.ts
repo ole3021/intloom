@@ -150,7 +150,11 @@ llms:
         String(input),
         "https://intent-model.invalid/v1/chat/completions",
       );
-      const request = JSON.parse(String(init?.body)) as { messages: Message[] };
+      const request = JSON.parse(String(init?.body)) as {
+        messages: Message[];
+        stream?: boolean;
+      };
+      assert.equal(request.stream, true);
       requests.push(request);
       const last = request.messages.at(-1);
       let message: Message;
@@ -185,20 +189,46 @@ llms:
           };
         }
       }
-      return Response.json({
-        id: `chatcmpl-${++sequence}`,
-        object: "chat.completion",
-        created: 0,
-        model: "intent-test",
-        choices: [
-          {
-            index: 0,
-            message,
-            finish_reason: message.tool_calls ? "tool_calls" : "stop",
-          },
-        ],
-        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-      });
+      const id = `chatcmpl-${++sequence}`;
+      const delta = {
+        ...message,
+        ...(message.tool_calls
+          ? {
+              tool_calls: message.tool_calls.map((call, index) => ({
+                ...call,
+                index,
+              })),
+            }
+          : {}),
+      };
+      const frames = [
+        {
+          id,
+          object: "chat.completion.chunk",
+          created: 0,
+          model: "intent-test",
+          choices: [{ index: 0, delta, finish_reason: null }],
+        },
+        {
+          id,
+          object: "chat.completion.chunk",
+          created: 0,
+          model: "intent-test",
+          choices: [
+            {
+              index: 0,
+              delta: {},
+              finish_reason: message.tool_calls ? "tool_calls" : "stop",
+            },
+          ],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        },
+      ];
+      return new Response(
+        frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") +
+          "data: [DONE]\n\n",
+        { headers: { "Content-Type": "text/event-stream" } },
+      );
     },
   );
   const standard = createEffector();

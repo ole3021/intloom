@@ -34,38 +34,19 @@ intloom flows
 
 Expect the desired Workflow to be loaded and available for CLI execution. Doctor checks configuration and readiness without sending a model request; it cannot prove model compatibility or response quality.
 
-## Create one Run
+## Create and inspect a Run
 
-In an interactive terminal:
+Open the persistent UI with `intloom` or `intloom tui`. Select a Workflow, enter complete multiline intent, and submit with Ctrl+Enter. TUI presents questions/options and confirmation; closing it retains pending actions.
 
-```sh
-intloom flow
-```
-
-Choose a Workflow and enter the intent. Alternatively, replace `your_flow` below with the loaded name:
-
-```sh
-intloom flow your_flow --intent "Describe the result you want"
-```
-
-Answer questions and review confirmation text. Requesting changes continues the same Run through the Workflow's feedback route. Enter inserts a newline in multiline prompts; Tab focuses submit and Enter submits. Cancelling an unsubmitted form leaves the Run waiting.
-
-## Continue or inspect
-
-```sh
-intloom runs
-intloom attach <runId>
-intloom artifacts
-```
-
-Replace angle-bracket placeholders with actual IDs. `attach` continues an existing Run; `flow` creates another one.
-
-For automation, supply both a name and nonempty intent:
+CMD uses explicit arguments and returns admission immediately:
 
 ```sh
 intloom flow your_flow --intent-file intent.txt --json
+intloom wait <runId> --json
+intloom attach <runId> --json
+intloom answer <runId> --action <actionId> --answer-file answer.json --json
 ```
 
-JSON mode never prompts. It returns at a waiting or terminal state. A zero exit for a wait is not completion; inspect `run.status`. Use an interactive `attach`, or a client that submits the pending action's answer, to continue. See [Run management](../usage/runs.md).
+Normal JSON uses `ok/data/meta`. Admission is separate from completion; inspect `data.run.status`, or the `data.status` of a Run query. Answer JSON is the complete questions array or confirmation object. `wait` never submits an answer or cancels execution. See [CLI reference](../reference/cli.md) and [Run management](../usage/runs.md).
 
-If execution fails, inspect `intloom logs <runId>` and committed results before starting another Run. A timeout does not itself cancel work. Provider output truncation, invalid structured output, and Tool failures require diagnosis; see [Errors](../reference/errors.md).
+Failures can retain committed results. Inspect Run references and logs before starting another execution. Service instance statistics reset on stop/recovery; actual provider behavior requires separate acceptance.

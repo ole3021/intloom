@@ -1,6 +1,6 @@
 import type { Readable, Writable } from "node:stream";
 import * as prompts from "@clack/prompts";
-import pc from "picocolors";
+import { styleText } from "node:util";
 
 export interface Choice {
   readonly value: string;
@@ -36,7 +36,10 @@ export interface TerminalOptions {
 
 /** Results go to stdout and progress to stderr; JSON mode does not prompt or emit ANSI sequences. */
 export function createTerminalUi(options: TerminalOptions): TerminalUi {
-  const colors = pc.createColors(options.color && !options.json);
+  const colorize = (format: "red" | "dim", text: string) =>
+    options.color && !options.json
+      ? styleText(format, text, { validateStream: false })
+      : text;
   const api: PromptApi = options.prompts ?? {
     async choose(message, choices) {
       const answer = await prompts.select({
@@ -87,11 +90,11 @@ export function createTerminalUi(options: TerminalOptions): TerminalUi {
       (options.json ? options.output : options.error).write(
         options.json
           ? `${JSON.stringify(value)}\n`
-          : `${colors.red("Failure")} · ${message}\n`,
+          : `${colorize("red", "Failure")} · ${message}\n`,
       );
     },
     note(message) {
-      if (!options.json) options.error.write(`${colors.dim(message)}\n`);
+      if (!options.json) options.error.write(`${colorize("dim", message)}\n`);
     },
     async work(message, operation) {
       if (!options.interactive || options.json || options.progress === false)

@@ -5,7 +5,7 @@ description: Prepare the CLI, initialize an empty project, and install a compati
 
 # Installation and project setup
 
-Published packages require Node.js 22.22.0 or later; the latest Node.js 24 LTS is recommended. Working on this repository and preparing releases requires Node.js 24 or later and Bun 1.4.0 or later. Workflow installation needs npm on `PATH`.
+CLI/launcher require Node.js 26.4.0 or later; public SDK/compiler packages retain Node.js 22.22.0+. Working on this repository and preparing releases requires Node.js 26.4.0 or later and Bun 1.4.0 or later. Workflow installation needs npm on `PATH`.
 
 ## Use the current source checkout
 

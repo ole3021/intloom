@@ -199,9 +199,11 @@ test("in-flight effects are not replayed and their diagnostic checkpoint is reta
   while (!effects) await setImmediate();
   const [running] = await first.listRuns();
   assert.ok(running);
-  await first.suspend();
+  const stopping = first.suspend();
   await pending;
+  // Suspension revokes the call before awaiting known effect cleanup.
   gate.resolve();
+  await stopping;
   const second = f.runtime();
   await second.restore();
   assert.equal(

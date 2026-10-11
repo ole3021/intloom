@@ -1,3 +1,4 @@
+import { recordRunCommit, sampleRunObservation } from "./run-observation.ts";
 import { bindProjectAccess } from "../project/access.ts";
 import type { ProjectAccess } from "@intloom/workflow-sdk";
 import type { JsonValue } from "../shared/json.ts";
@@ -32,8 +33,28 @@ export function createCodeAccess(
     state: entry.stageState.bind(() => assertCallOwnership(entry, call)),
     storage: Object.freeze({
       ...read,
-      commit: (operations) =>
-        storageOperation(entry, call, () => storage.commit(operations), true),
+      commit: (operations) => {
+        const cursor = { ...entry.state.cursor };
+        const executionId = entry.executionCount;
+        return storageOperation(
+          entry,
+          call,
+          async () => {
+            if (entry.state.observation) entry.state.observation.inFlight++;
+            try {
+              const result = await storage.commit(operations);
+              recordRunCommit(entry, cursor, executionId, result);
+              return result;
+            } finally {
+              if (entry.state.observation) {
+                entry.state.observation.inFlight--;
+                sampleRunObservation(entry.state);
+              }
+            }
+          },
+          true,
+        );
+      },
     } satisfies StorageAccess),
     interaction: createInteraction(entry, call),
   });

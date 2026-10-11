@@ -10,7 +10,7 @@ import type {
   StoredArtifact,
   StoredRecord,
 } from "@intloom/kernel";
-import { cli, mcpClient } from "./project-fixture.ts";
+import { cli, mcpClient, untilRun } from "./project-fixture.ts";
 import { temporaryDirectory } from "./directory-fixture.ts";
 import { packSpecification } from "./workflow-fixture.ts";
 
@@ -84,7 +84,12 @@ for (const storage of ["file", "sqlite"] as const) {
       flowName: "intent",
       intent: "Store todo data on this device.",
     });
-    let run = created.run;
+    assert.equal(created.run.status, "running");
+    let run = await untilRun(
+      local,
+      created.run.runId,
+      (view) => view.status === "waiting",
+    );
     const originalRunId = run.runId;
     const agentIds: string[] = [];
     async function analyze(
@@ -192,29 +197,61 @@ for (const storage of ["file", "sqlite"] as const) {
     );
     assert.equal(run.pendingAction?.kind, "user_ask_questions");
     assert.ok(run.pendingAction);
-    run = await local.answerAsk(run.runId, run.pendingAction.id, [
-      {
-        questionId: "QST-1",
-        isSkipped: false,
-        answer: "On this device",
-      },
-    ]);
+    const firstReceipt = await local.answerAsk(
+      run.runId,
+      run.pendingAction.id,
+      [
+        {
+          questionId: "QST-1",
+          isSkipped: false,
+          answer: "On this device",
+        },
+      ],
+    );
+    assert.equal(firstReceipt.status, "running");
+    run = await untilRun(
+      local,
+      originalRunId,
+      (view) =>
+        view.status === "waiting" && view.pendingAgentCall !== undefined,
+    );
     await analyze(codex, "ready", "Store todo data on this device.");
     assert.equal(run.pendingAction?.kind, "user_ask_confirmation");
     assert.ok(run.pendingAction);
-    run = await local.answerAsk(run.runId, run.pendingAction.id, {
-      isConfirmed: false,
-      feedback: "Keep the data after restart.",
-    });
+    const revisionReceipt = await local.answerAsk(
+      run.runId,
+      run.pendingAction.id,
+      {
+        isConfirmed: false,
+        feedback: "Keep the data after restart.",
+      },
+    );
+    assert.equal(revisionReceipt.status, "running");
+    run = await untilRun(
+      local,
+      originalRunId,
+      (view) =>
+        view.status === "waiting" && view.pendingAgentCall !== undefined,
+    );
     await analyze(
       generic,
       "ready",
       "Store todo data on this device and retain it after restart.",
     );
     assert.ok(run.pendingAction);
-    run = await local.answerAsk(run.runId, run.pendingAction.id, {
-      isConfirmed: true,
-    });
+    const completionReceipt = await local.answerAsk(
+      run.runId,
+      run.pendingAction.id,
+      {
+        isConfirmed: true,
+      },
+    );
+    assert.equal(completionReceipt.status, "running");
+    run = await untilRun(
+      local,
+      originalRunId,
+      (view) => view.status === "completed",
+    );
     assert.equal(run.status, "completed", JSON.stringify(run.lastError));
     assert.equal(new Set(agentIds).size, 3);
     const record = await local.getRecord(run.runId);

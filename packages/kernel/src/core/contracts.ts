@@ -15,6 +15,7 @@ import type { RunErrorView } from "../runtime/run-view.ts";
 export interface InitializeProjectOptions {
   /** Host-owned recovery copies; memory remains authoritative until this process exits. */
   readonly runtimeDirectory?: string;
+  readonly observation?: import("../runtime/run-observation.ts").RuntimeObservation;
   readonly logger?: Logger;
   readonly signal?: AbortSignal;
   readonly effector: Effector;

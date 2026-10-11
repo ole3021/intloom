@@ -48,9 +48,11 @@ test("new projects use YAML storage selection and recover the durable directory 
     { mode: 0o600 },
   );
   const diagnosis = await cli(root, ["doctor", "--json"]);
-  assert.equal(JSON.parse(diagnosis.stdout).status, "recovery_required");
+  assert.equal(JSON.parse(diagnosis.stdout).data.status, "recovery_required");
   const preview = await cli(root, ["recover", "--dry-run", "--json"]);
-  assert.deepEqual(JSON.parse(preview.stdout).paths, ["intloom/store.lock"]);
+  assert.deepEqual(JSON.parse(preview.stdout).data.paths, [
+    "intloom/store.lock",
+  ]);
   const recovered = await cli(root, ["recover", "--json"]);
   assert.equal(recovered.code, 0, recovered.stdout);
   assert.deepEqual(await readFile(join(root, "intloom/store.json")), manifest);
@@ -205,7 +207,7 @@ test("bare package installs registry latest, pins archive identity, disables scr
   );
 });
 
-test("local archives are checked during restore; invalid packages and duplicate names leave no project scaffold", {
+test("local archives are checked during restore; invalid packages and duplicate names preserve successful init steps", {
   timeout: 120_000,
 }, async (t) => {
   const base = await temporaryDirectory(t);
@@ -218,7 +220,8 @@ test("local archives are checked during restore; invalid packages and duplicate 
     const root = join(base, name);
     const result = await cli(root, ["init", ...args, "--json"]);
     assert.equal(result.code, 1);
-    assert.deepEqual(await readdir(root), []);
+    assert.equal(JSON.parse(result.stdout).outcome, "applied");
+    assert.ok((await readdir(root)).includes("intloom.yaml"));
   }
   const root = join(base, "valid");
   const result = await cli(root, [

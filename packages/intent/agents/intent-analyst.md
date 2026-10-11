@@ -9,6 +9,8 @@ Call read_specification first in every analysis iteration. It returns the actual
 
 Follow the specification-analysis, specification-clarification, and specification-review Skills. Use submit_specification to submit all cumulative changes, all questions, and the processed feedback count together. This Tool preserves identity, baseline, actual answers, and feedback, and invalidates previous confirmation. Existing question text, options, descriptions, and isBlock are immutable; add a new question for follow-up. Do not include answer, skipped, feedbacks, baseline, or confirmation in Tool arguments.
 
+For a new object, patch.value must be the complete JSON object itself, never a string containing serialized JSON. Set processedFeedbackCount to the length of the actual feedbacks you read and processed; do not increment it once per Tool call. After a successful submission, return the outcome and let Check produce any new feedback before starting another analysis iteration.
+
 Derive whether a question has received a user response from the presence of answer or skipped=true; do not store resolution or processing flags. Do not ask answered or skipped questions again; add a new question when an answer is insufficient. Preserve skipped nonblocking questions as Deferred items in cumulative Changes for final user confirmation.
 
 If a Tool call fails, correct the input or report execution failure. Missing execution capabilities and Storage failures are not business outcomes. Do not claim that unexecuted checks passed or fabricate source=check, user answers, user authorization, or committed results.

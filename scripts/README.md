@@ -1,8 +1,8 @@
 # Repository scripts
 
-These Node.js 24+ scripts prepare and publish IntLoom packages. They are repository tooling, not CLI runtime code. Bun manages dependencies and Turbo orchestrates workspace tasks.
+These Node.js 26.4.0+ scripts prepare and publish IntLoom packages. They are repository tooling, not CLI runtime code. Bun manages dependencies and Turbo orchestrates workspace tasks.
 
-Published products require Node.js 22.22.0+. Repository builds keep Node.js 24 and use Node.js 22 types to constrain product APIs. Consumer verification is the exception to the tooling runtime: the reusable consumer workflow installs repository tools under Node.js 24, then tests built packages on Linux/macOS with Node.js 22.22.0, latest 22, 24, and 26. Each isolated npm installation builds or downloads its own SQLite native binding. Both CI and release preparation run this matrix; publication waits for it to pass. `verify-published.ts` runs on the same runtime matrix after publication.
+CLI and launcher require Node.js 26.4.0+; public SDK/compiler packages retain Node.js 22.22.0+. Repository builds use Node.js 26.4.0+ and use Node.js 22 types to constrain product APIs. Consumer verification is the exception to the tooling runtime: the reusable consumer workflow installs repository tools under Node.js 26.4.0+, then tests built packages on Linux/macOS with Node.js 22.22.0, latest 22, 24, minimum CLI 26.4.0, and latest 26. CLI package checks run only on supported Node versions; other public package checks continue on the full matrix. Each isolated npm installation builds or downloads its own SQLite native binding. Both CI and release preparation run this matrix; publication waits for it to pass. `verify-published.ts` runs on the same runtime matrix after publication.
 
 All archives, release plans, manifests, and generated notes use the repository root's `.release/` directory. No environment variable changes these paths. Packing and validation do not publish packages.
 
@@ -10,10 +10,13 @@ All archives, release plans, manifests, and generated notes use the repository r
 
 Run commands from the repository root.
 
+`bun run build:dev` builds the CLI and its workspace dependencies, including the Solid TUI transform, then installs a dedicated `intloom-dev` launcher into the directory returned by `bun pm bin -g`. The launcher calls this checkout's `apps/cli/dist/bin.js` with the build's absolute Node executable. It preserves the caller's working directory, arguments, streams, signals and exit status. Rebuilding updates the code used by subsequent commands; changing Node requires rerunning `build:dev`. It neither replaces the published `intloom` command nor starts/stops project Services. This local launcher supports macOS/Linux. Run `bun run build:dev --bin-dir /absolute/bin/directory` to choose a different directory, and add that directory to PATH if needed. Installation refuses to replace unrelated commands, symlinks, or another checkout's launcher; remove the previous launcher explicitly before changing checkouts. To uninstall, remove the printed `intloom-dev` file.
+
 `bun run build` prepares workspace build artifacts without creating release archives. Run `bun run pack` only when archives are needed; Turbo builds the required workspaces first, then runs their separate `pack` scripts. Use `bun run pack --filter=@intloom/cli` to pack one workspace. Packing always runs rather than reusing cached archives, and every archive is written to `.release/`.
 
 | File | Responsibility |
 | --- | --- |
+| `install-dev-cli.ts` | Install the local development launcher after a successful CLI build. |
 | `plan-release.ts` | Select changed or explicitly requested packages and write `.release/plan.json` for CI. |
 | `validate-release.ts` | Check the plan's commit, current versions, release channels, and reviewed notes. |
 | `pack-package.ts` | Pack one distribution directory; `--selected` dispatches workspace pack tasks from the fixed plan. |

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, type ExecFileOptions } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
@@ -15,7 +15,20 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-const run = promisify(execFile);
+const execute = promisify(execFile);
+const run = (
+  file: string,
+  args: readonly string[],
+  options: ExecFileOptions = {},
+) =>
+  execute(file, args, {
+    ...options,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      PATH: `${dirname(process.execPath)}:${process.env.PATH}`,
+    },
+  });
 test("isolated tarball installation exposes the Node bin and public ESM entry without test sources", {
   timeout: 120_000,
 }, async (t) => {
@@ -103,7 +116,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
         );
         assert.deepEqual(entry.dependencies, { "@intloom/cli": cli.version });
         assert.deepEqual(entry.bin, { intloom: "./dist/bin.js" });
-        assert.equal(entry.engines.node, ">=22.22.0");
+        assert.equal(entry.engines.node, ">=26.4.0");
         assert.equal(entry.bundleDependencies, undefined);
         assert.match(
           await readFile(
@@ -143,7 +156,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
       const manifest = JSON.parse(
         await readFile(join(installed, "package.json"), "utf8"),
       );
-      assert.equal(manifest.engines.node, ">=22.22.0");
+      assert.equal(manifest.engines.node, ">=26.4.0");
       const kernelManifest = JSON.parse(
         await readFile(resolve(root, "packages/kernel/package.json"), "utf8"),
       );
@@ -178,7 +191,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
         [join(project, "node_modules/.bin/intloom"), "--help", "--no-color"],
         { cwd: project },
       );
-      assert.match(result.stdout, /flow \[options\]/u);
+      assert.match(result.stdout, /flow\s+Submit complete intent/u);
       assert.equal(result.stdout.includes(String.fromCharCode(27)), false);
       const version = await run(
         process.execPath,
@@ -197,8 +210,10 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
         ],
         { cwd: project },
       );
-      const scaffold = JSON.parse(initialized.stdout);
-      assert.equal(scaffold.status, "scaffolded");
+      const initializedResult = JSON.parse(initialized.stdout);
+      assert.equal(initializedResult.ok, true);
+      const scaffold = initializedResult.data;
+      assert.equal(scaffold.steps[0].status, "completed");
       assert.ok(
         (
           await readFile(join(scaffold.projectRoot, "intloom.yaml"), "utf8")
@@ -265,7 +280,7 @@ for (const backend of ["file", "sqlite"]) {
       const types = join(project, "consumer.ts");
       await writeFile(
         types,
-        'import { connectProject } from "@intloom/cli"; export type Client = Awaited<ReturnType<typeof connectProject>>;',
+        'import { connectProject, createCliCore, type ServiceRunView } from "@intloom/cli"; export type Client = Awaited<ReturnType<typeof connectProject>>; export type Core = ReturnType<typeof createCliCore>; export type Snapshot = ServiceRunView; export type RunQuery = Awaited<ReturnType<Core["getRun"]>>;',
       );
       await run(
         process.execPath,
@@ -296,7 +311,7 @@ for (const backend of ["file", "sqlite"]) {
         ],
         { cwd: project },
       );
-      assert.deepEqual(JSON.parse(listed.stdout).workflows, []);
+      assert.deepEqual(JSON.parse(listed.stdout).data.workflows, []);
       const doctor = await run(
         process.execPath,
         [
@@ -311,7 +326,7 @@ for (const backend of ["file", "sqlite"]) {
         { cwd: project },
       );
       assert.equal(
-        JSON.parse(doctor.stdout).checks.find(
+        JSON.parse(doctor.stdout).data.checks.find(
           (item: { name: string }) => item.name === "execution",
         ).status,
         "attention",

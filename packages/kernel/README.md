@@ -2,6 +2,10 @@
 
 `@intloom/kernel` is IntLoom's private execution layer. It loads compiled Workflow artifacts, creates an in-process Runtime, and coordinates Code, Agents, interaction, and formal Storage. It is shipped inside the CLI; application and Workflow authors should use the [`intloom` CLI](../../apps/cli/README.md) and [`@intloom/workflow-sdk`](../workflow-sdk/README.md), not install Kernel directly.
 
+## Project Service
+
+`src/service` owns the independent per-project process and its JSON/SSE/MCP interfaces. CLI Core, MCP proxies and future Studio connect to the same Service. See [Service ownership](src/service/README.md) and [CLI usage](../../apps/cli/README.md). Kernel remains private and bundled in CLI.
+
 ## Host integration
 
 Kernel is for the local host that owns a project service. The host creates an Effector and a Storage handle, initializes one project environment, presents waiting actions, and releases its resources when it stops.

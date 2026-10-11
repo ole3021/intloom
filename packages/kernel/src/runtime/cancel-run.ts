@@ -2,10 +2,15 @@ import { RUNTIME_ERRORS } from "../errors/runtime.ts";
 import { failRun, type RunEntry } from "./run-entry.ts";
 
 /** Logical cancellation publishes the terminal state immediately without waiting for or rolling back started external operations. */
-export function cancelRun(entry: RunEntry): void {
+export function cancelRun(entry: RunEntry, budgetReason?: string): void {
   if (entry.state.status === "completed" || entry.state.status === "failed")
     return;
-  const error = RUNTIME_ERRORS.create("RUN_STOPPED");
+  const error = RUNTIME_ERRORS.create(
+    "RUN_STOPPED",
+    budgetReason
+      ? { message: `Run stopped by execution limit (${budgetReason}).` }
+      : {},
+  );
   const reply = entry.reply;
   const call = entry.activeCall;
   const agent = entry.agentCall;

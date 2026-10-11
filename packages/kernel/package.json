@@ -1,6 +1,6 @@
 {
   "name": "@intloom/kernel",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "private": true,
   "type": "module",
   "exports": {
@@ -19,6 +19,14 @@
     "./storage/sqlite": {
       "types": "./dist/storage/sqlite/open.d.ts",
       "default": "./dist/storage/sqlite/open.js"
+    },
+    "./service": {
+      "types": "./dist/service/index.d.ts",
+      "default": "./dist/service/index.js"
+    },
+    "./service/*": {
+      "types": "./dist/service/*.d.ts",
+      "default": "./dist/service/*.js"
     }
   },
   "files": [
@@ -36,7 +44,10 @@
     "yaml": "^2.8.1",
     "drizzle-orm": "0.45.3",
     "better-sqlite3": "13.0.3",
-    "@intloom/workflow-sdk": "workspace:*"
+    "@intloom/workflow-sdk": "workspace:*",
+    "@modelcontextprotocol/server": "2.3.1",
+    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/node": "2.1.1"
   },
   "scripts": {
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",

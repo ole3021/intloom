@@ -7,6 +7,18 @@
 - Standardize RunView.cursor across CLI/MCP, query and answer names, and Workflow initialization diagnostic types.
 - Deprecate Query and SnapshotCategory in favor of StorageQuery and StorageCategory; retain compatibility aliases.
 
+## @intloom/cli@0.0.5
+
+- Return immediate Run receipts through CLI and MCP; query the original Run for progress, completion, or failure without replaying execution.
+- Reject incomplete model output and preserve clear, bounded model, Tool, and step failure diagnostics without exposing raw SDK output or secrets.
+- Preserve Run-scoped logging across independently installed Workflow dependencies, including Code, recovery, and Agent Tools.
+- Add optional Host execution limits for Agent steps, model calls, known token usage, and Run duration, with explicit stop reasons and usage summaries.
+
+## @intloom/workflow-intent@0.0.3
+
+- Allow one bounded correction for a rejected Validation report while retaining strict final checks and avoiding replay of project implementation.
+- Report deterministic Specification change errors and bounded Validation rule/location diagnostics through the current Run logger.
+
 ## @intloom/cli@0.0.3
 
 - Support Node.js 22.22.0+ in both CLI entries and the embedded Kernel while retaining Node.js 24 for repository development and publication.

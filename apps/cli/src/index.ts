@@ -1,4 +1,4 @@
-export { createProgram, runCli, type CliIo } from "./commands/program.ts";
+export { runCli, type CliIo } from "./commands/program.ts";
 export {
   addWorkflow,
   removeWorkflow,
@@ -51,3 +51,18 @@ export type {
   ListPage,
   ReadonlyJsonValue,
 } from "@intloom/kernel";
+export {
+  createCliCore,
+  type CliCore,
+  type CoreResult,
+  type CoreMeta,
+  type ServiceRunView,
+  type ProjectEvent,
+  type ObserveOptions,
+  type WaitRunInput,
+  type WaitRunResult,
+  type ProjectInput,
+  type RunInput,
+  type FlowInput,
+  type AnswerInput,
+} from "./core/index.ts";

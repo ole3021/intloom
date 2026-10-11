@@ -22,12 +22,11 @@ intloom flows
 ## Connect Codex
 
 ```sh
-intloom config codex
+intloom mcp init --ide codex --plan
+intloom mcp init --ide codex
 ```
 
-The command prints the configuration generated for this project. Merge it into the intended project's `.codex/config.toml`; the command does not edit IDE configuration. The snippet points to `/mcp/codex` and uses an authentication helper instead of embedding the local token. Enable the connection using the client's project trust and permission controls.
-
-A generic MCP client uses the authenticated loopback `/mcp` endpoint. See [MCP reference](../reference/mcp.md) for client implementers. Treat connection metadata and task ownership tokens as private.
+The first command previews the plan; the second applies the project's `.codex/config.toml` entry while preserving unrelated settings. It starts the installed stdio proxy, which discovers the existing Service and forwards full MCP messages. It contains no token or dynamic port. Project trust and client permissions still apply; configuration generation alone does not prove IDE acceptance. See [official Codex MCP configuration](https://developers.openai.com/codex/mcp/).
 
 ## Run and continue
 

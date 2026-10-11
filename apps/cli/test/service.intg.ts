@@ -16,6 +16,7 @@ import {
   pending,
   projectFixture,
   configureProject,
+  untilRun,
 } from "./project-fixture.ts";
 
 const answers = [
@@ -29,8 +30,10 @@ for (const backend of ["file", "sqlite"] as const)
     const root = await projectFixture(t, true, backend);
     const started = await cli(root, ["start", "--json"]);
     assert.equal(started.code, 0, started.stdout);
-    const first = JSON.parse(started.stdout).service;
-    const reused = JSON.parse((await cli(root, ["start", "--json"])).stdout);
+    const first = JSON.parse(started.stdout).data.service;
+    const reused = JSON.parse(
+      (await cli(root, ["start", "--json"])).stdout,
+    ).data;
     assert.equal(reused.reused, true);
     assert.equal(reused.service.instanceId, first.instanceId);
     const created = await cli(root, [
@@ -41,24 +44,43 @@ for (const backend of ["file", "sqlite"] as const)
       "--json",
     ]);
     assert.equal(created.code, 0, created.stdout);
-    const initial = JSON.parse(created.stdout).run;
-    assert.equal(initial.status, "waiting");
+    const receipt = JSON.parse(created.stdout).data.run;
+    assert.equal(receipt.status, "running");
     const client = await connectProject(root);
-    const confirmation = await client.answerAsk(
+    const initial = await untilRun(
+      client,
+      receipt.runId,
+      (run) => run.status === "waiting",
+    );
+    const confirmationReceipt = await client.answerAsk(
       initial.runId,
-      initial.pendingAction.id,
+      pending(initial).id,
       answers,
+    );
+    assert.equal(confirmationReceipt.status, "running");
+    const confirmation = await untilRun(
+      client,
+      initial.runId,
+      (run) =>
+        run.status === "waiting" &&
+        run.pendingAction?.id !== initial.pendingAction?.id,
     );
     assert.equal(confirmation.runId, initial.runId);
     assert.equal(confirmation.pendingAction?.kind, "user_ask_confirmation");
     await assert.rejects(
-      client.answerAsk(initial.runId, initial.pendingAction.id, answers),
+      client.answerAsk(initial.runId, pending(initial).id, answers),
       { code: "CONFLICT" },
     );
-    const done = await client.answerAsk(
+    const doneReceipt = await client.answerAsk(
       initial.runId,
       pending(confirmation).id,
       { isConfirmed: true },
+    );
+    assert.equal(doneReceipt.status, "running");
+    const done = await untilRun(
+      client,
+      initial.runId,
+      (run) => run.status === "completed",
     );
     assert.equal(done.status, "completed");
     assert.equal((await client.listRuns()).length, 1);
@@ -72,13 +94,13 @@ for (const backend of ["file", "sqlite"] as const)
     await client.close();
     const saved = await connection(root);
     const config = await cli(root, ["config", "codex"]);
-    assert.match(config.stdout, /http_headers_helper = "/u);
+    assert.match(config.stdout, /mcp/u);
     assert.doesNotMatch(config.stdout, new RegExp(saved.token, "u"));
     const stopped = await cli(root, ["stop", "--json"]);
     assert.equal(stopped.code, 0, stopped.stdout);
     assert.equal(
-      JSON.parse((await cli(root, ["status", "--json"])).stdout).status,
-      "offline",
+      JSON.parse((await cli(root, ["status", "--json"])).stdout).data.status,
+      "stopped",
     );
     assert.equal((await cli(root, ["start", "--json"])).code, 0);
     const restarted = await serviceStatus(root);
@@ -101,7 +123,12 @@ test("JSON waiting, invalid answers, cancellation and failed commit remain obser
   await startService({ projectRoot: root });
   const client = await connectProject(root);
   t.after(() => client.close());
-  const waiting = await client.flow("fixture", "normal");
+  const normalReceipt = await client.flow("fixture", "normal");
+  const waiting = await untilRun(
+    client,
+    normalReceipt.runId,
+    (run) => run.status === "waiting",
+  );
   await assert.rejects(
     client.answerAsk(waiting.runId, pending(waiting).id, []),
     { code: "INVALID_REQUEST" },
@@ -109,107 +136,92 @@ test("JSON waiting, invalid answers, cancellation and failed commit remain obser
   assert.deepEqual(await client.getRun(waiting.runId), waiting);
   const cancelled = await cli(root, ["cancel", waiting.runId, "--json"]);
   assert.equal(cancelled.code, 0);
-  assert.equal(JSON.parse(cancelled.stdout).run.lastError.code, "RUN_STOPPED");
-  const failure = await client.flow("fixture", "fail-after-commit");
-  const confirm = await client.answerAsk(
+  assert.equal(JSON.parse(cancelled.stdout).data.lastError.code, "RUN_STOPPED");
+  const failureReceipt = await client.flow("fixture", "fail-after-commit");
+  const failure = await untilRun(
+    client,
+    failureReceipt.runId,
+    (run) => run.status === "waiting",
+  );
+  const confirmReceipt = await client.answerAsk(
     failure.runId,
     pending(failure).id,
     answers,
   );
-  const failed = await client.answerAsk(failure.runId, pending(confirm).id, {
-    isConfirmed: true,
-  });
+  const confirm = await untilRun(
+    client,
+    failure.runId,
+    (run) =>
+      run.status === "waiting" &&
+      run.pendingAction?.id !== failure.pendingAction?.id,
+  );
+  assert.equal(confirmReceipt.status, "running");
+  const failedReceipt = await client.answerAsk(
+    failure.runId,
+    pending(confirm).id,
+    {
+      isConfirmed: true,
+    },
+  );
+  assert.equal(failedReceipt.status, "running");
+  const failed = await untilRun(
+    client,
+    failure.runId,
+    (run) => run.status === "failed",
+  );
   assert.equal(failed.status, "failed");
   assert.notEqual(await client.getRecord(failure.runId), null);
   const attached = await cli(root, ["attach", failed.runId, "--json"]);
   assert.equal(attached.code, 1);
   assert.equal(attached.stdout.trim().split("\n").length, 1);
-  assert.equal(JSON.parse(attached.stdout).run.status, "failed");
+  assert.equal(JSON.parse(attached.stdout).data.status, "failed");
 });
 
-test("interactive CLI selection, multiline intent, questions and confirmation use the same service", async (t) => {
+test("CMD never consumes a human action, even with an interactive terminal", async (t) => {
   const root = await projectFixture(t);
   await startService({ projectRoot: root });
-  const replies = [
-    "fixture",
-    "  original\nintent  ",
-    "custom",
-    "  custom\nanswer  ",
-    "skip",
-    "revise",
-    "Changes needed",
-  ];
-  const output = new PassThrough();
-  const error = new PassThrough();
+  const output = new PassThrough(),
+    error = new PassThrough();
   let stdout = "";
   output.on("data", (data) => {
     stdout += data;
   });
   error.resume();
-  const code = await runCli(["--project", root, "flow"], {
-    input: new PassThrough(),
-    output,
-    error,
-    cwd: root,
-    isTTY: true,
-    prompts: {
-      async choose() {
-        return replies.shift();
-      },
-      async text() {
-        return replies.shift();
-      },
-    },
-  });
-  assert.equal(code, 0);
-  assert.match(stdout, /Completed/u);
-  const client = await connectProject(root);
-  const run = (await client.listRuns())[0];
-  assert.ok(run);
-  const record = await client.getRecord(run.runId);
-  assert.ok(record && typeof record === "object" && "data" in record);
-  assert.deepEqual(record.data, {
-    intent: "  original\nintent  ",
-    answers: [
-      { questionId: "place", isSkipped: false, answer: "  custom\nanswer  " },
-      { questionId: "notes", isSkipped: true },
+  const code = await runCli(
+    [
+      "--project",
+      root,
+      "flow",
+      "fixture",
+      "--intent",
+      "  original\nintent  ",
+      "--json",
     ],
-    isConfirmed: false,
-    feedback: "Changes needed",
-  });
-  await client.close();
-});
-
-test("CLI form cancellation leaves waiting for attach without replay", async (t) => {
-  const root = await projectFixture(t);
-  await startService({ projectRoot: root });
-  const output = new PassThrough();
-  const error = new PassThrough();
-  output.resume();
-  error.resume();
-  await runCli(["--project", root, "flow", "fixture", "--intent", "retain"], {
-    input: new PassThrough(),
-    output,
-    error,
-    cwd: root,
-    isTTY: true,
-    prompts: {
-      async choose() {
-        return undefined;
-      },
-      async text() {
-        assert.fail();
-      },
-    },
-  });
+    { input: new PassThrough(), output, error, cwd: root, isTTY: true },
+  );
+  assert.equal(code, 0, stdout);
+  const admission = JSON.parse(stdout);
+  assert.equal(admission.ok, true);
+  assert.equal(admission.data.receipt.status, "accepted");
   const client = await connectProject(root);
-  const initial = (await client.listRuns())[0];
-  assert.ok(initial);
-  assert.equal(initial.status, "waiting");
-  assert.equal((await cli(root, ["attach", initial.runId, "--json"])).code, 0);
-  assert.deepEqual(await client.getRun(initial.runId), initial);
-  assert.notEqual(await client.getRecord(`once-${initial.runId}`), null);
-  await client.close();
+  try {
+    const waiting = await untilRun(
+      client,
+      admission.data.run.runId,
+      (view) => view.status === "waiting",
+    );
+    assert.ok(waiting.pendingAction);
+    assert.equal(
+      (await cli(root, ["attach", waiting.runId, "--json"])).code,
+      0,
+    );
+    assert.equal(
+      (await client.getRun(waiting.runId)).pendingAction?.id,
+      waiting.pendingAction.id,
+    );
+  } finally {
+    await client.close();
+  }
 });
 
 test("loopback service enforces auth, Host/Origin and shutdown identity", async (t) => {

@@ -1,6 +1,6 @@
 {
   "name": "intloom",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "description": "IntLoom command-line entry backed by @intloom/cli",
   "type": "module",
   "bin": {
@@ -12,10 +12,10 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@intloom/cli": "0.0.3"
+    "@intloom/cli": "0.0.5"
   },
   "engines": {
-    "node": ">=22.22.0"
+    "node": ">=26.4.0"
   },
   "license": "Apache-2.0",
   "repository": {

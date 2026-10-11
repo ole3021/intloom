@@ -173,21 +173,40 @@ test("one project keeps client calls separate from CLI, Studio and MCP service m
   );
   const config = testConfig();
   await project.configure(JSON.stringify(config));
-  const network = t.mock.method(globalThis, "fetch", async () =>
-    Response.json({
-      id: "chatcmpl-test",
-      object: "chat.completion",
-      created: 0,
-      model: "test-model",
-      choices: [
+  const network = t.mock.method(
+    globalThis,
+    "fetch",
+    async (_input: string | URL | Request, init?: RequestInit) => {
+      assert.equal(JSON.parse(String(init?.body)).stream, true);
+      const frames = [
         {
-          index: 0,
-          message: { role: "assistant", content: '{"outcome":"complete"}' },
-          finish_reason: "stop",
+          id: "chatcmpl-test",
+          object: "chat.completion.chunk",
+          created: 0,
+          model: "test-model",
+          choices: [
+            {
+              index: 0,
+              delta: { role: "assistant", content: '{"outcome":"complete"}' },
+              finish_reason: null,
+            },
+          ],
         },
-      ],
-      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-    }),
+        {
+          id: "chatcmpl-test",
+          object: "chat.completion.chunk",
+          created: 0,
+          model: "test-model",
+          choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        },
+      ];
+      return new Response(
+        frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") +
+          "data: [DONE]\n\n",
+        { headers: { "Content-Type": "text/event-stream" } },
+      );
+    },
   );
   const execution = await initializeProject(project.root, {
     ...runtimeFixture().options,

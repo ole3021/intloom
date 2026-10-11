@@ -19,6 +19,7 @@ export interface RuntimeOptions {
     readonly blueprints: Readonly<Record<string, Blueprint>>;
     readonly workflowIdentities: Readonly<Record<string, string>>;
   };
+  readonly observation?: import("./run-observation.ts").RuntimeObservation;
   readonly logger?: Logger;
   readonly signal?: AbortSignal;
   readonly codes: CodeRegistry;
@@ -38,6 +39,12 @@ export interface Runtime extends AgentCallApi {
   restore(): Promise<void>;
   /** Releases live execution while retaining recovery copies; unlike cancel, unfinished work can be recovered. */
   suspend(): Promise<void>;
+  /** Admits a Run and returns its initial running snapshot without waiting for execution. */
+  startFlow(
+    blueprint: Blueprint,
+    intent: string,
+    source?: RunSource,
+  ): Promise<RunView>;
   /** Preserves the original text and returns a snapshot after reaching waiting/completed/failed. */
   flow(
     blueprint: Blueprint,
@@ -46,6 +53,12 @@ export interface Runtime extends AgentCallApi {
   ): Promise<RunView>;
   getRun(runId: string): Promise<RunView>;
   listRuns(flowName?: string): Promise<RunView[]>;
+  /** Accepts a valid answer synchronously and returns the resumed running snapshot. */
+  submitAnswer(
+    runId: string,
+    actionId: string,
+    answer: ReadonlyJsonValue,
+  ): RunView;
   /** actionId matches pendingAction.id; invalid or stale answers preserve the action and timestamps. */
   answerAsk(
     runId: string,

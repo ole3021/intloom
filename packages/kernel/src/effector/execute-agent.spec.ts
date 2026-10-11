@@ -4,10 +4,13 @@ import { test } from "node:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import type { AgentExecutionOptions } from "@mastra/core/agent";
 import type { RequestContext } from "@mastra/core/request-context";
+import type { PublicSchema } from "@mastra/core/schema";
 import { createTool } from "@mastra/core/tools";
+import { APICallError } from "@ai-sdk/provider";
 import * as z from "zod";
-import { LoomError, openLog } from "@intloom/utils";
+import { LoomError, openLog, withLogger } from "@intloom/utils";
 import {
   executionAccess,
   latestToolResult,
@@ -18,6 +21,7 @@ import {
   getAgentExecutionAccess,
 } from "./agent-context.ts";
 import { createEffector } from "./create-effector.ts";
+import { agentJsonSchema } from "./agent-tool.ts";
 import { deferred, runtimeFixture } from "../../test/runtime-fixture.ts";
 import { createRuntime } from "../runtime/create-runtime.ts";
 import type { Blueprint } from "../workflow/blueprint.ts";
@@ -412,7 +416,10 @@ test("the Agent model iteration budget rejects an unfinished Tool loop without r
       null,
       executionAccess().agent,
     ),
-    { code: "STEP_EXECUTION_FAILED" },
+    (error) =>
+      LoomError.is(error) &&
+      error.code === "STEP_EXECUTION_FAILED" &&
+      error.message.includes("model-step limit"),
   );
   assert.equal(executable.requests.length, 1);
   assert.equal(executions, 1);
@@ -459,7 +466,7 @@ test("Agent output uses the original Zod transform once and rejects invalid outc
   );
 });
 
-test("SDK-rejected output is classified as an invalid result and retains its schema cause", async () => {
+test("invalid final Agent output is classified without exposing the model text", async () => {
   for (const text of [
     '{"outcome":1}',
     '{"outcome":"complete","extra":1}',
@@ -471,16 +478,49 @@ test("SDK-rejected output is classified as an invalid result and retains its sch
       (error) => {
         assert.ok(error instanceof Error && "code" in error);
         assert.equal(error.code, "AGENT_OUTPUT_INVALID");
-        assert.ok(error.cause instanceof Error && "id" in error.cause);
-        assert.equal(
-          error.cause.id,
-          "STRUCTURED_OUTPUT_SCHEMA_VALIDATION_FAILED",
-        );
+        assert.equal(error.message.includes(text), false);
         return true;
       },
     );
     assert.equal(executable.requests.length, 1);
   }
+});
+
+test("rejected output diagnostics omit unknown field names and all model values", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "intloom-output-rejected-"));
+  const logs = await openLog({ directory });
+  t.after(async () => {
+    await logs.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const privateField = "privateFieldSentinel";
+  const privateValue = "private-output-value-sentinel";
+  const executable = scriptedAgent(() => ({
+    text: JSON.stringify({
+      outcome: "complete",
+      changes: [],
+      [privateField]: privateValue,
+    }),
+  }));
+  await assert.rejects(
+    withLogger(logs.logger, () =>
+      createEffector().executeAgent(executable, null, executionAccess().agent),
+    ),
+    { code: "AGENT_OUTPUT_INVALID" },
+  );
+  logs.flush();
+  const text = await readFile(logs.filePath, "utf8");
+  assert.equal(text.includes(privateField), false);
+  assert.equal(text.includes(privateValue), false);
+  const summary = text
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .find((row) => row.event === "agent_output_rejected");
+  assert.deepEqual(summary.issueCodes, ["unrecognized_keys"]);
+  assert.deepEqual(summary.knownOutputFields, ["outcome", "changes"]);
+  assert.equal(summary.outputFieldCount, 3);
+  assert.equal(summary.unknownOutputFieldCount, 1);
 });
 
 test("a Storage failure caught by a business Tool still fails the Agent invocation", async () => {
@@ -574,6 +614,544 @@ test("model failures and incomplete model iterations are not reported as complet
       null,
       executionAccess().agent,
     ),
+    (error) =>
+      LoomError.is(error) &&
+      error.code === "STEP_EXECUTION_FAILED" &&
+      error.message.includes("length limit"),
+  );
+});
+
+test("actual SDK error finish reason records bounded diagnostics without model text", async (t) => {
+  const secret = "fixture-private-model-response";
+  const consoleError = t.mock.method(console, "error", () => {});
+  const directory = await mkdtemp(join(tmpdir(), "intloom-agent-error-log-"));
+  const logs = await openLog({ directory });
+  t.after(async () => {
+    await logs.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const executable = scriptedAgent(() => ({ text: secret, reason: "error" }));
+  await assert.rejects(
+    withLogger(logs.logger, () =>
+      createEffector().executeAgent(executable, null, executionAccess().agent),
+    ),
+    (error) => {
+      assert.ok(LoomError.is(error));
+      assert.equal(error.code, "STEP_EXECUTION_FAILED");
+      assert.ok(error.message.includes("error finish reason"));
+      return true;
+    },
+  );
+  assert.equal(executable.requests.length, 1);
+  logs.flush();
+  const raw = await readFile(logs.filePath, "utf8");
+  assert.ok(raw.includes('"event":"agent_failed"'));
+  assert.ok(raw.includes('"finishReason":"error"'));
+  assert.ok(raw.includes('"modelSteps":1'));
+  assert.ok(!raw.includes(secret));
+  assert.equal(consoleError.mock.calls.length, 0);
+});
+
+test("actual model request failures preserve safe HTTP and transport diagnostics", async (t) => {
+  const secret = "fixture-private-request-and-response";
+  const directory = await mkdtemp(join(tmpdir(), "intloom-model-request-log-"));
+  const logs = await openLog({ directory });
+  t.after(async () => {
+    await logs.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const failures = [
+    new APICallError({
+      message: secret,
+      url: `https://model.invalid/?token=${secret}`,
+      requestBodyValues: { secret },
+      statusCode: 403,
+      responseHeaders: { authorization: secret },
+      responseBody: JSON.stringify({
+        error: { code: "model_not_found", message: secret },
+      }),
+      isRetryable: true,
+    }),
+    Object.assign(new Error(secret), { code: "UND_ERR_HEADERS_TIMEOUT" }),
+  ];
+  for (const [index, failure] of failures.entries()) {
+    const executable = scriptedAgent(() => {
+      throw failure;
+    });
+    await assert.rejects(
+      withLogger(logs.logger.child({ runId: `RUN-model-${index}` }), () =>
+        createEffector().executeAgent(
+          executable,
+          null,
+          executionAccess().agent,
+        ),
+      ),
+      (error) => {
+        assert.ok(LoomError.is(error));
+        assert.equal(error.code, "LLM_REQUEST_FAILED");
+        assert.equal(error.retryable, false);
+        assert.ok(!error.message.includes(secret));
+        return true;
+      },
+    );
+    assert.equal(executable.requests.length, 1);
+  }
+  logs.flush();
+  const raw = await readFile(logs.filePath, "utf8");
+  assert.ok(raw.includes('"httpStatus":403'));
+  assert.ok(raw.includes('"providerFailureReason":"MODEL_NOT_FOUND"'));
+  assert.ok(raw.includes('"transportCode":"UND_ERR_HEADERS_TIMEOUT"'));
+  assert.ok(!raw.includes(secret));
+});
+
+test("actual Mastra stream errors add only observed allowlisted diagnostics", async (t) => {
+  const secret = "fixture-private-stream-body-and-key";
+  const directory = await mkdtemp(join(tmpdir(), "intloom-stream-error-log-"));
+  const logs = await openLog({ directory });
+  t.after(async () => {
+    await logs.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const cases = [
+    new APICallError({
+      message: secret,
+      url: `https://model.invalid/?token=${secret}`,
+      requestBodyValues: { secret },
+      statusCode: 429,
+      responseHeaders: { authorization: secret },
+      responseBody: JSON.stringify({
+        error: { code: "rate_limit_exceeded", message: secret },
+      }),
+      isRetryable: true,
+    }),
+    new Error(secret),
+  ];
+  for (const [index, failure] of cases.entries()) {
+    const executable = scriptedAgent(() => ({ streamError: failure }));
+    await assert.rejects(
+      withLogger(logs.logger.child({ runId: `RUN-stream-${index}` }), () =>
+        createEffector().executeAgent(
+          executable,
+          null,
+          executionAccess().agent,
+        ),
+      ),
+      (error) => {
+        assert.ok(LoomError.is(error));
+        assert.equal(error.retryable, false);
+        assert.ok(!error.message.includes(secret));
+        return true;
+      },
+    );
+    assert.equal(executable.requests.length, 1);
+  }
+  logs.flush();
+  const raw = await readFile(logs.filePath, "utf8");
+  const failures = raw
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line))
+    .filter((record) => record.event === "agent_failed");
+  assert.equal(failures.length, 2);
+  assert.equal(failures[0].errorCode, "LLM_REQUEST_FAILED");
+  assert.equal(failures[0].observedErrorSource, "on_error");
+  assert.equal(failures[0].httpStatus, 429);
+  assert.equal(failures[0].providerFailureReason, "RATE_LIMIT_EXCEEDED");
+  assert.equal(failures[1].errorCode, "STEP_EXECUTION_FAILED");
+  assert.equal(failures[1].observedErrorSource, "on_error");
+  assert.equal(failures[1].httpStatus, undefined);
+  assert.equal(failures[1].providerFailureReason, undefined);
+  assert.ok(!raw.includes(secret));
+});
+
+test("actual step callback logs only finite nonnegative optional token counts", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "intloom-agent-usage-log-"));
+  const logs = await openLog({ directory });
+  t.after(async () => {
+    await logs.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const usages = [
+    { reasoningTokens: 7, cachedInputTokens: 4 },
+    { reasoningTokens: Number.POSITIVE_INFINITY, cachedInputTokens: -1 },
+    {},
+  ];
+  for (const usage of usages) {
+    await withLogger(logs.logger, () =>
+      createEffector().executeAgent(
+        scriptedAgent(() => ({ text: '{"outcome":"complete"}', usage })),
+        null,
+        executionAccess().agent,
+      ),
+    );
+  }
+  logs.flush();
+  const records = (await readFile(logs.filePath, "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line))
+    .filter((record) => record.event === "model_step_completed");
+  assert.equal(records.length, 3);
+  assert.equal(records[0].reasoningTokens, 7);
+  assert.equal(records[0].cachedInputTokens, 4);
+  for (const record of records.slice(1)) {
+    assert.equal(Object.hasOwn(record, "reasoningTokens"), false);
+    assert.equal(Object.hasOwn(record, "cachedInputTokens"), false);
+  }
+});
+
+test("Mastra structured output probe: intermediate text with a Tool is not the final outcome", async () => {
+  const outputSchema = z.strictObject({ outcome: z.string() });
+  const schema = agentJsonSchema(outputSchema) as PublicSchema;
+  const run = (errorStrategy: "strict" | "warn") => {
+    let toolCalls = 0;
+    const countedTool = createTool({
+      id: "submit",
+      description: "submit",
+      inputSchema: z.strictObject({}),
+      execute: async () => {
+        toolCalls++;
+        return { saved: true };
+      },
+    });
+    const executable = scriptedAgent(
+      (request) =>
+        latestToolResult(request)
+          ? { text: '{"outcome":"complete"}' }
+          : {
+              text: '{"progress":"working"}',
+              calls: [{ name: "submit", input: {} }],
+            },
+      { submit: countedTool },
+    );
+    return {
+      executable,
+      get toolCalls() {
+        return toolCalls;
+      },
+      generate: async () =>
+        (
+          await executable.agent.stream(
+            "Use the Tool, then return the outcome.",
+            {
+              maxSteps: 3,
+              toolCallConcurrency: 1,
+              modelSettings: { maxRetries: 0 },
+              maxProcessorRetries: 0,
+              structuredOutput: {
+                schema,
+                errorStrategy,
+                jsonPromptInjection: "auto",
+              },
+            },
+          )
+        ).getFullOutput(),
+    };
+  };
+  const strict = run("strict");
+  await assert.rejects(strict.generate(), (error) => {
+    assert.ok(error instanceof Error && "id" in error);
+    assert.equal(error.id, "STRUCTURED_OUTPUT_SCHEMA_VALIDATION_FAILED");
+    return true;
+  });
+  assert.equal(strict.executable.requests.length, 1);
+  assert.equal(strict.toolCalls, 1);
+
+  const warn = run("warn");
+  const response = await warn.generate();
+  assert.equal(warn.executable.requests.length, 2);
+  assert.equal(warn.toolCalls, 1);
+  assert.equal(response.finishReason, "stop");
+  assert.equal(response.steps.at(-1)?.text, '{"outcome":"complete"}');
+  assert.equal(
+    outputSchema.safeParse(JSON.parse(response.steps.at(-1)?.text ?? ""))
+      .success,
+    true,
+  );
+  assert.deepEqual(response.object, { outcome: "complete" });
+});
+
+test("Mastra structured output probe: an early valid object cannot validate the final round", async () => {
+  const outputSchema = z.strictObject({ outcome: z.string() });
+  const schema = agentJsonSchema(outputSchema) as PublicSchema;
+  for (const finalText of ['{"outcome":1}', "", '{"outcome":"complete"}']) {
+    let toolCalls = 0;
+    const submit = createTool({
+      id: "submit",
+      description: "submit",
+      inputSchema: z.strictObject({}),
+      execute: async () => {
+        toolCalls++;
+        return { saved: true };
+      },
+    });
+    const executable = scriptedAgent(
+      (request) =>
+        latestToolResult(request)
+          ? { text: finalText }
+          : {
+              text: '{"outcome":"premature"}',
+              calls: [{ name: "submit", input: {} }],
+            },
+      { submit },
+    );
+    const stream = await executable.agent.stream(
+      "Use the Tool, then return the outcome.",
+      {
+        maxSteps: 3,
+        toolCallConcurrency: 1,
+        modelSettings: { maxRetries: 0 },
+        maxProcessorRetries: 0,
+        structuredOutput: {
+          schema,
+          errorStrategy: "warn",
+          jsonPromptInjection: "auto",
+        },
+      },
+    );
+    const response = await stream.getFullOutput();
+    assert.equal(executable.requests.length, 2);
+    assert.equal(toolCalls, 1);
+    assert.equal(response.finishReason, "stop");
+    assert.deepEqual(response.object, { outcome: "premature" });
+    assert.equal(response.steps.at(-1)?.text, finalText);
+    assert.equal(
+      finalText.length > 0 &&
+        outputSchema.safeParse(JSON.parse(finalText)).success,
+      finalText === '{"outcome":"complete"}',
+    );
+  }
+});
+
+test("Tool-round text cannot replace the final stop outcome", async () => {
+  for (const firstText of ['{"progress":"working"}', "Working on it."]) {
+    let toolCalls = 0;
+    const submit = createTool({
+      id: "submit",
+      description: "submit",
+      inputSchema: z.strictObject({}),
+      execute: async () => {
+        toolCalls++;
+        return { saved: true };
+      },
+    });
+    const executable = scriptedAgent(
+      (request) =>
+        latestToolResult(request)
+          ? { text: '```json\n{"outcome":"complete"}\n```' }
+          : { text: firstText, calls: [{ name: "submit", input: {} }] },
+      { submit },
+    );
+    assert.deepEqual(
+      await createEffector().executeAgent(
+        executable,
+        null,
+        executionAccess().agent,
+      ),
+      { outcome: "complete" },
+    );
+    assert.equal(executable.requests.length, 2);
+    assert.equal(toolCalls, 1);
+  }
+});
+
+test("a Tool-round outcome cannot authorize an invalid or empty final stop response", async () => {
+  for (const finalText of [
+    '{"outcome":1}',
+    "",
+    "not json",
+    '{"outcome":"complete"}',
+  ]) {
+    let toolCalls = 0;
+    const submit = createTool({
+      id: "submit",
+      description: "submit",
+      inputSchema: z.strictObject({}),
+      execute: async () => {
+        toolCalls++;
+        return { saved: true };
+      },
+    });
+    const executable = scriptedAgent(
+      (request) =>
+        latestToolResult(request)
+          ? { text: finalText }
+          : {
+              text: '{"outcome":"premature"}',
+              calls: [{ name: "submit", input: {} }],
+            },
+      { submit },
+    );
+    const promise = createEffector().executeAgent(
+      executable,
+      null,
+      executionAccess().agent,
+    );
+    if (finalText === '{"outcome":"complete"}')
+      assert.deepEqual(await promise, { outcome: "complete" });
+    else await assert.rejects(promise, { code: "AGENT_OUTPUT_INVALID" });
+    assert.equal(executable.requests.length, 2);
+    assert.equal(toolCalls, 1);
+  }
+});
+
+test("final output diagnostics distinguish cached objects without exposing model values", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "intloom-final-output-"));
+  const logs = await openLog({ directory });
+  t.after(async () => {
+    await logs.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const sentinel = "private-final-output-sentinel";
+  const submit = createTool({
+    id: "submit",
+    description: "submit",
+    inputSchema: z.strictObject({}),
+    execute: async () => ({ saved: true }),
+  });
+  const executable = scriptedAgent(
+    (request) =>
+      latestToolResult(request)
+        ? { text: "" }
+        : {
+            text: JSON.stringify({ outcome: sentinel }),
+            calls: [{ name: "submit", input: {} }],
+          },
+    { submit },
+  );
+  await assert.rejects(
+    withLogger(logs.logger, () =>
+      createEffector().executeAgent(executable, null, executionAccess().agent),
+    ),
+    { code: "AGENT_OUTPUT_INVALID" },
+  );
+  logs.flush();
+  const text = await readFile(logs.filePath, "utf8");
+  assert.equal(text.includes(sentinel), false);
+  const summary = text
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .find((row) => row.event === "agent_final_output");
+  assert.equal(summary.finalTextBytes, 0);
+  assert.equal(summary.finalContentTextBytes, 0);
+  assert.equal(summary.structuredObjectPresent, true);
+  assert.equal(summary.finishReason, "stop");
+});
+
+test("a final non-stop response cannot reuse an earlier Tool-round outcome", async () => {
+  let toolCalls = 0;
+  const submit = createTool({
+    id: "submit",
+    description: "submit",
+    inputSchema: z.strictObject({}),
+    execute: async () => {
+      toolCalls++;
+      return { saved: true };
+    },
+  });
+  const executable = scriptedAgent(
+    (request) =>
+      latestToolResult(request)
+        ? { text: '{"outcome":"complete"}', reason: "length" }
+        : {
+            text: '{"outcome":"premature"}',
+            calls: [{ name: "submit", input: {} }],
+          },
+    { submit },
+  );
+  await assert.rejects(
+    createEffector().executeAgent(executable, null, executionAccess().agent),
     { code: "STEP_EXECUTION_FAILED" },
   );
+  assert.equal(executable.requests.length, 2);
+  assert.equal(toolCalls, 1);
+});
+
+test("host model observer gates each actual request without replaying a Tool", async () => {
+  let beforeCalls = 0;
+  const usage: unknown[] = [];
+  const executable = scriptedAgent(() => ({ text: '{"outcome":"complete"}' }));
+  assert.deepEqual(
+    await createEffector({
+      serviceModelObserver: {
+        beforeStep() {
+          beforeCalls++;
+        },
+        afterStep(value) {
+          usage.push(value);
+        },
+      },
+    }).executeAgent(executable, null, executionAccess().agent),
+    { outcome: "complete" },
+  );
+  assert.equal(beforeCalls, 1);
+  assert.equal(executable.requests.length, 1);
+  assert.equal(usage.length, 1);
+  const blocked = scriptedAgent(() => ({ text: '{"outcome":"complete"}' }));
+  await assert.rejects(
+    createEffector({
+      serviceModelObserver: {
+        beforeStep() {
+          throw new LoomError("RUN_STOPPED", "host policy");
+        },
+        afterStep() {
+          assert.fail();
+        },
+      },
+    }).executeAgent(blocked, null, executionAccess().agent),
+  );
+  assert.equal(blocked.requests.length, 0);
+});
+
+test("actual stream.error supplies safe fallback diagnostics without onError callback", async (t) => {
+  const secret = "private-stream-fallback-sentinel";
+  const directory = await mkdtemp(join(tmpdir(), "intloom-stream-fallback-"));
+  const logs = await openLog({ directory });
+  t.after(async () => {
+    await logs.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const executable = scriptedAgent(() => ({
+    streamError: new APICallError({
+      message: secret,
+      url: "https://model.invalid",
+      requestBodyValues: { secret },
+      statusCode: 429,
+      responseBody: JSON.stringify({
+        error: { code: "rate_limit_exceeded", message: secret },
+      }),
+      isRetryable: true,
+    }),
+  }));
+  const original = executable.agent.stream.bind(executable.agent);
+  t.mock.method(
+    executable.agent,
+    "stream",
+    (
+      input: Parameters<typeof original>[0],
+      options: AgentExecutionOptions<{ outcome: string }>,
+    ) => {
+      const { onError: _onError, ...rest } = options;
+      return original(input, rest);
+    },
+  );
+  await assert.rejects(
+    withLogger(logs.logger, () =>
+      createEffector().executeAgent(executable, null, executionAccess().agent),
+    ),
+    { code: "LLM_REQUEST_FAILED", retryable: false },
+  );
+  assert.equal(executable.requests.length, 1);
+  logs.flush();
+  const raw = await readFile(logs.filePath, "utf8");
+  const row = raw
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line))
+    .find((record) => record.event === "agent_failed");
+  assert.equal(row.observedErrorSource, "stream_error");
+  assert.equal(row.httpStatus, 429);
+  assert.equal(row.providerFailureReason, "RATE_LIMIT_EXCEEDED");
+  assert.ok(!raw.includes(secret));
 });

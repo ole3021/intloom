@@ -1,6 +1,7 @@
 import type { ReadonlyJsonValue } from "../shared/json.ts";
 import { getLogger } from "@intloom/utils";
 import type { RunView } from "./run-view.ts";
+import { toRunView } from "./to-run-view.ts";
 import { KERNEL_ERRORS } from "../errors/kernel.ts";
 import { assertRunState } from "./assert-run-state.ts";
 import { RUNTIME_ERRORS } from "../errors/runtime.ts";
@@ -19,6 +20,25 @@ export function answerAsk(
   actionId: string,
   answer: ReadonlyJsonValue,
 ): Promise<RunView> {
+  const result = acceptAnswer(entry, actionId, answer, true);
+  if (!result.stable) throw RUNTIME_ERRORS.create("RUN_STATE_INVALID");
+  return result.stable;
+}
+
+export function submitAnswer(
+  entry: RunEntry,
+  actionId: string,
+  answer: ReadonlyJsonValue,
+): RunView {
+  return acceptAnswer(entry, actionId, answer, false).accepted;
+}
+
+function acceptAnswer(
+  entry: RunEntry,
+  actionId: string,
+  answer: ReadonlyJsonValue,
+  waitForStable: boolean,
+): { accepted: RunView; stable?: Promise<RunView> } {
   if (typeof actionId !== "string" || !actionId.trim())
     throw KERNEL_ERRORS.create("INVALID_REQUEST", {
       message: "An answer must identify its pending action.",
@@ -82,10 +102,13 @@ export function answerAsk(
     waitDurationMs,
   });
   // Leave the old waiting state, subscribe to the next stable state, then deliver the answer to the original Promise.
-  const stable = waitUntilStable(entry);
+  const stable = waitForStable ? waitUntilStable(entry) : undefined;
   notifyRunObservers(entry);
   deliver();
-  return stable;
+  return {
+    accepted: toRunView(entry.state),
+    ...(stable === undefined ? {} : { stable }),
+  };
 }
 
 function conflict() {
