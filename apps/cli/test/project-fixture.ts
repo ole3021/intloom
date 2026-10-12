@@ -52,12 +52,16 @@ export async function untilRun(
   return run;
 }
 
-export async function cli(root: string, args: readonly string[]) {
+export async function cli(
+  root: string,
+  args: readonly string[],
+  signal?: AbortSignal,
+) {
   try {
     const result = await execute(
       process.execPath,
       [bin, "--project", root, ...args],
-      { timeout: 20_000 },
+      { timeout: 20_000, ...(signal ? { signal } : {}) },
     );
     return { ...result, code: 0 };
   } catch (error) {

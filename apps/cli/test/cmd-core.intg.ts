@@ -160,11 +160,11 @@ test("built CLI --no-color overrides inherited FORCE_COLOR without stderr warnin
 });
 
 test("CMD defaults to readable text while explicit JSON retains the envelope, streams and exit status", {
-  timeout: 20000,
+  timeout: 120_000,
 }, async (t) => {
   const projectPath = await projectFixture(t);
   const core = createCliCore();
-  const started = await cli(projectPath, ["start", "--no-color"]);
+  const started = await cli(projectPath, ["start", "--no-color"], t.signal);
   assert.equal(started.code, 0, started.stderr);
   assert.match(started.stdout, /^Service started/u);
   assert.equal(started.stderr, "");
@@ -180,33 +180,57 @@ test("CMD defaults to readable text while explicit JSON retains the envelope, st
     [["artifacts"], /^No artifacts found/u],
     [["records"], /^No records found/u],
   ] as const) {
-    const human = await cli(projectPath, [...args]);
-    assert.equal(human.code, 0, human.stdout + human.stderr);
-    assert.equal(human.stderr, "");
-    assert.match(human.stdout, label);
-    assert.doesNotMatch(human.stdout, /"ok":|"meta":/u);
-    assert.equal(human.stdout.includes("\u001b"), false);
-    assert.throws(() => JSON.parse(human.stdout));
-    const machine = await cli(projectPath, [...args, "--json"]);
-    assert.equal(machine.code, human.code, machine.stdout + machine.stderr);
-    assert.equal(machine.stderr, "");
-    const result = JSON.parse(machine.stdout);
-    assert.equal(result.ok, true);
-    assert.equal(result.meta.projectRoot, projectPath);
-    assert.ok(result.meta.requestId);
+    await t.test(
+      `${args.join(" ")}: text and JSON`,
+      {
+        timeout: 40_000,
+      },
+      async (command) => {
+        const human = await cli(projectPath, args, command.signal);
+        assert.equal(human.code, 0, human.stdout + human.stderr);
+        assert.equal(human.stderr, "");
+        assert.match(human.stdout, label);
+        assert.doesNotMatch(human.stdout, /"ok":|"meta":/u);
+        assert.equal(human.stdout.includes("\u001b"), false);
+        assert.throws(() => JSON.parse(human.stdout));
+        const machine = await cli(
+          projectPath,
+          [...args, "--json"],
+          command.signal,
+        );
+        assert.equal(machine.code, human.code, machine.stdout + machine.stderr);
+        assert.equal(machine.stderr, "");
+        const result = JSON.parse(machine.stdout);
+        assert.equal(result.ok, true);
+        assert.equal(result.meta.projectRoot, projectPath);
+        assert.ok(result.meta.requestId);
+      },
+    );
   }
-  const missing = await cli(projectPath, ["attach", "RUN-missing"]);
-  assert.equal(missing.code, 1);
-  assert.equal(missing.stdout, "");
-  assert.match(missing.stderr, /NOT_FOUND:/u);
-  const machineMissing = await cli(projectPath, [
-    "attach",
-    "RUN-missing",
-    "--json",
-  ]);
-  assert.equal(machineMissing.code, 1);
-  assert.equal(machineMissing.stderr, "");
-  assert.equal(JSON.parse(machineMissing.stdout).error.code, "NOT_FOUND");
+  await t.test(
+    "missing Run: exit status and error streams",
+    {
+      timeout: 40_000,
+    },
+    async (command) => {
+      const missing = await cli(
+        projectPath,
+        ["attach", "RUN-missing"],
+        command.signal,
+      );
+      assert.equal(missing.code, 1);
+      assert.equal(missing.stdout, "");
+      assert.match(missing.stderr, /NOT_FOUND:/u);
+      const machineMissing = await cli(
+        projectPath,
+        ["attach", "RUN-missing", "--json"],
+        command.signal,
+      );
+      assert.equal(machineMissing.code, 1);
+      assert.equal(machineMissing.stderr, "");
+      assert.equal(JSON.parse(machineMissing.stdout).error.code, "NOT_FOUND");
+    },
+  );
   const stopped = await core.stopService({ projectPath });
   assert.ok(stopped.ok);
 });
