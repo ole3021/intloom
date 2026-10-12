@@ -14,6 +14,12 @@ export function createEffector(options: EffectorOptions = {}): Effector {
   return Object.freeze({
     executeCode,
     executeAgent: (agent, input, access) =>
-      executeAgent(agent, input, access, maxAgentSteps),
+      executeAgent(
+        agent,
+        input,
+        access,
+        maxAgentSteps,
+        options.serviceModelObserver,
+      ),
   } satisfies Effector);
 }

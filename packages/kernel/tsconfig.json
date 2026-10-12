@@ -6,7 +6,9 @@
       "@intloom/kernel": ["./src/index.ts"],
       "@intloom/kernel/workflow": ["./src/workflow/index.ts"],
       "@intloom/kernel/storage/file": ["./src/storage/file/open.ts"],
-      "@intloom/kernel/storage/sqlite": ["./src/storage/sqlite/open.ts"]
+      "@intloom/kernel/storage/sqlite": ["./src/storage/sqlite/open.ts"],
+      "@intloom/kernel/service": ["./src/service/index.ts"],
+      "@intloom/kernel/service/*": ["./src/service/*.ts"]
     }
   },
   "include": ["src/**/*.ts", "test/**/*.ts", "drizzle.config.ts"]

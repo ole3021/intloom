@@ -26,7 +26,7 @@ You can work through the CLI or a connected Agent IDE using MCP. Both use the sa
 
 ## Getting started
 
-Published packages support Node.js 22.22.0+; the latest Node.js 24 LTS is recommended. Working on this repository requires Node.js 24+, Bun 1.4.0+, and npm. These instructions use a source checkout; see [Installation](./docs/guide/quickstart/installation.md) for published-release prerequisites and complete setup.
+All IntLoom packages require Node.js 26.4.0+. Working on this repository requires Node.js 26.4.0+, Bun 1.4.0+, and npm. These instructions use a source checkout; see [Installation](./docs/guide/quickstart/installation.md) for published-release prerequisites and complete setup.
 
 From the repository root, build the CLI and inspect its help:
 
@@ -35,6 +35,8 @@ bun install
 bun run build --filter=@intloom/cli --concurrency=1
 node apps/cli/dist/bin.js --help
 ```
+
+For development, `bun run build:dev` builds the local CLI and installs `intloom-dev` into Bun's global bin directory. With that directory on PATH, run `intloom-dev` from any test project. See [CLI local development](./apps/cli/README.md#local-development) for rebuilding and Service lifecycle details.
 
 Obtain a compatible compiled Workflow archive with resolvable runtime dependencies. Replace the archive path below with your own. The project directory must be new or empty; the CLI does not bundle a business Workflow.
 

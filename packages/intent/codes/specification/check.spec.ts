@@ -52,6 +52,46 @@ describe("check", () => {
     assert.equal(r.state?.feedbacks[0]?.source, "check");
     assert.equal(r.state?.confirmation, undefined);
   });
+  test("check feeds the precise new-object ID location back for repair", async () => {
+    const r = runtime();
+    await init(null, r.access);
+    await submitProposal(
+      {
+        ...proposal,
+        changes: [
+          {
+            target_ref: "SCON-expected",
+            reason: "Add a constraint",
+            patch: [
+              {
+                op: "add",
+                path: "",
+                value: {
+                  id: "SCON-actual",
+                  description: "private business value",
+                  status: "active",
+                  record_refs: [],
+                },
+              },
+            ],
+          },
+        ],
+      },
+      r.access,
+    );
+    assert.deepEqual(await check(null, r.access), {
+      outcome: "repair_required",
+    });
+    assert.match(
+      r.state?.feedbacks[0]?.content ?? "",
+      /Change\[0\] target_ref SCON-expected, patch\[0\] path "": New object ID "SCON-actual" must match target_ref/,
+    );
+    assert.doesNotMatch(
+      r.state?.feedbacks[0]?.content ?? "",
+      /private business value/,
+    );
+    assert.equal(r.state?.confirmation, undefined);
+  });
   test("check refreshes a changed baseline and requires another analysis", async () => {
     const r = await ready();
     r.setArtifact({

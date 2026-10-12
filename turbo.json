@@ -16,8 +16,9 @@
       "outputs": []
     },
     "test": {
-      "dependsOn": ["build"],
-      "outputs": []
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "cache": false
     },
     "intloom-site#build": {
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/**"],
@@ -26,47 +27,28 @@
     },
     "@intloom/utils#test": {
       "dependsOn": [],
-      "outputs": []
-    },
-    "@intloom/workflow-intent#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
-    },
-    "@intloom/cli#test": {
-      "dependsOn": ["build"],
-      "outputs": []
+      "outputs": [],
+      "cache": false
     },
     "test:intg": {
       "dependsOn": ["build"],
       "outputs": [],
       "cache": false
     },
-    "@intloom/compiler#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
-    },
     "@intloom/cli#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".publish/**", ".publish-intloom/**"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/publication.ts"]
-    },
-    "@intloom/workflow-sdk#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
     },
     "pack": {
       "dependsOn": ["build"],
       "cache": false,
       "outputs": []
     },
-    "@intloom/workflow-intent#test:intg": {
-      "dependsOn": ["build", "@intloom/cli#build"],
-      "cache": false,
-      "outputs": []
-    },
     "intloom-site#test": {
       "dependsOn": [],
-      "outputs": []
+      "outputs": [],
+      "cache": false
     },
     "intloom-site#test:intg": {
       "dependsOn": ["build"],
@@ -81,6 +63,21 @@
     "@intloom/workflow-intent#typecheck": {
       "dependsOn": ["^build", "build"],
       "outputs": []
+    },
+    "test:package": {
+      "dependsOn": ["pack", "^pack"],
+      "outputs": [],
+      "cache": false
+    },
+    "@intloom/workflow-intent#test:package": {
+      "dependsOn": ["pack", "^pack", "@intloom/cli#pack"],
+      "outputs": [],
+      "cache": false
+    },
+    "@intloom/cli#test:package": {
+      "dependsOn": ["pack", "^pack", "@intloom/workflow-intent#pack"],
+      "outputs": [],
+      "cache": false
     }
   },
   "globalPassThroughEnv": [

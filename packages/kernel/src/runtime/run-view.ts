@@ -29,6 +29,14 @@ export interface RunErrorView {
 
 /** A RunState snapshot, not an independent state record; timestamps are converted to ISO strings. */
 export interface RunView {
+  readonly serviceInstanceId?: string;
+  readonly revision?: number;
+  readonly metrics?: import("./run-observation.ts").RunMetrics;
+  readonly limits?: import("./run-observation.ts").RunLimits;
+  readonly activity?: readonly import("./run-observation.ts").RunActivity[];
+  readonly results?: readonly import("./run-observation.ts").RunResult[];
+  readonly settled?: boolean;
+  readonly stopReason?: "user_cancel" | "budget_exceeded";
   readonly runId: string;
   readonly flowName: string;
   readonly execution: RunExecution;

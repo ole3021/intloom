@@ -4,15 +4,25 @@ import {
   specificationObjectIdSchema,
 } from "./specification-artifact.ts";
 
-const patchPathSchema = z.union([
-  z.literal(""),
-  z.templateLiteral(["/", z.string()]),
-]);
+const fieldPatchPathSchema = z.templateLiteral(["/", z.string()]);
+const patchPathSchema = z.union([z.literal(""), fieldPatchPathSchema]);
 
 /** Validates patch structure only; business Code checks path decoding, old-value tests, and target mutation permissions. */
 export const specificationPatchSchema = z.union([
   z.strictObject({
-    op: z.enum(["test", "add", "replace"]),
+    op: z.literal("add"),
+    path: z.literal(""),
+    value: z
+      .record(z.string(), z.json())
+      .describe("The complete new object. Pass an object, not a JSON string."),
+  }),
+  z.strictObject({
+    op: z.literal("add"),
+    path: fieldPatchPathSchema,
+    value: z.json(),
+  }),
+  z.strictObject({
+    op: z.enum(["test", "replace"]),
     path: patchPathSchema,
     value: z.json(),
   }),

@@ -16,6 +16,7 @@ import {
 import { findPackageJSON } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -24,7 +25,7 @@ import {
   StreamableHTTPClientTransport,
   type ClientOptions,
 } from "@modelcontextprotocol/client";
-import { stopService, serviceStatus } from "@intloom/cli";
+import { stopService, serviceStatus, type ProjectClient } from "@intloom/cli";
 import type { RunView } from "@intloom/kernel";
 import { parse, stringify } from "yaml";
 
@@ -35,12 +36,32 @@ export function pending(view: RunView) {
   assert.ok(view.pendingAction);
   return view.pendingAction;
 }
-export async function cli(root: string, args: readonly string[]) {
+/** Tests explicitly follow a receipt; production clients never hide waiting behind flow or answerAsk. */
+export async function untilRun(
+  client: Pick<ProjectClient, "getRun">,
+  runId: string,
+  matches: (run: RunView) => boolean,
+): Promise<RunView> {
+  const deadline = Date.now() + 10_000;
+  let run = await client.getRun(runId);
+  while (!matches(run) && Date.now() < deadline) {
+    await delay(20);
+    run = await client.getRun(runId);
+  }
+  assert.ok(matches(run), `Run ${runId} did not reach the expected state`);
+  return run;
+}
+
+export async function cli(
+  root: string,
+  args: readonly string[],
+  signal?: AbortSignal,
+) {
   try {
     const result = await execute(
       process.execPath,
       [bin, "--project", root, ...args],
-      { timeout: 20_000 },
+      { timeout: 20_000, ...(signal ? { signal } : {}) },
     );
     return { ...result, code: 0 };
   } catch (error) {
@@ -176,6 +197,7 @@ export async function mcpClient(
   root: string,
   options: ClientOptions = {},
   profile = "codex",
+  fetch?: typeof globalThis.fetch,
 ) {
   const saved = await connection(root);
   const client = new Client(
@@ -186,7 +208,10 @@ export async function mcpClient(
     new URL(
       `http://127.0.0.1:${saved.port}/mcp${profile ? `/${profile}` : ""}`,
     ),
-    { requestInit: { headers: { authorization: `Bearer ${saved.token}` } } },
+    {
+      requestInit: { headers: { authorization: `Bearer ${saved.token}` } },
+      ...(fetch ? { fetch } : {}),
+    },
   );
   await client.connect(transport, { timeout: 5_000 });
   t.after(async () => {

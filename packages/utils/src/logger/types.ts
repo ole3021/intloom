@@ -1,5 +1,7 @@
 import type { Writable } from "node:stream";
-import type { SerializerFn } from "pino";
+
+// biome-ignore lint/suspicious/noExplicitAny: Preserve Pino's serializer signature without exposing its transport declarations.
+type SerializerFn = (value: any) => any;
 
 export type LogLevel = "debug" | "info" | "warn" | "error" | "fatal";
 export type LogFields = Readonly<Record<string, unknown>>;

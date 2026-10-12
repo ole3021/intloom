@@ -1,8 +1,8 @@
 # Repository scripts
 
-These Node.js 24+ scripts prepare and publish IntLoom packages. They are repository tooling, not CLI runtime code. Bun manages dependencies and Turbo orchestrates workspace tasks.
+These Node.js 26.4.0+ scripts prepare and publish IntLoom packages. They are repository tooling, not CLI runtime code. Bun manages dependencies and Turbo orchestrates workspace tasks.
 
-Published products require Node.js 22.22.0+. Repository builds keep Node.js 24 and use Node.js 22 types to constrain product APIs. Consumer verification is the exception to the tooling runtime: the reusable consumer workflow installs repository tools under Node.js 24, then tests built packages on Linux/macOS with Node.js 22.22.0, latest 22, 24, and 26. Each isolated npm installation builds or downloads its own SQLite native binding. Both CI and release preparation run this matrix; publication waits for it to pass. `verify-published.ts` runs on the same runtime matrix after publication.
+All IntLoom packages and repository tools require Node.js 26.4.0+. Product and consumer type checks use Node.js 26 types. CI prepares one set of archives, then the reusable consumer workflow tests those exact files on Linux/macOS with minimum Node.js 26.4.0 and latest 26. Both CLI entries are checked on every supported runtime. Each isolated npm installation builds or downloads its own SQLite native binding. Publication waits for this matrix; `verify-published.ts` uses the same matrix after publication.
 
 All archives, release plans, manifests, and generated notes use the repository root's `.release/` directory. No environment variable changes these paths. Packing and validation do not publish packages.
 
@@ -10,10 +10,13 @@ All archives, release plans, manifests, and generated notes use the repository r
 
 Run commands from the repository root.
 
+`bun run build:dev` builds the CLI and its workspace dependencies, including the Solid TUI transform, then installs a dedicated `intloom-dev` launcher into the directory returned by `bun pm bin -g`. The launcher calls this checkout's `apps/cli/dist/bin.js` with the build's absolute Node executable. It preserves the caller's working directory, arguments, streams, signals and exit status. Rebuilding updates the code used by subsequent commands; changing Node requires rerunning `build:dev`. It neither replaces the published `intloom` command nor starts/stops project Services. This local launcher supports macOS/Linux. Run `bun run build:dev --bin-dir /absolute/bin/directory` to choose a different directory, and add that directory to PATH if needed. Installation refuses to replace unrelated commands, symlinks, or another checkout's launcher; remove the previous launcher explicitly before changing checkouts. To uninstall, remove the printed `intloom-dev` file.
+
 `bun run build` prepares workspace build artifacts without creating release archives. Run `bun run pack` only when archives are needed; Turbo builds the required workspaces first, then runs their separate `pack` scripts. Use `bun run pack --filter=@intloom/cli` to pack one workspace. Packing always runs rather than reusing cached archives, and every archive is written to `.release/`.
 
 | File | Responsibility |
 | --- | --- |
+| `install-dev-cli.ts` | Install the local development launcher after a successful CLI build. |
 | `plan-release.ts` | Select changed or explicitly requested packages and write `.release/plan.json` for CI. |
 | `validate-release.ts` | Check the plan's commit, current versions, release channels, and reviewed notes. |
 | `pack-package.ts` | Pack one distribution directory; `--selected` dispatches workspace pack tasks from the fixed plan. |
@@ -28,7 +31,7 @@ bun run pack
 node scripts/release-manifest.ts
 ```
 
-Edit package versions and CHANGELOG entries manually before publication. When updating CLI, give `apps/cli/package.json` and `packages/kernel/package.json` the same version; the generated `intloom` launcher inherits the CLI version. Run `bun install` after version edits to refresh the lockfile. CI's selected-package path uses `pack-package.ts --selected` followed by `release-manifest.ts --selected`; it does not rebuild archives during publishing.
+Edit package versions and CHANGELOG entries manually before publication. When updating CLI, give `apps/cli/package.json` and `packages/kernel/package.json` the same version; the generated `intloom` launcher inherits the CLI version. Run `bun install` after version edits to refresh the lockfile. Release preparation uses `bun run pack` to prepare all consumer archives once, then `release-manifest.ts --selected` limits publication to the fixed plan. Publishing does not rebuild archives.
 
 The local first-publication entry is `bootstrap-release.local.ts`. It is ignored by Git, is not shipped with a checkout, and is not called by CI. Keep it locally when needed and run `node scripts/bootstrap-release.local.ts` against the original CI artifacts. The automatic publisher accepts no bootstrap flag.
 
@@ -50,6 +53,8 @@ CLI-specific distribution preparation lives in `apps/cli/build/prepare-package.t
 
 ## Checks
 
-Root `check` runs repository-wide Biome validation, `scripts/*.spec.ts`, and workspace type checks. Registry tests cover delayed visibility in version metadata and install indexes, npm installation races after successful metadata checks, bounded retries, genuine integrity conflicts, and fail-closed error handling. The task-graph tests inspect Turbo's resolved build, typecheck, unit-test, integration-test, and pack graphs: workspace dependencies must build first, generated self-import declarations must exist before type checking, CLI unit tests must build the public entry used by their shared fixture, and cached builds must restore their outputs. Integration tests and packing must wait for their own builds and always run. These scripts have no dedicated TypeScript configuration; release-time plan, archive, registry, and consumer validation remain in their command entry points.
+Root `check` runs repository-wide Biome validation and workspace type checks. Root `test` runs `scripts/*.spec.ts` and workspace unit tests; `test:intg` runs business integration tests; `test:package` consumes archives produced once by its Turbo pack prerequisites. `verify` runs all four checks and validates final archive metadata, without publishing. Tests always execute; builds may restore outputs from cache.
+
+Registry tests cover propagation retries, real integrity conflicts and fail-closed handling. Task-graph tests verify dependency builds, declaration prerequisites, restored build outputs, source tests without their own package build, and uncached integration/package checks. Release preparation packs all consumer archives once, while `release-manifest.ts --selected` selects the fixed plan for publication.
 
 Local validation does not establish a successful remote publication or OIDC authentication.

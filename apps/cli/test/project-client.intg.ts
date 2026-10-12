@@ -12,7 +12,12 @@ import {
   type ProjectClient,
   type StoredRecord,
 } from "@intloom/cli";
-import { connection, pending, projectFixture } from "./project-fixture.ts";
+import {
+  connection,
+  pending,
+  projectFixture,
+  untilRun,
+} from "./project-fixture.ts";
 
 test("CLI, Studio backend and Agent IDE share business clients and resume the same host Run", async (t) => {
   const root = await projectFixture(t);
@@ -34,7 +39,13 @@ test("CLI, Studio backend and Agent IDE share business clients and resume the sa
   t.after(async () => {
     await Promise.all([cli.close(), studio.close(), ide.close()]);
   });
-  const original = await cli.flow("fixture", "  shared\n意图  ");
+  const receipt = await cli.flow("fixture", "  shared\n意图  ");
+  assert.equal(receipt.status, "running");
+  const original = await untilRun(
+    cli,
+    receipt.runId,
+    (run) => run.status === "waiting",
+  );
   assert.deepEqual(await studio.getRun(original.runId), original);
   const [ideWorkflow] = await ide.listWorkflows();
   const [cliWorkflow] = await cli.listWorkflows();
@@ -46,7 +57,7 @@ test("CLI, Studio backend and Agent IDE share business clients and resume the sa
     source: "cli",
     agentExecutor: "service",
   });
-  const confirmation = await studio.answerAsk(
+  const confirmationReceipt = await studio.answerAsk(
     original.runId,
     pending(original).id,
     [
@@ -54,10 +65,24 @@ test("CLI, Studio backend and Agent IDE share business clients and resume the sa
       { questionId: "notes", isSkipped: true },
     ],
   );
-  const completed = await ide.answerAsk(
+  assert.equal(confirmationReceipt.status, "running");
+  const confirmation = await untilRun(
+    studio,
+    original.runId,
+    (run) =>
+      run.status === "waiting" &&
+      run.pendingAction?.id !== original.pendingAction?.id,
+  );
+  const completedReceipt = await ide.answerAsk(
     original.runId,
     pending(confirmation).id,
     { isConfirmed: true },
+  );
+  assert.equal(completedReceipt.status, "running");
+  const completed = await untilRun(
+    ide,
+    original.runId,
+    (run) => run.status === "completed",
   );
   assert.equal(completed.status, "completed");
   assert.deepEqual(completed.execution, original.execution);
@@ -69,7 +94,12 @@ test("CLI, Studio backend and Agent IDE share business clients and resume the sa
   assert.equal(await studio.getArtifact({ artifactId: "missing" }), null);
   assert.deepEqual((await studio.listArtifacts()).data, []);
 
-  const waiting = await studio.flow("fixture", "retain after close");
+  const secondReceipt = await studio.flow("fixture", "retain after close");
+  const waiting = await untilRun(
+    studio,
+    secondReceipt.runId,
+    (run) => run.status === "waiting",
+  );
   await studio.close();
   assert.deepEqual(await ide.getRun(waiting.runId), waiting);
   assert.equal(
@@ -118,7 +148,12 @@ for (const version of ["2025-11-25", "2026-07-28"] as const)
     ]);
     const cli = await connectProject(root);
     t.after(() => cli.close());
-    const waiting = await cli.flow("fixture", "Studio form");
+    const receipt = await cli.flow("fixture", "Studio form");
+    const waiting = await untilRun(
+      cli,
+      receipt.runId,
+      (run) => run.status === "waiting",
+    );
     const interaction = await raw.callTool({
       name: "interact",
       arguments: { runId: waiting.runId, actionId: pending(waiting).id },

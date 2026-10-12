@@ -1,4 +1,18 @@
 import { compileWorkflow } from "@intloom/compiler";
+import type { OpenLogOptions } from "@intloom/utils";
+
+const logging: OpenLogOptions = {
+  directory: "/logs",
+  pino: {
+    serializers: {
+      secret: (value: { secret: string }) => ({
+        ...value,
+        secret: "[redacted]",
+      }),
+    },
+  },
+};
+void logging;
 
 type Options = Parameters<typeof compileWorkflow>[0];
 const options: Options = {

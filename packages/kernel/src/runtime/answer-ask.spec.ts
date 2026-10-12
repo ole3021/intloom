@@ -224,6 +224,43 @@ test("concurrent answers consume an action only once and do not affect the next 
   assert.notEqual(next.pendingAction.id, view.pendingAction.id);
 });
 
+test("submitAnswer acknowledges consumption while continuation is running", async (t) => {
+  const f = runtimeFixture();
+  const resumed = deferred();
+  const release = deferred();
+  f.codes.start = async (_input, access) => {
+    await access.interaction.confirm("continue?");
+    resumed.resolve();
+    await release.promise;
+    return { outcome: "complete" };
+  };
+  const runtime = createRuntime(f.options);
+  t.after(() => runtime.cancelAllRuns());
+  const waiting = await runtime.flow(f.blueprint, "text");
+  const action = waiting.pendingAction;
+  assert.ok(action);
+  assert.throws(() => runtime.submitAnswer(waiting.runId, action.id, {}), {
+    code: "INVALID_REQUEST",
+  });
+  assert.deepEqual(await runtime.getRun(waiting.runId), waiting);
+  const accepted = runtime.submitAnswer(waiting.runId, action.id, {
+    isConfirmed: true,
+  });
+  assert.equal(accepted.status, "running");
+  assert.equal(accepted.pendingAction, undefined);
+  assert.equal(accepted.runId, waiting.runId);
+  assert.throws(
+    () =>
+      runtime.submitAnswer(waiting.runId, action.id, {
+        isConfirmed: true,
+      }),
+    { code: "CONFLICT" },
+  );
+  await resumed.promise;
+  assert.equal((await runtime.getRun(waiting.runId)).status, "running");
+  release.resolve();
+});
+
 test("an accepted answer waits for stable execution and Code failures become Run failures", async (t) => {
   const f = runtimeFixture();
   const resumed = deferred();

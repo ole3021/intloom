@@ -33,7 +33,7 @@ A waiting Run has one kind of pending work at a time. A client Agent wait does n
 
 ## Answer and review
 
-In an interactive CLI, `flow` or `attach` displays the current questions or confirmation. Options resolve to actual answer text. Skip is available only when the Workflow permits it. Confirmation displays the Workflow-provided context before asking you to confirm or request changes.
+The TUI (`intloom` / `intloom tui`) displays questions and confirmation. CMD flow returns admission; attach inspects. Submit full JSON with intloom answer RUN --action ACTION --answer-file answer.json. Options resolve to actual answer text. Skip is available only when the Workflow permits it. Confirmation displays the Workflow-provided context before asking you to confirm or request changes.
 
 Cancelling an unsubmitted form leaves the Run waiting. Requesting changes submits a business answer and follows the package's feedback route. Closing the terminal does not by itself stop the project service.
 
@@ -47,7 +47,7 @@ intloom attach <runId> --json
 intloom runs --json
 ```
 
-Non-TTY, `--json`, and `--no-interactive` modes do not prompt. A waiting `flow` returns normally, so inspect the status instead of treating exit 0 as completion. Failures return nonzero. JSON business output is separate from progress and logs on stderr.
+Non-TTY, `--json`, and `--no-interactive` modes do not prompt. Flow returns admission immediately; use wait/watch to observe. JSON uses ok/data/meta: receipt data.run.status and query data.status describe execution. Failures return nonzero. JSON business output is separate from progress and logs on stderr.
 
 A request timeout or client disconnect can leave the original Run executing. Query it before retrying; requests are not automatically replayed.
 
@@ -58,7 +58,7 @@ intloom cancel <runId>
 intloom stop
 ```
 
-`cancel` explicitly ends a Run, revokes its current execution access, and prevents future recovery. Cancellation is represented as `failed` with `RUN_STOPPED`; the terminal UI displays Stopped. Repeated cancellation of an existing terminal Run succeeds without changing its snapshot. A missing Run is an error.
+`cancel` explicitly ends a Run, revokes its current execution access, and prevents future recovery. Cancellation is represented as `failed` with `RUN_STOPPED`; the terminal UI displays Stopped. Repeated cancellation preserves terminal business state; known late metadata can settle independently. A missing Run is an error.
 
 `stop` shuts down the project service and preserves unfinished recovery checkpoints. It does not promise that every interrupted Run can resume. See [Recovery](./recovery.md).
 

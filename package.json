@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "bun@1.4.0",
   "engines": {
-    "node": ">=24",
+    "node": ">=26.4.0",
     "bun": ">=1.4.0"
   },
   "workspaces": [
@@ -14,18 +14,21 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "build:dev": "bun run build --filter=@intloom/cli... && node scripts/install-dev-cli.ts",
     "pack": "turbo run pack",
     "typecheck": "turbo run typecheck",
-    "check": "biome check . && node --test \"scripts/*.spec.ts\" && turbo run typecheck",
+    "check": "biome check . && turbo run typecheck",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "test": "turbo run test",
-    "test:intg": "turbo run test:intg"
+    "test": "node --test \"scripts/*.spec.ts\" && turbo run test",
+    "test:intg": "turbo run test:intg",
+    "test:package": "turbo run test:package",
+    "verify": "bun run check && bun run test && bun run test:intg && bun run test:package && node scripts/release-manifest.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
     "@dotenvx/dotenvx": "2.24.1",
-    "@types/node": "^22",
+    "@types/node": "^26",
     "turbo": "^2.11.7",
     "typescript": "7.0.2"
   }

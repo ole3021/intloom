@@ -5,7 +5,13 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { test } from "node:test";
 import { connectProject } from "@intloom/cli";
-import { cli, connection, pending, projectFixture } from "./project-fixture.ts";
+import {
+  cli,
+  connection,
+  pending,
+  projectFixture,
+  untilRun,
+} from "./project-fixture.ts";
 
 async function crash(root: string) {
   const info = JSON.parse(
@@ -32,8 +38,13 @@ for (const backend of ["file", "sqlite"] as const)
     const root = await projectFixture(t, true, backend);
     assert.equal((await cli(root, ["start", "--json"])).code, 0);
     const client = await connectProject(root);
-    const waiting = await client.flow("fixture", "recovery acceptance");
-    const confirming = await client.answerAsk(
+    const receipt = await client.flow("fixture", "recovery acceptance");
+    const waiting = await untilRun(
+      client,
+      receipt.runId,
+      (run) => run.status === "waiting",
+    );
+    const confirmationReceipt = await client.answerAsk(
       waiting.runId,
       pending(waiting).id,
       [
@@ -41,9 +52,27 @@ for (const backend of ["file", "sqlite"] as const)
         { questionId: "notes", isSkipped: true },
       ],
     );
-    const done = await client.answerAsk(waiting.runId, pending(confirming).id, {
-      isConfirmed: true,
-    });
+    assert.equal(confirmationReceipt.status, "running");
+    const confirming = await untilRun(
+      client,
+      waiting.runId,
+      (run) =>
+        run.status === "waiting" &&
+        run.pendingAction?.id !== waiting.pendingAction?.id,
+    );
+    const doneReceipt = await client.answerAsk(
+      waiting.runId,
+      pending(confirming).id,
+      {
+        isConfirmed: true,
+      },
+    );
+    assert.equal(doneReceipt.status, "running");
+    const done = await untilRun(
+      client,
+      waiting.runId,
+      (run) => run.status === "completed",
+    );
     assert.equal(done.status, "completed");
     const record = await client.getRecord(done.runId);
     await client.close();
@@ -68,7 +97,13 @@ for (const backend of ["file", "sqlite"] as const)
     const privateConnection = await readFile(
       join(root, ".intloom/connection.json"),
     );
-    const status = JSON.parse((await cli(root, ["status", "--json"])).stdout);
+    const availability = JSON.parse(
+      (await cli(root, ["status", "--json"])).stdout,
+    ).data;
+    assert.equal(availability.status, "unavailable");
+    const status = JSON.parse(
+      (await cli(root, ["doctor", "--json"])).stdout,
+    ).data;
     assert.equal(status.status, "recovery_required");
     assert.ok(
       status.owners.every(
@@ -76,8 +111,11 @@ for (const backend of ["file", "sqlite"] as const)
       ),
     );
     const doctor = await cli(root, ["doctor", "--json"]);
-    const { source, checks, ...serviceDiagnosis } = JSON.parse(doctor.stdout);
-    assert.deepEqual(serviceDiagnosis, status);
+    const { source, checks, ...serviceDiagnosis } = JSON.parse(
+      doctor.stdout,
+    ).data;
+    const { source: _source, checks: _checks, ...expectedDiagnosis } = status;
+    assert.deepEqual(serviceDiagnosis, expectedDiagnosis);
     assert.equal(source, "cli");
     assert.equal(
       checks.find((item: { name: string }) => item.name === "execution").status,
@@ -86,15 +124,15 @@ for (const backend of ["file", "sqlite"] as const)
     assert.ok(!doctor.stdout.includes((await connection(root)).token));
     const preview = await cli(root, ["recover", "--dry-run", "--json"]);
     assert.equal(preview.code, 0);
-    assert.equal(JSON.parse(preview.stdout).dryRun, true);
-    assert.equal(JSON.parse(preview.stdout).recovered, false);
+    assert.equal(JSON.parse(preview.stdout).data.dryRun, true);
+    assert.equal(JSON.parse(preview.stdout).data.recovered, false);
     assert.deepEqual(
       await readFile(join(root, ".intloom/service.lock")),
       liveLock,
     );
     const recovered = await cli(root, ["recover", "--json"]);
     assert.equal(recovered.code, 0, recovered.stdout);
-    assert.equal(JSON.parse(recovered.stdout).recovered, true);
+    assert.equal(JSON.parse(recovered.stdout).data.recovered, true);
     assert.deepEqual(
       await readFile(join(root, ".intloom/connection.json")),
       privateConnection,
@@ -110,8 +148,8 @@ for (const backend of ["file", "sqlite"] as const)
         code: "ENOENT",
       });
     assert.equal(
-      JSON.parse((await cli(root, ["status", "--json"])).stdout).status,
-      "offline",
+      JSON.parse((await cli(root, ["status", "--json"])).stdout).data.status,
+      "stopped",
     );
     assert.equal((await cli(root, ["start", "--json"])).code, 0);
     const next = await connectProject(root);
@@ -157,7 +195,7 @@ test("recovery refuses a live storage owner and an occupied port; concurrent rec
   assert.ok(
     results.filter(
       (result) =>
-        result.code === 0 && JSON.parse(result.stdout).recovered === true,
+        result.code === 0 && JSON.parse(result.stdout).data.recovered === true,
     ).length === 1,
   );
   for (const result of results)
@@ -173,7 +211,13 @@ test("recovery refuses a live storage owner and an occupied port; concurrent rec
       result.stdout,
     );
   assert.equal((await cli(root, ["start", "--json"])).code, 0);
-  const status = JSON.parse((await cli(root, ["status", "--json"])).stdout);
+  const availability = JSON.parse(
+    (await cli(root, ["status", "--json"])).stdout,
+  ).data;
+  assert.equal(availability.status, "running");
+  const status = JSON.parse(
+    (await cli(root, ["doctor", "--json"])).stdout,
+  ).data;
   assert.equal(
     JSON.parse(await readFile(join(root, ".intloom/service.lock"), "utf8"))
       .instanceId,

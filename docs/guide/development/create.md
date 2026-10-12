@@ -49,7 +49,7 @@ Use this `package.json`:
   },
   "devDependencies": {
     "@intloom/compiler": "0.0.2",
-    "@types/node": "^22",
+    "@types/node": "^26",
     "typescript": "7.0.2"
   },
   "intloom": {

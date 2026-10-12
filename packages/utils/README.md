@@ -4,7 +4,7 @@ Shared error handling, ID generation, and file logging for Node.js applications 
 
 ## Installation
 
-Requires Node.js 22.22.0+. Repository development uses Node.js 24+ and Bun. To install a published version in a consuming project:
+Requires Node.js 26.4.0+. Repository development uses Node.js 26.4.0+ and Bun. To install a published version in a consuming project:
 
 ```sh
 bun add @intloom/utils

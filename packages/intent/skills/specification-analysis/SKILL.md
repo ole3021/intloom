@@ -30,6 +30,7 @@ Keep existing object IDs. New objects use the appropriate prefix and a new uniqu
 Each Change is {target_ref, reason, patch}. reason explains the requirement basis and impact; patch must be nonempty and produce an actual change. Apply Changes in order. Patch path is a JSON Pointer relative to the target object. Only test, add, replace, and remove are supported.
 
 - New object: add at the empty path with the complete object as value; its id must equal target_ref.
+- Pass that value directly as a JSON object, never as a string containing JSON. For example: {"target_ref":"SCON-example","reason":"The user chose Node","patch":[{"op":"add","path":"","value":{"id":"SCON-example","description":"Use Node","status":"active","record_refs":[]}}]}.
 - Modify an existing field: test the old value at the same path, immediately followed by replace with the new value.
 - Remove an optional field: test the old value at the same path, immediately followed by remove.
 - Add a field: use add; the field must be absent, and existing values cannot be overwritten.

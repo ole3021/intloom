@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { glob, readFile } from "node:fs/promises";
+import {
+  cp,
+  glob,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -46,7 +55,63 @@ interface Task {
   resolvedTaskDefinition: { outputs: string[]; cache: boolean };
 }
 
-for (const command of ["build", "typecheck", "test", "test:intg", "pack"]) {
+test("Kernel typecheck succeeds without its own generated declarations", async (t) => {
+  await run(
+    resolve(root, "node_modules/.bin/turbo"),
+    ["run", "build", "--filter=@intloom/kernel^..."],
+    { cwd: root },
+  );
+  const fixture = await mkdtemp(resolve(tmpdir(), "intloom-kernel-typecheck-"));
+  t.after(() => rm(fixture, { recursive: true, force: true }));
+  const source = resolve(root, "packages/kernel");
+  const directory = resolve(fixture, "packages/kernel");
+  await mkdir(directory, { recursive: true });
+  for (const path of [
+    "src",
+    "test",
+    "drizzle.config.ts",
+    "package.json",
+    "tsconfig.json",
+  ]) {
+    await cp(resolve(source, path), resolve(directory, path), {
+      recursive: true,
+    });
+  }
+  await cp(
+    resolve(root, "tsconfig.base.json"),
+    resolve(fixture, "tsconfig.base.json"),
+  );
+  // Reuse installed dependencies, but expose no Kernel dist or self-package link.
+  await symlink(
+    resolve(source, "node_modules"),
+    resolve(directory, "node_modules"),
+    "dir",
+  );
+  await mkdir(resolve(fixture, "node_modules"));
+  await symlink(
+    resolve(root, "node_modules/@types"),
+    resolve(fixture, "node_modules/@types"),
+    "dir",
+  );
+  await run(
+    process.execPath,
+    [
+      resolve(root, "node_modules/typescript/bin/tsc"),
+      "-p",
+      resolve(directory, "tsconfig.json"),
+    ],
+    { cwd: fixture },
+  );
+});
+
+for (const command of [
+  "build",
+  "typecheck",
+  "test",
+  "test:intg",
+  "test:package",
+  "pack",
+]) {
   test(`${command}: resolved task graph preserves build prerequisites and outputs`, async () => {
     const { stdout } = await run(
       resolve(root, "node_modules/.bin/turbo"),
@@ -103,11 +168,27 @@ for (const command of ["build", "typecheck", "test", "test:intg", "pack"]) {
           `${id} must run`,
         );
       }
-      // CLI source tests share a fixture that imports the built public CLI entry.
-      if (command === "test" && name === "@intloom/cli") {
-        assert.ok(
+      if (command === "test") {
+        assert.equal(
           required.has(`${name}#build`),
-          `${id} must wait for its shared fixture's build`,
+          false,
+          `${id} must not build its own package`,
+        );
+        assert.equal(
+          task.resolvedTaskDefinition.cache,
+          false,
+          `${id} must execute tests`,
+        );
+      }
+      if (command === "test:package") {
+        assert.ok(
+          required.has(`${name}#pack`),
+          `${id} must consume its packed archive`,
+        );
+        assert.equal(
+          task.resolvedTaskDefinition.cache,
+          false,
+          `${id} must execute consumers`,
         );
       }
       if (command === "build") {

@@ -16,7 +16,7 @@ Use direct Zod definitions and `z.infer`. Default Stage State exports enforce th
 | [engineering.ts](./engineering.ts) | Relative paths, command plans/results, file hashes, and implementation changes |
 | [implementation-state.ts](./implementation-state.ts) | Fixed upstream bases, original/checked snapshots, proposals, feedback, host results, and Implementation Record |
 | [implementation-result.ts](./implementation-result.ts) | Implementation Agent `ready` outcome |
-| [validation-state.ts](./validation-state.ts) | Fixed bases/scope, command results, evidence, test claims, findings, and Validation proposal |
+| [validation-state.ts](./validation-state.ts) | Fixed bases/scope, command results, evidence, test claims, findings, Validation proposal, host submission counter, and bounded submission feedback/result |
 | [validation-result.ts](./validation-result.ts) | Validation Agent `ready` outcome |
 
 ## State and proposal boundaries
@@ -30,10 +30,12 @@ State defaults initialize draft collections and counters, without inventing busi
 | Implementation | Declared file changes and `processedFeedbackCount` |
 | Validation | Per-target checks/evidence, test claims, code issues, and findings |
 
-Tools preserve identity, history, fixed bases, and actual feedback. Agents cannot inject user answers, confirmation, host command results, or formal persistence. Code prepares confirmation and records the matching user response. Validation statistics are computed by Code; proposals cannot supply totals.
+Tools preserve identity, history, fixed bases, and actual feedback. Agents cannot inject user answers, confirmation, host command results, or formal persistence. Code prepares confirmation and records the matching user response. Validation statistics are computed by Code; proposals cannot supply totals. The Validation submission Tool owns `submissionCount` and `submissionFeedback`; neither is accepted in the proposal. Its result is `saved: true`, or `saved: false` with `attemptsRemaining: 1` and finite safe feedback. A second invalid report throws instead of returning another repair opportunity.
 
 ## Structure and business rules
 
 Business objects reject extra fields. Preserve the serialized `target_ref`, `origin_refs`, and `record_refs` contracts. Question response state derives from `answer !== undefined || skipped === true`; no `isSolved` or `isHandled` flags are stored. Blocking policy remains unchanged after an answer, and existing question content is immutable.
 
 Schemas check structure and JSON compatibility. Business modules check old patch values, mutation permissions, unique IDs, references, acceptance ownership, skipped uncertainty, upstream versions, confirmation matching, actual file changes, and evidence consistency. See [business rules](../src/README.md) for these Stage-specific requirements and their current limits.
+
+A root `add` patch requires an object as its `value`; serialized JSON strings and arrays are rejected at Tool input validation. Field patches still accept JSON values. This shared patch contract applies to Specification and Solution.

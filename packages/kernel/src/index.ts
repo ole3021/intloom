@@ -54,6 +54,7 @@ export type {
   ExecutableAgent,
   StepResult,
   EffectorOptions,
+  ServiceModelObserver,
 } from "./effector/execution.ts";
 export type { KernelError, KernelErrorCode } from "./errors/kernel.ts";
 export type { RuntimeError, RuntimeErrorCode } from "./errors/runtime.ts";

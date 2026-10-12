@@ -7,6 +7,9 @@ import { promisify } from "node:util";
 import { retryPublishedInstall, verifyPublishedEntries } from "./registry.ts";
 import { readReleaseManifest } from "./release-files.ts";
 
+const [major = 0, minor = 0] = process.versions.node.split(".").map(Number);
+if (major < 26 || (major === 26 && minor < 4))
+  throw new Error("Consumer verification requires Node >=26.4.0.");
 const release = await readReleaseManifest();
 if (process.env.GITHUB_SHA && release.commit !== process.env.GITHUB_SHA)
   throw new Error("Release commit mismatch.");
@@ -15,7 +18,7 @@ const temporary = await mkdtemp(resolve(tmpdir(), "intloom-published-"));
 const run = promisify(execFile);
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 try {
-  for (const launcher of ["@intloom/cli", "intloom"] as const) {
+  for (const launcher of ["@intloom/cli", "intloom"]) {
     const project = resolve(
       temporary,
       launcher === "intloom" ? "launcher" : "scoped",
@@ -103,7 +106,7 @@ for (const [specifier, options] of [["file",{directory:resolve("file-store")}],[
     const { stdout: help } = await run(bin, ["--help", "--no-color"], {
       cwd: project,
     });
-    assert.match(help, /flow \[options\]/);
+    assert.match(help, /flow\s+Submit complete intent/);
     assert.equal(help.includes(String.fromCharCode(27)), false);
     await run(
       bin,
@@ -123,12 +126,14 @@ for (const [specifier, options] of [["file",{directory:resolve("file-store")}],[
         cwd: project,
         timeout: 180_000,
       });
-    const installed = JSON.parse((await command(["workflow", "list"])).stdout);
+    const installed = JSON.parse(
+      (await command(["workflow", "list"])).stdout,
+    ).data;
     assert.equal(installed.workflows[0].name, "@intloom/workflow-intent");
     assert.equal(installed.installation, "ready");
     const offline = JSON.parse(
       (await command(["doctor", "--execution", "cli"])).stdout,
-    );
+    ).data;
     assert.equal(
       offline.checks.find((item: { name: string }) => item.name === "execution")
         .status,
@@ -136,7 +141,7 @@ for (const [specifier, options] of [["file",{directory:resolve("file-store")}],[
     );
     await command(["workflow", "remove", "@intloom/workflow-intent"]);
     assert.deepEqual(
-      JSON.parse((await command(["workflow", "list"])).stdout).workflows,
+      JSON.parse((await command(["workflow", "list"])).stdout).data.workflows,
       [],
     );
     await command([
@@ -148,14 +153,14 @@ for (const [specifier, options] of [["file",{directory:resolve("file-store")}],[
       await command(["start"]);
       const online = JSON.parse(
         (await command(["doctor", "--execution", "agent_ide"])).stdout,
-      );
+      ).data;
       assert.equal(online.workflows[0].isAvailable, true);
     } finally {
       await command(["stop"]);
     }
   }
   console.log(
-    "Both npm global entries, Workflow imports, CLI initialization/package management, host diagnostics, and file/SQLite storage passed. Remote model execution is a separate acceptance.",
+    "Both npm entries, Workflow imports, CLI setup and file/SQLite storage passed; remote models remain separate acceptance.",
   );
 } finally {
   await rm(temporary, { recursive: true, force: true });

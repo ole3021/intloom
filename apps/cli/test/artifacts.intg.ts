@@ -14,6 +14,7 @@ import {
   mcpClient,
   projectFixture,
   refreshFixtureInstallation,
+  untilRun,
 } from "./project-fixture.ts";
 
 const execute = promisify(execFile);
@@ -145,7 +146,7 @@ for (const backend of ["file", "sqlite"] as const)
     assert.deepEqual(listing.structuredContent, { artifacts: page });
     const missing = await cli(root, ["artifact", "missing", "--json"]);
     assert.equal(missing.code, 0);
-    assert.deepEqual(JSON.parse(missing.stdout), { artifact: null });
+    assert.deepEqual(JSON.parse(missing.stdout).data, null);
     const byPosition = await cli(root, [
       "artifact",
       "--flow",
@@ -154,7 +155,7 @@ for (const backend of ["file", "sqlite"] as const)
       "first",
       "--json",
     ]);
-    assert.deepEqual(JSON.parse(byPosition.stdout), { artifact: before });
+    assert.deepEqual(JSON.parse(byPosition.stdout).data, before);
     const list = await cli(root, [
       "artifacts",
       "--flow",
@@ -164,7 +165,7 @@ for (const backend of ["file", "sqlite"] as const)
       "--json",
     ]);
     assert.equal(list.code, 0);
-    assert.deepEqual(JSON.parse(list.stdout), { artifacts: page });
+    assert.deepEqual(JSON.parse(list.stdout).data, page);
     assert.equal(list.stdout.trim().split("\n").length, 1);
     assert.equal(list.stdout.includes("\u001b"), false);
     assert.doesNotMatch(list.stdout, /large data/u);
@@ -198,7 +199,7 @@ for (const backend of ["file", "sqlite"] as const)
       ],
       { cwd: local, timeout: 20_000 },
     );
-    assert.equal(JSON.parse(exported.stdout).outputFile, filename);
+    assert.deepEqual(JSON.parse(exported.stdout).data, before);
     assert.deepEqual(JSON.parse(await readFile(filename, "utf8")), before);
     const refused = await cli(root, [
       "artifact",
@@ -236,8 +237,13 @@ for (const backend of ["file", "sqlite"] as const)
     ]);
     assert.equal(first.code, 0, first.stdout);
     assert.equal(first.stdout.trim().split("\n").length, 1);
-    const firstRun = JSON.parse(first.stdout).run;
-    assert.equal(firstRun.status, "completed");
+    const firstReceipt = JSON.parse(first.stdout).data.run;
+    assert.equal(firstReceipt.status, "running");
+    const firstRun = await untilRun(
+      client,
+      firstReceipt.runId,
+      (run) => run.status === "completed",
+    );
     const firstRecord = await client.getRecord(`REC-${firstRun.runId}`);
     assert.notEqual(firstRecord, null);
     assert.equal(await client.getRecord(firstRun.runId), null);
@@ -248,12 +254,24 @@ for (const backend of ["file", "sqlite"] as const)
       "Todo second iteration",
     ]);
     assert.equal(second.code, 0, second.stdout);
-    assert.match(second.stdout, /Completed/u);
-    assert.match(second.stdout, /Current committed artifacts at query time/u);
-    assert.match(second.stdout, /intloom artifact ART-todo/u);
-    assert.match(second.stdout, /intloom artifacts --flow fixture/u);
-    assert.match(second.stdout, /--project/u);
-    assert.doesNotMatch(second.stdout, /REC-|committed by this Run/u);
+    assert.match(second.stdout, /Running/u);
+    const secondRun = (await client.listRuns()).find(
+      (run) => run.runId !== firstRun.runId,
+    );
+    assert.ok(secondRun);
+    await untilRun(
+      client,
+      secondRun.runId,
+      (run) => run.status === "completed",
+    );
+    const attached = await cli(root, ["attach", secondRun.runId]);
+    assert.equal(attached.code, 0, attached.stdout);
+    assert.match(attached.stdout, /Completed/u);
+    assert.match(attached.stdout, /Committed results:/u);
+    assert.match(attached.stdout, /artifact: ART-todo/u);
+    assert.match(attached.stdout, /Committed results:/u);
+    assert.match(attached.stdout, /revision 5/u);
+    assert.match(attached.stdout, /record: REC-/u);
     const current = await client.getArtifact({ artifactId: artifact.id });
     assert.ok(current);
     assert.ok(current.revision > before.revision);

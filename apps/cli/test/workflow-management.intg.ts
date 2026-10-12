@@ -105,7 +105,7 @@ test("installed CLI manages packages offline, preserves user YAML, rejects dupli
   await writeFile(file, original);
   const added = await cli(root, ["workflow", "add", first.archive, "--json"]);
   assert.equal(added.code, 0, added.stdout);
-  assert.equal(JSON.parse(added.stdout).installation, "ready");
+  assert.equal(JSON.parse(added.stdout).data.installation, "ready");
   const after = await readFile(file, "utf8");
   assert.match(after, /# user comment/);
   assert.match(after, /# Preserve the user's/);
@@ -125,7 +125,7 @@ test("installed CLI manages packages offline, preserves user YAML, rejects dupli
   assert.equal(await readFile(file, "utf8"), after);
   assert.equal((await listInstalledWorkflows(root)).installation, "ready");
   const listed = await cli(root, ["workflow", "list", "--json"]);
-  assert.equal(JSON.parse(listed.stdout).workflows[0].version, "1.0.0");
+  assert.equal(JSON.parse(listed.stdout).data.workflows[0].version, "1.0.0");
   await startService({ projectRoot: root });
   await assert.rejects(removeWorkflow(root, "fixture-workflow"), {
     code: "CLI_SERVICE_BUSY",
@@ -160,7 +160,7 @@ test("installed CLI manages packages offline, preserves user YAML, rejects dupli
     "--json",
   ]);
   assert.equal(removed.code, 0, removed.stdout);
-  assert.deepEqual(JSON.parse(removed.stdout).workflows, []);
+  assert.deepEqual(JSON.parse(removed.stdout).data.workflows, []);
   await assert.rejects(removeWorkflow(root, "fixture-workflow"), {
     code: "NOT_FOUND",
   });

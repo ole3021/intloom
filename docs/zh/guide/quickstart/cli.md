@@ -34,39 +34,19 @@ intloom flows
 
 预期结果是所需 Workflow 已加载，并可通过 CLI 执行。Doctor 检查配置和就绪状态，不会发送模型请求，因此不能证明模型兼容性或响应质量。
 
-## 创建一个 Run
+## 创建与查看 Run
 
-在交互式终端中运行：
+使用 `intloom` 或 `intloom tui` 打开常驻界面，选择 Workflow、输入完整多行意图，Ctrl+Enter 提交。TUI 展示问题选项和确认；关闭界面保留待答动作。
 
-```sh
-intloom flow
-```
-
-选择 Workflow 并输入意图。也可以将下面的 `your_flow` 替换为已加载的名称：
-
-```sh
-intloom flow your_flow --intent "Describe the result you want"
-```
-
-回答问题并审核确认内容。选择修改会沿 Workflow 的反馈路由继续同一个 Run。多行输入中，Enter 换行，Tab 将焦点移到提交按钮，Enter 提交。取消尚未提交的表单会让 Run 继续等待。
-
-## 继续或查看
-
-```sh
-intloom runs
-intloom attach <runId>
-intloom artifacts
-```
-
-将尖括号占位符替换为真实 ID。`attach` 继续已有 Run，`flow` 则创建新的 Run。
-
-用于自动化时，同时提供 Workflow 名称和非空意图：
+CMD 通过明确参数调用，即时返回接收回执：
 
 ```sh
 intloom flow your_flow --intent-file intent.txt --json
+intloom wait <runId> --json
+intloom attach <runId> --json
+intloom answer <runId> --action <actionId> --answer-file answer.json --json
 ```
 
-JSON 模式不会提问；它会在等待状态或终止状态返回。等待时退出码为 0 不代表执行完成，请检查 `run.status`。使用交互式 `attach`，或通过客户端提交待处理操作的答案来继续。详见[Run 管理](../usage/runs.md)。
+普通 JSON 使用 ok/data/meta。接收不等于完成；回执中检查 data.run.status，Run 查询检查 data.status。回答是完整问题数组或确认对象。wait 不回答，也不取消执行。见 [CLI 参考](../reference/cli.md)。
 
-执行失败时，先查看 `intloom logs <runId>` 和已提交的结果，再决定是否创建新的 Run。超时本身不会取消执行。提供商输出被截断、结构化输出无效或 Tool 失败时，需要进行诊断，详见[错误](../reference/errors.md)。
-
+失败可能保留正式成果，应检查 Run 引用和日志后再创建新执行。统计在 Service 停止或恢复时重置；真实模型行为另行验收。

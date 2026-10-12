@@ -13,7 +13,7 @@ import { LoomError } from "@intloom/utils";
 import { RUNTIME_ERRORS } from "../errors/runtime.ts";
 import { KERNEL_ERRORS } from "../errors/kernel.ts";
 import { resultError, toolError } from "./errors.ts";
-import { agentError } from "./service/errors.ts";
+import { agentError, modelErrorDiagnostics } from "./service/errors.ts";
 import { toRunView } from "../runtime/to-run-view.ts";
 
 const privateText = "private-request-token-and-body";
@@ -30,7 +30,7 @@ function requestError(statusCode?: number) {
 }
 function sdkWrapper(cause: unknown) {
   return new MastraError(
-    { id: "MODEL_CALL_FAILED", domain: "LLM", category: "THIRD_PARTY" },
+    { id: "AGENT_GENERATE_FAILED", domain: "LLM", category: "THIRD_PARTY" },
     cause,
   );
 }
@@ -181,4 +181,145 @@ test("existing RunView carries diagnostic messages and cursor without Error inte
     "message",
     "retryable",
   ]);
+});
+
+test("nested transport failures retain a bounded cause and never disclose SDK details", () => {
+  const transport = Object.assign(new Error(privateText), {
+    code: "UND_ERR_HEADERS_TIMEOUT",
+    headers: { authorization: privateText },
+  });
+  let nested: Error = transport;
+  for (let depth = 0; depth < 4; depth++)
+    nested = new Error(privateText, { cause: nested });
+  const cause = sdkWrapper(nested);
+  const error = agentError(cause);
+  assert.equal(error.code, "LLM_REQUEST_FAILED");
+  assert.equal(error.cause, cause);
+  assert.equal(error.retryable, false);
+  assert.ok(error.message.includes("UND_ERR_HEADERS_TIMEOUT"));
+  assert.ok(!error.message.includes(privateText));
+  assert.deepEqual(modelErrorDiagnostics(cause), {
+    sdkErrorId: "AGENT_GENERATE_FAILED",
+    transportCode: "UND_ERR_HEADERS_TIMEOUT",
+  });
+  assert.ok(
+    !JSON.stringify(modelErrorDiagnostics(cause)).includes(privateText),
+  );
+  const request = sdkWrapper(requestError(403));
+  assert.deepEqual(modelErrorDiagnostics(request), {
+    sdkErrorId: "AGENT_GENERATE_FAILED",
+    httpStatus: 403,
+  });
+});
+
+test("known output limit takes precedence over a structured result rejected after truncation", () => {
+  const missing = new MastraError({
+    id: "STRUCTURED_OUTPUT_SCHEMA_VALIDATION_FAILED",
+    domain: "AGENT",
+    category: "SYSTEM",
+    details: { value: "undefined" },
+    text: privateText,
+  });
+  const length = agentError(missing, "length");
+  assert.equal(length.code, "STEP_EXECUTION_FAILED");
+  assert.ok(length.message.includes("length limit"));
+  assert.ok(!length.message.includes(privateText));
+  const modelError = agentError(missing, "error");
+  assert.equal(modelError.code, "AGENT_OUTPUT_INVALID");
+  assert.ok(modelError.message.includes("error finish reason"));
+});
+
+test("provider failure reasons come only from bounded allowlisted JSON fields", () => {
+  const cases = [
+    ["context_length_exceeded", "CONTEXT_LENGTH_EXCEEDED"],
+    ["invalid_api_key", "INVALID_API_KEY"],
+    ["insufficient_quota", "INSUFFICIENT_QUOTA"],
+    ["model_not_found", "MODEL_NOT_FOUND"],
+    ["rate_limit_exceeded", "RATE_LIMIT_EXCEEDED"],
+  ] as const;
+  for (const [code, reason] of cases) {
+    const cause = new APICallError({
+      message: privateText,
+      url: `https://model.invalid/?token=${privateText}`,
+      requestBodyValues: { privateText },
+      statusCode: 403,
+      responseBody: JSON.stringify({ error: { code, message: privateText } }),
+    });
+    const wrapped = sdkWrapper(cause);
+    const error = agentError(wrapped);
+    assert.equal(error.code, "LLM_REQUEST_FAILED");
+    assert.equal(error.retryable, false);
+    assert.ok(!error.message.includes(privateText));
+    assert.deepEqual(modelErrorDiagnostics(wrapped), {
+      sdkErrorId: "AGENT_GENERATE_FAILED",
+      httpStatus: 403,
+      providerFailureReason: reason,
+    });
+  }
+  for (const message of [
+    "Upstream request failed: Model access is disabled",
+    "Model access is disabled",
+  ]) {
+    const cause = new APICallError({
+      message: privateText,
+      url: "https://model.invalid",
+      requestBodyValues: {},
+      statusCode: 403,
+      responseBody: JSON.stringify({ error: { message } }),
+    });
+    assert.equal(
+      modelErrorDiagnostics(cause).providerFailureReason,
+      "MODEL_ACCESS_DISABLED",
+    );
+    assert.ok(agentError(cause).message.includes("model access is disabled"));
+  }
+});
+
+test("unknown, oversized and accessor response bodies never enter diagnostics", () => {
+  const bodies = [
+    JSON.stringify({ error: { code: "untrusted_code", message: privateText } }),
+    JSON.stringify({
+      error: { message: `${privateText} Model access is disabled` },
+    }),
+    "not JSON",
+    JSON.stringify({
+      error: { code: "model_not_found" },
+      padding: "x".repeat(8192),
+    }),
+  ];
+  for (const responseBody of bodies) {
+    const cause = new APICallError({
+      message: privateText,
+      url: "https://model.invalid",
+      requestBodyValues: {},
+      statusCode: 403,
+      responseBody,
+    });
+    const diagnostic = modelErrorDiagnostics(cause);
+    assert.equal(diagnostic.providerFailureReason, undefined);
+    assert.ok(!JSON.stringify(diagnostic).includes(privateText));
+    const error = agentError(cause);
+    assert.equal(error.code, "LLM_REQUEST_FAILED");
+    assert.ok(
+      error.message.includes("model availability and workspace access"),
+    );
+    assert.ok(!error.message.includes(privateText));
+  }
+  const accessor = new APICallError({
+    message: privateText,
+    url: "https://model.invalid",
+    requestBodyValues: {},
+    statusCode: 403,
+  });
+  Object.defineProperty(accessor, "responseBody", {
+    configurable: true,
+    get() {
+      throw new Error(privateText);
+    },
+  });
+  assert.equal(
+    modelErrorDiagnostics(accessor).providerFailureReason,
+    undefined,
+  );
+  assert.ok(!agentError(accessor).message.includes(privateText));
 });

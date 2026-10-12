@@ -1,10 +1,10 @@
 {
   "name": "@intloom/cli",
-  "version": "0.0.3",
-  "description": "IntLoom project CLI and local MCP execution host",
+  "version": "0.0.5",
+  "description": "IntLoom terminal clients for the project Kernel Service",
   "type": "module",
   "engines": {
-    "node": ">=22.22.0"
+    "node": ">=26.4.0"
   },
   "bin": {
     "intloom": "./dist/bin.js"
@@ -25,27 +25,36 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@intloom/utils": "workspace:*",
-    "@intloom/kernel": "workspace:*",
     "@clack/prompts": "1.8.1",
-    "commander": "15.0.0",
-    "picocolors": "1.1.1",
-    "@modelcontextprotocol/server": "2.3.1",
+    "@intloom/kernel": "workspace:*",
+    "@intloom/utils": "workspace:*",
     "@modelcontextprotocol/client": "2.3.1",
     "@modelcontextprotocol/node": "2.1.1",
+    "@modelcontextprotocol/server": "2.3.1",
+    "@opentui/core": "0.6.0",
+    "@opentui/solid": "0.6.0",
+    "citty": "0.2.2",
+    "smol-toml": "1.4.2",
+    "solid-js": "1.9.12",
     "yaml": "^2.8.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@intloom/workflow-intent": "workspace:*"
+    "@intloom/workflow-intent": "workspace:*",
+    "@babel/core": "7.29.7",
+    "@babel/preset-typescript": "7.27.1",
+    "babel-preset-solid": "1.9.12",
+    "babel-plugin-module-resolver": "5.0.2",
+    "@types/babel__core": "7.20.5"
   },
   "scripts": {
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
-    "build": "tsc -p tsconfig.build.json && node build/prepare-package.ts",
+    "build": "bun build/clean.ts && tsc -p tsconfig.build.json && bun build/compile-tui.ts && node build/prepare-package.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test \"src/**/*.spec.ts\"",
-    "test:intg": "node --test \"test/**/*.intg.ts\"",
-    "pack": "node ../../scripts/pack-package.ts .publish && node ../../scripts/pack-package.ts .publish-intloom"
+    "test:intg": "node --test \"test/*.intg.ts\"",
+    "pack": "node ../../scripts/pack-package.ts .publish && node ../../scripts/pack-package.ts .publish-intloom",
+    "test:package": "node --test \"test/package/*.intg.ts\""
   },
   "license": "Apache-2.0",
   "repository": {

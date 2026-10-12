@@ -1,6 +1,6 @@
 {
   "name": "@intloom/workflow-intent",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "type": "module",
   "exports": {
@@ -27,8 +27,9 @@
     "build": "node build.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test \"codes/**/*.spec.ts\" \"schemas/**/*.spec.ts\" \"build/**/*.spec.ts\" \"src/**/*.spec.ts\" \"tools/**/*.spec.ts\"",
-    "test:intg": "node --test \"test/**/*.intg.ts\"",
-    "pack": "node ../../scripts/pack-package.ts dist"
+    "test:intg": "node --test \"test/*.intg.ts\"",
+    "pack": "node ../../scripts/pack-package.ts dist",
+    "test:package": "node --test \"test/package/*.intg.ts\""
   },
   "intloom": {
     "type": "workflow",
@@ -45,7 +46,7 @@
     "url": "https://github.com/ole3021/intloom/issues"
   },
   "engines": {
-    "node": ">=22.22.0"
+    "node": ">=26.4.0"
   },
   "publishConfig": {
     "access": "public"

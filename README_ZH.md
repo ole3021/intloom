@@ -26,7 +26,7 @@ Workflow 定义一个流程，Run 是针对一个意图的一次执行。Agents 
 
 ## 开始使用
 
-发布包支持 Node.js 22.22.0+，推荐使用最新的 Node.js 24 LTS。开发本仓库需要 Node.js 24+、Bun 1.4.0+ 和 npm。以下使用源码版本；发布版本的使用前提和完整配置步骤见[安装指南](./docs/zh/guide/quickstart/installation.md)。
+所有 IntLoom 包统一要求 Node.js 26.4.0+。开发本仓库需要 Node.js 26.4.0+、Bun 1.4.0+ 和 npm。以下使用源码版本；发布版本的使用前提和完整配置步骤见[安装指南](./docs/zh/guide/quickstart/installation.md)。
 
 在仓库根目录构建 CLI，并查看帮助：
 
@@ -35,6 +35,8 @@ bun install
 bun run build --filter=@intloom/cli --concurrency=1
 node apps/cli/dist/bin.js --help
 ```
+
+本地开发可运行 `bun run build:dev`，构建后会在 Bun 的全局命令目录安装 `intloom-dev`。该目录在 PATH 中时，可以从任意测试项目调用 `intloom-dev`，使用本仓库的开发版本。修改代码后再次运行 `build:dev`；Kernel/Service 改动还需要先停止测试项目的 Service，再构建并重新启动。详情见 [CLI 本地开发说明（英文）](./apps/cli/README.md#local-development)。
 
 准备一个兼容的已编译 Workflow 归档，并确保其运行时依赖可以解析。将下面的归档路径替换为实际文件。项目目录必须新建或为空；CLI 不内置业务 Workflow。
 

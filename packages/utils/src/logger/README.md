@@ -41,6 +41,8 @@ try {
 
 Public types are `Logger`, `LogLevel`, `LogContext`, `LogFields`, `OpenLogOptions`, `LogHandle`, and `ReadLogOptions`; see [types.ts](./types.ts) for their signatures.
 
+Serializer callbacks preserve Pino's `(value: any) => any` signature through a local type. Public declarations do not import Pino's transport types, allowing strict consumers to use the Node.js 26 type baseline.
+
 Levels are `debug = 20`, `info = 30`, `warn = 40`, `error = 50`, and `fatal = 60`. Files always include debug and above; readers default to info.
 
 ## Context

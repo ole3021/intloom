@@ -2,10 +2,25 @@
 
 ## Unreleased
 
+- Require Node.js 26.4.0+ across packages and Node.js 26 declarations; reduce consumer verification to the minimum and latest Node 26 on Linux/macOS.
+- Separate unit, business integration and prepared-archive consumer tests with one `bun run verify` entry; cover the complete Intent Workflow and repair after a real failed host check.
+- Keep the existing logger serializer signature self-contained so strict Node.js 26 declaration consumers do not inherit unrelated Pino transport types.
 - Retry npm publication visibility before consumer verification, and distinguish unavailable versions from actual archive integrity conflicts.
 - Reserve CLI start/stop for service lifecycle and use flow, cancelRun, and cancelAllRuns for Kernel/Runtime execution.
 - Standardize RunView.cursor across CLI/MCP, query and answer names, and Workflow initialization diagnostic types.
 - Deprecate Query and SnapshotCategory in favor of StorageQuery and StorageCategory; retain compatibility aliases.
+
+## @intloom/cli@0.0.5
+
+- Return immediate Run receipts through CLI and MCP; query the original Run for progress, completion, or failure without replaying execution.
+- Reject incomplete model output and preserve clear, bounded model, Tool, and step failure diagnostics without exposing raw SDK output or secrets.
+- Preserve Run-scoped logging across independently installed Workflow dependencies, including Code, recovery, and Agent Tools.
+- Add optional Host execution limits for Agent steps, model calls, known token usage, and Run duration, with explicit stop reasons and usage summaries.
+
+## @intloom/workflow-intent@0.0.3
+
+- Allow one bounded correction for a rejected Validation report while retaining strict final checks and avoiding replay of project implementation.
+- Report deterministic Specification change errors and bounded Validation rule/location diagnostics through the current Run logger.
 
 ## @intloom/cli@0.0.3
 

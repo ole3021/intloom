@@ -16,9 +16,10 @@
     "dev": "node --test --watch \"src/**/*.spec.ts\"",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
-    "test:intg": "node --test \"test/**/*.intg.ts\"",
+    "test:intg": "node --test \"test/*.intg.ts\"",
     "test": "node --test \"src/**/*.spec.ts\"",
-    "pack": "node ../../scripts/pack-package.ts ."
+    "pack": "node ../../scripts/pack-package.ts .",
+    "test:package": "node --test \"test/package/*.intg.ts\""
   },
   "dependencies": {
     "@intloom/utils": "workspace:*",
@@ -39,7 +40,7 @@
     "url": "https://github.com/ole3021/intloom/issues"
   },
   "engines": {
-    "node": ">=22.22.0"
+    "node": ">=26.4.0"
   },
   "publishConfig": {
     "access": "public"

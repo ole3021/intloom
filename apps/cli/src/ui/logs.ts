@@ -1,5 +1,5 @@
 import { Writable } from "node:stream";
-import pc from "picocolors";
+import { styleText } from "node:util";
 import { followLog, type LogLevel } from "@intloom/utils";
 
 const labels: Record<number, string> = {
@@ -107,7 +107,8 @@ export function createLogDisplay(
   debug: boolean,
   showRun = false,
 ) {
-  const colors = pc.createColors(color);
+  const colorize = (format: "red" | "yellow", text: string) =>
+    color ? styleText(format, text, { validateStream: false }) : text;
   let paused = false;
   const pending: string[] = [];
   let omitted = 0;
@@ -118,9 +119,9 @@ export function createLogDisplay(
         const text = formatLog(record, debug, showRun);
         const line =
           Number(record.level) >= 50
-            ? colors.red(text)
+            ? colorize("red", text)
             : Number(record.level) === 40
-              ? colors.yellow(text)
+              ? colorize("yellow", text)
               : text;
         if (paused) {
           if (pending.length < 200) pending.push(line);

@@ -3,14 +3,21 @@ import type { ServiceStatus } from "../service/contracts.ts";
 import type { ProjectDiagnosis } from "../service/recovery.ts";
 import { presentRun } from "./run-presentation.ts";
 
+export function renderRunProgress(run: RunView) {
+  return `Run ${run.runId} · ${run.cursor.stageName} / ${run.cursor.stepName} · ${run.status}`;
+}
+
 export function renderRun(run: RunView) {
   const presentation = presentRun(run);
   const lines = [
     `${presentation.title} · ${run.flowName}`,
     `Run  ${run.runId}`,
+    `Status ${run.status}`,
     `Cursor ${run.cursor.stageName} / ${run.cursor.stepName}`,
     `Execution ${run.execution.source} / ${run.execution.agentExecutor}`,
   ];
+  if (run.status === "running")
+    lines.push(`Inspect intloom attach ${run.runId}`);
   if (run.pendingAction) {
     lines.push(
       `Action ${run.pendingAction.id}`,

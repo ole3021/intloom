@@ -3,7 +3,12 @@ import { test } from "node:test";
 import type { CallToolResult } from "@modelcontextprotocol/client";
 import type { RunView } from "@intloom/kernel";
 import { startService, connectProject } from "@intloom/cli";
-import { mcpClient, pending, projectFixture } from "./project-fixture.ts";
+import {
+  mcpClient,
+  pending,
+  projectFixture,
+  untilRun,
+} from "./project-fixture.ts";
 
 function data(result: CallToolResult) {
   assert.ok(result.structuredContent);
@@ -16,12 +21,28 @@ for (const era of ["legacy", "modern"] as const)
   }, async (t) => {
     const root = await projectFixture(t);
     await startService({ projectRoot: root });
-    const { client, transport } = await mcpClient(t, root, {
-      capabilities: { elicitation: { form: {} } },
-      ...(era === "modern"
-        ? { versionNegotiation: { mode: { pin: "2026-07-28" } } }
-        : {}),
-    });
+    let standaloneRequests = 0;
+    const { client, transport } = await mcpClient(
+      t,
+      root,
+      {
+        capabilities: { elicitation: { form: {} } },
+        ...(era === "modern"
+          ? { versionNegotiation: { mode: { pin: "2026-07-28" } } }
+          : {}),
+      },
+      "codex",
+      era === "legacy"
+        ? async (url, init) => {
+            // Native forms must use the tool's stream, even without a background SSE channel.
+            if (init?.method === "GET") {
+              standaloneRequests++;
+              return new Response(null, { status: 405 });
+            }
+            return fetch(url, init);
+          }
+        : undefined,
+    );
     if (era === "modern") assert.equal(transport.protocolVersion, "2026-07-28");
     let prompts = 0;
     client.setRequestHandler("elicitation/create", async (request) => {
@@ -40,13 +61,31 @@ for (const era of ["legacy", "modern"] as const)
       arguments: { flowName: "fixture", intent: "native" },
     });
     assert.equal(created.isError, undefined);
-    const initial = data(created).run;
-    const reply = await client.callTool({
-      name: "interact",
-      arguments: { runId: initial.runId, actionId: pending(initial).id },
-    });
+    const receipt = data(created).run;
+    assert.equal(receipt.status, "running");
+    const observer = await connectProject(root);
+    t.after(() => observer.close());
+    const initial = await untilRun(
+      observer,
+      receipt.runId,
+      (run) => run.status === "waiting",
+    );
+    const reply = await client.callTool(
+      {
+        name: "interact",
+        arguments: { runId: initial.runId, actionId: pending(initial).id },
+      },
+      { timeout: 5_000 },
+    );
     assert.equal(reply.isError, undefined, JSON.stringify(reply));
-    const confirm = data(reply).run;
+    assert.equal(data(reply).run.status, "running");
+    const confirm = await untilRun(
+      observer,
+      initial.runId,
+      (run) =>
+        run.status === "waiting" &&
+        run.pendingAction?.id !== initial.pendingAction?.id,
+    );
     assert.equal(confirm.runId, initial.runId);
     assert.notEqual(pending(confirm).id, pending(initial).id);
     const done = await client.callTool({
@@ -54,9 +93,14 @@ for (const era of ["legacy", "modern"] as const)
       arguments: { runId: confirm.runId, actionId: pending(confirm).id },
     });
     assert.equal(done.isError, undefined, JSON.stringify(done));
-    assert.equal(data(done).run.status, "completed");
+    assert.equal(data(done).run.status, "running");
+    await untilRun(
+      observer,
+      initial.runId,
+      (run) => run.status === "completed",
+    );
     assert.equal(prompts, 2);
-    const observer = await connectProject(root);
+    if (era === "legacy") assert.ok(standaloneRequests > 0);
     assert.equal((await observer.listRuns()).length, 1);
     assert.notEqual(await observer.getRecord(`once-${initial.runId}`), null);
     await observer.close();
@@ -68,7 +112,12 @@ for (const era of ["legacy", "modern"] as const)
     await startService({ projectRoot: root });
     const observer = await connectProject(root);
     t.after(() => observer.close());
-    const initial = await observer.flow("fixture", "cancel-form");
+    const receipt = await observer.flow("fixture", "cancel-form");
+    const initial = await untilRun(
+      observer,
+      receipt.runId,
+      (run) => run.status === "waiting",
+    );
     const { client } = await mcpClient(t, root, {
       capabilities: { elicitation: { form: {} } },
       ...(era === "modern"
@@ -95,7 +144,12 @@ test("capability/profile fallback exposes current action for explicit answer_ask
   await startService({ projectRoot: root });
   const observer = await connectProject(root);
   t.after(() => observer.close());
-  const initial = await observer.flow("fixture", "fallback");
+  const receipt = await observer.flow("fixture", "fallback");
+  const initial = await untilRun(
+    observer,
+    receipt.runId,
+    (run) => run.status === "waiting",
+  );
   const { client } = await mcpClient(t, root);
   const result = await client.callTool({
     name: "interact",
@@ -114,8 +168,15 @@ test("capability/profile fallback exposes current action for explicit answer_ask
       ],
     },
   });
-  assert.equal(data(answered).run.status, "waiting");
-  assert.notEqual(pending(data(answered).run).id, pending(initial).id);
+  assert.equal(data(answered).run.status, "running");
+  const next = await untilRun(
+    observer,
+    initial.runId,
+    (run) =>
+      run.status === "waiting" &&
+      run.pendingAction?.id !== initial.pendingAction?.id,
+  );
+  assert.notEqual(pending(next).id, pending(initial).id);
 });
 
 test("malformed native form does not consume action; concurrent replies have one winner", async (t) => {
@@ -123,7 +184,12 @@ test("malformed native form does not consume action; concurrent replies have one
   await startService({ projectRoot: root });
   const observer = await connectProject(root);
   t.after(() => observer.close());
-  const initial = await observer.flow("fixture", "race");
+  const receipt = await observer.flow("fixture", "race");
+  const initial = await untilRun(
+    observer,
+    receipt.runId,
+    (run) => run.status === "waiting",
+  );
   const { client } = await mcpClient(t, root, {
     capabilities: { elicitation: { form: {} } },
   });

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { test } from "node:test";
+import { promisify } from "node:util";
 import { temporaryDirectory } from "../../test/directory-fixture.ts";
 import { runCli } from "./program.ts";
 
@@ -29,9 +31,37 @@ async function invoke(args: string[], cwd = process.cwd()) {
 test("help exposes project init and execution commands", async () => {
   const result = await invoke(["--help"]);
   assert.equal(result.code, 0);
-  assert.match(result.stdout, /flow \[options\]/u);
-  assert.match(result.stdout, /init \[options\] \[directory\]/u);
+  assert.match(result.stdout, /flow\s+Submit complete intent/u);
+  assert.match(result.stdout, /init\s+Initialize project/u);
   assert.doesNotMatch(result.stdout, /_auth-headers/u);
+  assert.equal(result.stdout.includes("\u001b"), false);
+});
+test("help stays plain when redirected or color is disabled even if Citty enables ANSI", async () => {
+  const env: NodeJS.ProcessEnv = { ...process.env, TERM: "xterm-256color" };
+  delete env.NO_COLOR;
+  delete env.CI;
+  delete env.TEST;
+  const entry = new URL("./program.ts", import.meta.url).href;
+  for (const terminal of [false, true]) {
+    const script = `
+      import { PassThrough } from "node:stream";
+      import { runCli } from ${JSON.stringify(entry)};
+      const output = Object.assign(new PassThrough(), { isTTY: ${terminal} });
+      output.on("data", chunk => process.stdout.write(chunk));
+      process.exitCode = await runCli(${JSON.stringify(terminal ? ["--help", "--no-color"] : ["--help"])}, {
+        input: new PassThrough(), output, error: process.stderr,
+        cwd: process.cwd(), isTTY: ${terminal},
+      });
+    `;
+    const result = await promisify(execFile)(
+      process.execPath,
+      ["--input-type=module", "-e", script],
+      { env },
+    );
+    assert.equal(result.stdout.includes("\u001b"), false);
+    assert.match(result.stdout, /flow\s+Submit complete intent/u);
+    assert.match(result.stdout, /init\s+Initialize project/u);
+  }
 });
 test("bad options return nonzero with a single machine error and no ANSI", async () => {
   for (const args of [
@@ -84,10 +114,13 @@ test("init selects cwd, a relative argument, or --project without prompting", as
     );
     assert.equal(result.code, 0, result.stdout);
     assert.equal(result.stderr, "");
-    assert.deepEqual(JSON.parse(result.stdout), {
-      projectRoot: root,
-      status: "scaffolded",
-    });
+    const resultData = JSON.parse(result.stdout);
+    assert.equal(resultData.ok, true);
+    assert.equal(resultData.data.projectRoot, root);
+    assert.deepEqual(
+      resultData.data.steps.map((step: { status: string }) => step.status),
+      ["completed", "skipped", "skipped", "skipped"],
+    );
   }
 });
 
@@ -128,7 +161,7 @@ test("commands find the nearest marker, while explicit --project requires that e
   await mkdir(nested, { recursive: true });
   const found = await invoke(["status", "--json"], nested);
   assert.equal(found.code, 0, found.stdout);
-  assert.equal(JSON.parse(found.stdout).projectRoot, root);
+  assert.equal(JSON.parse(found.stdout).data.projectRoot, root);
   const explicit = await invoke(
     ["--project", nested, "status", "--json"],
     root,
@@ -136,5 +169,8 @@ test("commands find the nearest marker, while explicit --project requires that e
   assert.equal(JSON.parse(explicit.stdout).error.code, "CLI_PROJECT_INVALID");
   await writeFile(join(root, "services/intloom.yaml"), "workflows: []\n");
   const nearest = await invoke(["doctor", "--json"], nested);
-  assert.equal(JSON.parse(nearest.stdout).projectRoot, join(root, "services"));
+  assert.equal(
+    JSON.parse(nearest.stdout).data.projectRoot,
+    join(root, "services"),
+  );
 });

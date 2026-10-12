@@ -37,7 +37,10 @@ test("published Effector runs a Loader-assembled Agent with real Tool dispatch a
     } }]`,
     );
   await project.add("@test/effector", body);
-  const requests: { messages: { role: string; content?: string }[] }[] = [];
+  const requests: {
+    stream: boolean;
+    messages: { role: string; content?: string }[];
+  }[] = [];
   t.mock.method(
     globalThis,
     "fetch",
@@ -46,32 +49,48 @@ test("published Effector runs a Loader-assembled Agent with real Tool dispatch a
       const request = JSON.parse(String(init?.body));
       requests.push(request);
       const first = requests.length === 1;
-      return Response.json({
-        id: "chatcmpl-fixture",
-        object: "chat.completion",
-        created: 0,
-        model: "test-model",
-        choices: [
-          {
-            index: 0,
-            message: first
-              ? {
-                  role: "assistant",
-                  content: null,
-                  tool_calls: [
-                    {
-                      id: "call-read",
-                      type: "function",
-                      function: { name: "read_fixture", arguments: "{}" },
-                    },
-                  ],
-                }
-              : { role: "assistant", content: '{"outcome":"complete"}' },
-            finish_reason: first ? "tool_calls" : "stop",
-          },
-        ],
-        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-      });
+      assert.equal(request.stream, true);
+      const delta = first
+        ? {
+            role: "assistant",
+            tool_calls: [
+              {
+                index: 0,
+                id: "call-read",
+                type: "function",
+                function: { name: "read_fixture", arguments: "{}" },
+              },
+            ],
+          }
+        : { role: "assistant", content: '{"outcome":"complete"}' };
+      const frames = [
+        {
+          id: "chatcmpl-fixture",
+          object: "chat.completion.chunk",
+          created: 0,
+          model: "test-model",
+          choices: [{ index: 0, delta, finish_reason: null }],
+        },
+        {
+          id: "chatcmpl-fixture",
+          object: "chat.completion.chunk",
+          created: 0,
+          model: "test-model",
+          choices: [
+            {
+              index: 0,
+              delta: {},
+              finish_reason: first ? "tool_calls" : "stop",
+            },
+          ],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        },
+      ];
+      return new Response(
+        frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") +
+          "data: [DONE]\n\n",
+        { headers: { "Content-Type": "text/event-stream" } },
+      );
     },
   );
   const execution = await initializeProject(project.root, {

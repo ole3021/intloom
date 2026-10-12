@@ -6,7 +6,7 @@ import { test, type TestContext } from "node:test";
 import { connectProject, startService, stopService } from "@intloom/cli";
 import type { UserAskConfirmation } from "@intloom/kernel";
 import * as z from "zod";
-import { cli, pending } from "./project-fixture.ts";
+import { cli, pending, untilRun } from "./project-fixture.ts";
 import { temporaryDirectory } from "./directory-fixture.ts";
 import { packSpecification } from "./workflow-fixture.ts";
 
@@ -46,7 +46,9 @@ async function modelFixture(t: TestContext) {
       assert.equal(req.url, "/v1/chat/completions");
       const request = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
         messages: Message[];
+        stream: boolean;
       };
+      assert.equal(request.stream, true);
       const last = request.messages.at(-1);
       let message: Message;
       const call = request.messages
@@ -126,22 +128,46 @@ async function modelFixture(t: TestContext) {
           }),
         };
       }
-      res.writeHead(200, { "content-type": "application/json" }).end(
-        JSON.stringify({
+      const delta = {
+        ...message,
+        ...(message.tool_calls
+          ? {
+              tool_calls: message.tool_calls.map((call, index) => ({
+                ...call,
+                index,
+              })),
+            }
+          : {}),
+      };
+      const frames = [
+        {
           id: `chatcmpl-${++sequence}`,
-          object: "chat.completion",
+          object: "chat.completion.chunk",
+          created: 0,
+          model: "intent-test",
+          choices: [{ index: 0, delta, finish_reason: null }],
+        },
+        {
+          id: `chatcmpl-${sequence}`,
+          object: "chat.completion.chunk",
           created: 0,
           model: "intent-test",
           choices: [
             {
               index: 0,
-              message,
+              delta: {},
               finish_reason: message.tool_calls ? "tool_calls" : "stop",
             },
           ],
           usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-        }),
-      );
+        },
+      ];
+      res
+        .writeHead(200, { "content-type": "text/event-stream" })
+        .end(
+          frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") +
+            "data: [DONE]\n\n",
+        );
     })().catch((error: unknown) => {
       failures.push(String(error));
       res.writeHead(500).end(String(error));
@@ -225,25 +251,49 @@ for (const storage of ["file", "sqlite"] as const)
         modelFailures: model.failures,
       }),
     );
-    const view = JSON.parse(initial.stdout).run;
-    assert.equal(view.status, "waiting");
-    assert.equal(view.cursor.stepName, "clarify");
+    const receipt = JSON.parse(initial.stdout).data.run;
+    assert.equal(receipt.status, "running");
     const client = await connectProject(root);
     t.after(() => client.close());
-    const confirm = await client.answerAsk(view.runId, view.pendingAction.id, [
-      { questionId: "QST-1", isSkipped: false, answer: "Local" },
-      { questionId: "QST-2", isSkipped: true },
-    ]);
-    assert.equal(confirm.status, "waiting");
+    const view = await untilRun(
+      client,
+      receipt.runId,
+      (run) => run.status === "waiting",
+    );
+    assert.equal(view.cursor.stepName, "clarify");
+    const confirmReceipt = await client.answerAsk(
+      view.runId,
+      pending(view).id,
+      [
+        { questionId: "QST-1", isSkipped: false, answer: "Local" },
+        { questionId: "QST-2", isSkipped: true },
+      ],
+    );
+    assert.equal(confirmReceipt.status, "running");
+    const confirm = await untilRun(
+      client,
+      view.runId,
+      (run) => run.status === "waiting" && run.cursor.stepName === "confirm",
+    );
     assert.equal(confirm.cursor.stepName, "confirm");
     const context = (pending(confirm).request as UserAskConfirmation).context;
     assert.match(context, /^Specification ready to save/);
     assert.match(context, /deployment constraints/);
     assert.match(context, /original requirements/);
     assert.doesNotMatch(context, /"baseline"|"changes"|"record_refs"/);
-    const done = await client.answerAsk(view.runId, pending(confirm).id, {
-      isConfirmed: true,
-    });
+    const doneReceipt = await client.answerAsk(
+      view.runId,
+      pending(confirm).id,
+      {
+        isConfirmed: true,
+      },
+    );
+    assert.equal(doneReceipt.status, "running");
+    const done = await untilRun(
+      client,
+      view.runId,
+      (run) => run.status === "completed",
+    );
     assert.equal(done.status, "completed");
     assert.equal(model.reads.length, 2);
     assert.equal(model.reads[1]?.questions[0]?.answer, "Local");

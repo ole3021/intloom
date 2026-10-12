@@ -55,6 +55,27 @@ describe("createRuntime", () => {
     });
   });
 
+  test("startFlow returns the admitted Run before slow execution without a stable-state observer", async (t) => {
+    const f = runtimeFixture();
+    const entered = deferred<void>();
+    const release = deferred<JsonValue>();
+    Object.assign(f.first, {
+      initializeState: () => {
+        entered.resolve();
+        return release.promise;
+      },
+    });
+    const runtime = createRuntime(f.options);
+    t.after(() => runtime.cancelAllRuns());
+    const admitted = await runtime.startFlow(f.blueprint, "original intent");
+    assert.equal(admitted.status, "running");
+    assert.match(admitted.runId, /^RUN-/u);
+    await entered.promise;
+    assert.deepEqual(await runtime.getRun(admitted.runId), admitted);
+    assert.equal((await runtime.listRuns()).length, 1);
+    release.resolve({ intent: "original intent" });
+  });
+
   test("queries observe running initialization, detach snapshots and do not update time", async () => {
     const f = runtimeFixture();
     const entered = deferred<void>();

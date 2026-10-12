@@ -1,75 +1,41 @@
 ---
 title: CLI reference
-description: Commands, global options, offline behavior, and output conventions.
+description: CMD, TUI, project operations and JSON output.
 ---
 
 # CLI reference
 
-Syntax: `intloom [global options] <command>`. Use `intloom --help` or `intloom <command> --help` for the installed version.
+Requires Node.js >=26.4.0. `intloom` and `intloom tui` open the persistent TUI; the entry automatically enables experimental FFI. Other commands use CMD. Run `intloom <command> --help` for detailed arguments. Both interfaces call the same JSON Core; closing a client never cancels a Run or stops Service.
 
-## Global options
+Global options: `--project`, `--json`, `--no-interactive`, `--no-color`, `--info`, `--debug`, `--version`. Explicit project paths require an exact root; otherwise CMD discovers the nearest marker. Execution is argument-driven; simple setup choices may use Clack.
 
-| Option | Behavior |
-| --- | --- |
-| `--project <directory>` | Select the exact project root; otherwise discover from the current directory |
-| `--json` | Emit structured output without interactive prompts |
-| `--no-interactive` | Disable terminal prompts |
-| `--no-color` | Disable color |
-| `--info` | Display service logs at info level and above |
-| `--debug` | Display debug and above; takes precedence over info |
-| `--version` | Print CLI version |
-
-## Project and service
-
-| Command | Options and behavior |
-| --- | --- |
-| `init [directory]` | New/empty target only; repeat `--workflow <package-or-tgz>` to install packages. Positional directory and explicit `--project` are mutually exclusive. Does not start the host. |
-| `start` | Start or reuse a project host. `--port <n>` selects a port. Select `localStorage` in `intloom.yaml`. |
-| `stop` | Stop the observed service instance. Normal offline state succeeds idempotently; unsafe/stale resources can fail. |
-| `status` | Report service state and Run counts; distinguish offline, recovery-required, and blocked states. |
-| `doctor` | Inspect diagnostics; `--execution cli\|studio\|agent_ide` selects readiness, default `cli`. |
-| `recover` | Clean eligible stale resources after owner exit; `--dry-run` previews only. |
-| `config codex` | Print project connection configuration without modifying IDE files. |
-
-## Installed packages and loaded Workflows
+CMD defaults to readable text, including when redirected: status summaries, compact lists, setup/check results, indented configuration and business data, and timestamped log lines. Empty results are explicit. Errors retain their code, partial setup results and original operation identity when the outcome is unknown. Artifact export reports the destination and writes JSON to the selected file. Add `--json` for structured results or JSON Lines; MCP stdio continues to use its wire protocol.
 
 | Command | Behavior |
 | --- | --- |
-| `workflow add <package-or-tgz>` | Install into an `intloom.yaml` project with its service stopped |
-| `workflow remove <package>` | Remove a declaration while retaining formal results |
-| `workflow list` | Inspect declarations and installation integrity offline |
-| `flows` | Query loaded names, loading diagnostics, and CLI readiness from the live host |
+| `init [directory]` | Create a new/empty scaffold; repeat `--workflow`, optionally `--mcp codex`, `--start`. Report each step and retain partial successes. |
+| `start`, `stop`, `status` | Start/reuse, verify release, or report running/stopped/unavailable Service. `stop --instance` pins a target. |
+| `doctor --execution cli\|studio\|agent_ide` | Read-only readiness checks; no real model call. |
+| `recover [--dry-run]` | Explicit eligible stale-resource cleanup. |
+| `workflow list/add/remove` | Offline package management; changes require Service stopped. |
+| `flows` | Loaded Workflow names, loading diagnostics and CLI readiness. |
+| `flow <flowName>` | Full `--intent` or `--intent-file` (`-` for stdin); immediate admission receipt. |
+| `runs [--flow name]`, `attach <runId>` | Current-instance list/snapshot; never implicitly answer. |
+| `answer <runId> --action ID` | Complete `--answer` JSON or `--answer-file`; preserves actual answer and action identity. |
+| `operation <UUID> --instance ID` | Inspect immutable admission receipt. |
+| `wait <runId>` | Default action_or_terminal; `--until terminal`, `--timeout` milliseconds. No execution control. |
+| `watch [runId]` | Run/project snapshots; Ctrl+C closes local observation. |
+| `cancel <runId>` | Explicit cancellation; committed effects remain. |
+| `artifacts`, `records` | Pages with flow/stage/limit/cursor; Artifact lists omit data. |
+| `artifact [ID]`, `record <ID>` | Read committed data; Artifact also supports flow+stage selector and explicit file export. |
+| `config show`, `config set --file FILE --revision HASH` | Safe configuration projection; optimistic full-file update for next Service start. |
+| `mcp init --ide codex [--plan]` | Plan/apply project stdio configuration, preserving unrelated settings. |
+| `mcp serve [--ide codex]` | Bidirectional stdio proxy to an existing Service; no private Runtime. |
+| `config codex` | Preview the Codex plan. |
+| `logs [runId] [--service] [--follow]` | Read/follow persisted logs; readable lines by default, JSON/JSON Lines with `--json`; works offline. |
 
-A package name is not necessarily the execution `flowName`. There is no update command; stop, remove, add, and restart when replacing a package.
+Flow/answer generate a UUID and capture the Service instance. Explicit replay requires original `--operation-id`, `--instance` and parameters. No write is automatically retried. `outcome: unknown` retains identity for receipt inspection.
 
-## Runs
+Normal JSON is `{ ok: true, data, meta }` or `{ ok: false, error, outcome, meta, data? }`. Streams use JSON Lines. Errors expose safe code/message/retryable only. `ok` describes the operation; Run status describes execution. Failed Run inspection may return nonzero; explicit successful cancel returns zero. Waiting and accepted receipts do not establish completion.
 
-| Command | Options and behavior |
-| --- | --- |
-| `flow [flowName]` | Create a Run. `--intent <text>` or `--intent-file <file>` supplies intent; `-` reads stdin. Interactive mode can prompt for missing values. |
-| `runs` | List current-host Runs; optional `--flow <flowName>` |
-| `attach <runId>` | Inspect and answer an existing Run |
-| `cancel <runId>` | Explicitly stop that Run; repeated cancellation preserves terminal state |
-
-## Results
-
-| Command | Options and behavior |
-| --- | --- |
-| `record <recordId>` | Read one immutable Record |
-| `artifacts` | List metadata. `--flow`, `--stage`, `--limit` (1–200; default 50), `--cursor` |
-| `artifact [artifactId]` | Read by ID, or by both `--flow` and `--stage`; do not combine selectors |
-| `artifact … --output <file>` | Export the complete object locally; parent must exist, and `--overwrite` is required for an existing file |
-
-Result queries require a running host. Artifact list entries omit business data; detail queries include it.
-
-## Logs
-
-`logs [runId]` accepts `--service`, `--follow`, and the global logging/JSON options. Run ID and `--service` are mutually exclusive. Logs are available offline. Follow observes retained files and restarts without opening a service connection.
-
-## Output and exit status
-
-Noninteractive `flow` requires both the Workflow name and nonempty intent. A waiting Run returns normally; exit 0 is not evidence of completion. Failed or stopped `flow`/`attach` returns nonzero. Successful queries and cancellation return 0.
-
-Common JSON envelopes are `{ run }`, `{ artifact }`, `{ artifacts: { data, nextCursor? } }`, and `{ record }`. Initialization returns `{ projectRoot, status: "scaffolded" }`; stop returns `{ projectRoot, stopped }`. Missing detail results can be `null`. Business errors expose a classified error with `code`, `message`, and `retryable`.
-
-Business JSON goes to stdout, progress to stderr. `logs --json` is the exception that intentionally streams log JSONL to stdout. Automation should inspect returned states and fields, not parse colored presentation text.
+Run statistics/revisions/results are authoritative Kernel snapshots, scoped to Service lifetime. Human waiting pauses execution budget; external Agent reasoning usage remains unknown. TUI displays actual commit references and flags historical Artifact versions that are no longer available. See the [package guide](https://github.com/ole3021/intloom/blob/main/apps/cli/README.md) for configuration, UI controls and ownership.

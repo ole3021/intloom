@@ -1,4 +1,6 @@
 import { Agent } from "@mastra/core/agent";
+import { Mastra } from "@mastra/core/mastra";
+import { noopLogger } from "@mastra/core/logger";
 import type { ToolsInput } from "@mastra/core/agent";
 import type { MastraModelConfig } from "@mastra/core/llm";
 import * as z from "zod";
@@ -19,10 +21,15 @@ type StreamPart =
 export type ModelReply = {
   readonly text?: string;
   readonly calls?: readonly { name: string; input: unknown }[];
-  readonly reason?: "stop" | "tool-calls" | "length";
+  readonly reason?: "stop" | "tool-calls" | "length" | "error";
+  readonly streamError?: unknown;
+  readonly usage?: {
+    readonly reasoningTokens?: number;
+    readonly cachedInputTokens?: number;
+  };
 };
 
-/** Replaces only the model boundary; Agent.generate, SDK Tool dispatch, and structured output run unchanged. */
+/** Replaces only the model boundary; Agent.stream, SDK Tool dispatch, and structured output run unchanged. */
 export function scriptedAgent(
   script: (request: ModelRequest) => ModelReply | Promise<ModelReply>,
   tools: ToolsInput = {},
@@ -47,8 +54,14 @@ export function scriptedAgent(
       content,
       finishReason:
         reply.reason ?? (reply.calls?.length ? "tool-calls" : "stop"),
-      usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      usage: {
+        inputTokens: 1,
+        outputTokens: 1,
+        totalTokens: 2,
+        ...reply.usage,
+      },
       warnings: [],
+      streamError: reply.streamError,
     };
   }
   const model = {
@@ -69,11 +82,13 @@ export function scriptedAgent(
           );
         else parts.push(content);
       }
-      parts.push({
-        type: "finish",
-        finishReason: reply.finishReason,
-        usage: reply.usage,
-      });
+      if (reply.streamError === undefined)
+        parts.push({
+          type: "finish",
+          finishReason: reply.finishReason,
+          usage: reply.usage,
+        });
+      else parts.push({ type: "error", error: reply.streamError });
       return {
         stream: new ReadableStream({
           start(controller) {
@@ -84,18 +99,21 @@ export function scriptedAgent(
       };
     },
   } satisfies Model;
+  const agent = new Agent({
+    mastra: new Mastra({ logger: false, __ephemeral: true }),
+    id: "fixture-agent",
+    name: "Fixture",
+    instructions: "Use your assigned business Tools, then return an outcome.",
+    model,
+    tools,
+  });
+  agent.__setLogger(noopLogger);
   return {
-    agent: new Agent({
-      id: "fixture-agent",
-      name: "Fixture",
-      instructions: "Use your assigned business Tools, then return an outcome.",
-      model,
-      tools,
-    }),
+    agent,
     outputSchema: z.strictObject({ outcome: z.string() }),
     requests,
-    execute(input, access, maxSteps) {
-      return executeServiceAgent(this, input, access, maxSteps);
+    execute(input, access, maxSteps, observer) {
+      return executeServiceAgent(this, input, access, maxSteps, observer);
     },
   };
 }

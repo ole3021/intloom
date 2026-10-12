@@ -6,6 +6,7 @@ import type { PendingAgentCall } from "./agent-call-types.ts";
 
 /** Authoritative Run status, cursor, and pending action; excludes Stage business data and execution logs. */
 export interface RunState {
+  observation?: import("./run-observation.ts").RunObservationState;
   id: string;
   flowName: string;
   readonly execution: RunExecution;

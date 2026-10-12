@@ -1,7 +1,5 @@
-import { fileURLToPath } from "node:url";
 import { failure } from "../../errors.ts";
 import { projectRoot, readConnection } from "../../service/discovery.ts";
-import { serviceUrl } from "../../service/contracts.ts";
 
 export async function authHeaders(directory: string) {
   const root = await projectRoot(directory);
@@ -16,21 +14,9 @@ export async function authHeaders(directory: string) {
 
 /** Generates a project configuration snippet only; the private token is read at runtime and excluded from Codex configuration. */
 export async function codexConfiguration(directory: string) {
-  const root = await projectRoot(directory);
-  const connection = await readConnection(root);
-  if (!connection)
-    throw failure(
-      "CLI_SERVICE_OFFLINE",
-      "Run intloom start before generating the Codex connection.",
-    );
-  const helper = [
-    process.execPath,
-    fileURLToPath(new URL("../../bin.js", import.meta.url)),
-    "_auth-headers",
-    "--project",
-    root,
-  ];
-  return `[mcp_servers.intloom]\nurl = ${JSON.stringify(`${serviceUrl(connection)}/codex`)}\nhttp_headers_helper = ${JSON.stringify(headerCommand(helper))}\nstartup_timeout_sec = 20\ntool_timeout_sec = 300\n`;
+  const { planMcpConfig } = await import("../../core/mcp-config.ts");
+  return (await planMcpConfig({ projectPath: directory, ide: "codex" }))
+    .snippet;
 }
 
 /** Codex accepts a command string; escape shell arguments before the caller encodes TOML. */

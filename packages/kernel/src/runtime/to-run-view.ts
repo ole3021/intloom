@@ -1,3 +1,4 @@
+import { sampleRunObservation } from "./run-observation.ts";
 import type { RunView } from "./run-view.ts";
 import { assertRunState } from "./assert-run-state.ts";
 import type { RunState } from "./run-state.ts";
@@ -5,7 +6,22 @@ import type { RunState } from "./run-state.ts";
 /** Produces an independent snapshot; queries preserve authoritative state and timestamps and expose no internal Error or JSON references. */
 export function toRunView(run: RunState): RunView {
   assertRunState(run);
+  sampleRunObservation(run);
   return {
+    ...(run.observation
+      ? {
+          serviceInstanceId: run.observation.serviceInstanceId,
+          revision: run.observation.revision,
+          metrics: structuredClone(run.observation.metrics),
+          limits: structuredClone(run.observation.limits),
+          activity: structuredClone(run.observation.activity),
+          results: structuredClone(run.observation.results),
+          settled: run.observation.settled,
+          ...(run.observation.stopReason
+            ? { stopReason: run.observation.stopReason }
+            : {}),
+        }
+      : {}),
     runId: run.id,
     flowName: run.flowName,
     execution: { ...run.execution },

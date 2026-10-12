@@ -1,3 +1,4 @@
+import { observeExternalTool } from "./run-observation.ts";
 import { randomBytes } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { realpath, open } from "node:fs/promises";
@@ -262,6 +263,7 @@ export async function callAgentTool(
     status: "running",
   };
   control.receipts.set(request.toolCallId, receipt);
+  const finishObservation = observeExternalTool(entry, request.toolCallId);
   try {
     const value = await result;
     owned(entry, request);
@@ -282,6 +284,7 @@ export async function callAgentTool(
     }
     throw cause;
   } finally {
+    finishObservation();
     toolActive = false;
     control.busy = false;
   }

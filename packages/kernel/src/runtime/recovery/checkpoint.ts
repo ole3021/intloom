@@ -22,7 +22,16 @@ export function saveCheckpoint(entry: RunEntry, phase: CheckpointPhase): void {
       workflowIdentity: recovery.workflowIdentity,
       phase,
       run: {
-        ...state,
+        id: state.id,
+        flowName: state.flowName,
+        execution: state.execution,
+        intent: state.intent,
+        cursor: state.cursor,
+        status: state.status,
+        ...(state.pendingAction ? { pendingAction: state.pendingAction } : {}),
+        ...(state.pendingAgentCall
+          ? { pendingAgentCall: state.pendingAgentCall }
+          : {}),
         createdAt: state.createdAt.toISOString(),
         updatedAt: state.updatedAt.toISOString(),
         ...(state.lastError

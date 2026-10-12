@@ -92,6 +92,55 @@ export const validationProposalSchema = z.strictObject({
     }),
   ),
 });
+export const validationReportRuleSchema = z.enum([
+  "SCOPE_CHECK_COUNT",
+  "CHECK_TARGET_MISMATCH",
+  "EVIDENCE_IDENTITY_INVALID",
+  "EVIDENCE_FILE_MISSING",
+  "EVIDENCE_LINE_OUT_OF_RANGE",
+  "HOST_CHECK_MISSING",
+  "HOST_CHECK_FAILED",
+  "VERIFIED_EVIDENCE_INCONSISTENT",
+  "VIOLATION_STATUS_MISMATCH",
+  "TEST_IDENTITY_OR_RANGE_INVALID",
+  "TEST_TARGET_UNKNOWN",
+  "TEST_STATUS_MISMATCH",
+  "FINDING_ID_DUPLICATE",
+  "FINDING_RANGE_INVALID",
+]);
+const diagnosticId = z
+  .string()
+  .max(64)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]*$/u);
+const count = z.number().int().nonnegative();
+export const validationFeedbackSchema = z.strictObject({
+  rule: validationReportRuleSchema,
+  message: z.string().max(200),
+  scopeGroup: z.enum(["specification", "solution"]).optional(),
+  targetRef: diagnosticId.optional(),
+  evidenceId: diagnosticId.optional(),
+  testId: diagnosticId.optional(),
+  findingId: diagnosticId.optional(),
+  codeIssueIndex: count.optional(),
+  path: projectPathSchema.max(160).optional(),
+  checkId: diagnosticId.optional(),
+  requestedLine: count.optional(),
+  lineStart: count.optional(),
+  lineEnd: count.optional(),
+  maxLine: count.optional(),
+  expectedCount: count.optional(),
+  actualCount: count.optional(),
+});
+export const validationSubmissionResultSchema = z.discriminatedUnion("saved", [
+  z.strictObject({ saved: z.literal(true) }),
+  z.strictObject({
+    saved: z.literal(false),
+    attemptsRemaining: z.literal(1),
+    feedback: validationFeedbackSchema,
+  }),
+]);
+export type ValidationReportRule = z.infer<typeof validationReportRuleSchema>;
+export type ValidationFeedback = z.infer<typeof validationFeedbackSchema>;
 export const validationStateSchema = z.strictObject({
   id: z.string().startsWith("RUN-"),
   intent: z.string(),
@@ -108,6 +157,8 @@ export const validationStateSchema = z.strictObject({
     })
     .optional(),
   proposal: validationProposalSchema.optional(),
+  submissionCount: z.number().int().min(0).max(2).default(0),
+  submissionFeedback: validationFeedbackSchema.optional(),
 });
 export type ValidationState = z.infer<typeof validationStateSchema>;
 export type ValidationProposal = z.infer<typeof validationProposalSchema>;

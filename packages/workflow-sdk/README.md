@@ -4,7 +4,7 @@ Public TypeScript contracts, Zod Schemas, and stateless helpers for authoring co
 
 ## Installation
 
-Requires Node.js 22.22.0+ and ESM. Repository development uses Node.js 24+ and Bun; public contracts use the Node.js 22 type baseline. Add the SDK and any packages imported by your Workflow to runtime dependencies; add Compiler to development dependencies:
+Requires Node.js 26.4.0+ and ESM. Repository development uses Node.js 26.4.0+ and Bun; public contracts use the Node.js 26 type baseline. Add the SDK and any packages imported by your Workflow to runtime dependencies; add Compiler to development dependencies:
 
 ```sh
 bun add @intloom/workflow-sdk zod
@@ -115,7 +115,7 @@ Use `StorageQuery` and `StorageCategory` in new code; `Query` and `SnapshotCateg
 | `src/agent-context.ts` | Read and check the current Agent capability binding |
 | `src/metadata.ts` | Artifact protocol version and strict metadata shape validation |
 | `src/*.spec.ts` | Capability binding validation, question/answer Schemas, and metadata shape validation |
-| `test/package.intg.ts` | Built package exports, protocol/dependency boundary, and exclusion of tests and Kernel/framework/database imports from emitted JavaScript and declarations |
+| `test/package/package.intg.ts` | Built package exports, protocol/dependency boundary, and exclusion of tests and Kernel/framework/database imports from emitted JavaScript and declarations |
 | `test/fixtures/consumer/` | Declaration type assertions and a separate Node.js consumer for installed archives |
 | `dist/` | Generated ESM, declarations, and source maps included in the published package |
 
@@ -128,10 +128,10 @@ Run from the repository root:
 ```sh
 bun run typecheck --filter=@intloom/workflow-sdk
 bun run test --filter=@intloom/workflow-sdk
-bun run test:intg --filter=@intloom/workflow-sdk
+bun run test:package --filter=@intloom/workflow-sdk
 ```
 
-Unit tests import adjacent source modules. Integration tests import the built package through its public entry; Turbo builds dependencies first and does not cache integration results. Declaration consumers disable source path mappings and check Tool inference, read-only views, capability permissions, and Workflow exports. An isolated consumer installs SDK/Utils archives with npm and verifies declarations and Node.js execution without repository links or Kernel. Installation uses the npm registry for external dependencies.
+Unit tests import adjacent source modules. Package consumers import the built public entry and prepared archives; Turbo prepares dependencies and packs each archive once. Tests always execute. Declaration consumers disable source path mappings and check Tool inference, read-only views, capability permissions, and Workflow exports. An isolated consumer installs SDK/Utils archives with npm and verifies declarations and Node.js execution without repository links or Kernel. Installation uses the npm registry for external dependencies.
 
 Kernel tests separately exercise Tool parsing, service/client dispatch, interaction ownership, and capability lifetimes. SDK tests validate the public contracts and helpers, rather than implementing a host.
 

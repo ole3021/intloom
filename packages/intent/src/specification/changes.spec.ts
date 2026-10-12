@@ -144,6 +144,53 @@ for (const [label, patch] of [
       ),
     );
   });
+test("new object ID mismatch identifies the Change and patch without exposing business value", () => {
+  const changes: SpecificationChange[] = [
+    {
+      target_ref: "SCON-good",
+      reason: "First change",
+      patch: [
+        {
+          op: "add",
+          path: "",
+          value: {
+            id: "SCON-good",
+            description: "private business value",
+            status: "active",
+            record_refs: [],
+          },
+        },
+      ],
+    },
+    {
+      target_ref: "SCON-target",
+      reason: "Second change",
+      patch: [
+        {
+          op: "add",
+          path: "",
+          value: {
+            id: "SCON-other",
+            description: "private business value",
+            status: "active",
+            record_refs: [],
+          },
+        },
+      ],
+    },
+  ];
+  assert.throws(
+    () => applyChanges(emptyArtifact(), changes, "RUN-new"),
+    (error: Error) => {
+      assert.match(
+        error.message,
+        /Change\[1\] target_ref SCON-target, patch\[0\] path "": New object ID "SCON-other" must match target_ref; set object.id to target_ref/,
+      );
+      assert.doesNotMatch(error.message, /private business value/);
+      return true;
+    },
+  );
+});
 test("removed acceptance IDs cannot be reused in the same change set", () => {
   const source = baseline();
   const acceptance = source.requirements[0]?.acceptances[0];

@@ -15,6 +15,7 @@ import {
   projectFixture,
   pending,
   configureProject,
+  untilRun,
 } from "./project-fixture.ts";
 import { temporaryDirectory } from "./directory-fixture.ts";
 import { packSpecification } from "./workflow-fixture.ts";
@@ -58,9 +59,15 @@ for (const installAgentWorkflow of [false, true]) {
       const [workflow] = await ide.listWorkflows();
       assert.ok(workflow?.isAvailable);
       assert.equal(workflow.readiness?.status, "available");
-      const run = await ide.flow(
+      const receipt = await ide.flow(
         workflow.flowName,
         "Describe a local todo application",
+      );
+      assert.equal(receipt.status, "running");
+      const run = await untilRun(
+        ide,
+        receipt.runId,
+        (view) => view.status === "waiting",
       );
       assert.equal(run.status, "waiting");
       assert.ok(run.pendingAgentCall);
@@ -73,7 +80,7 @@ for (const installAgentWorkflow of [false, true]) {
     assert.equal((await ide.listRuns()).length, installAgentWorkflow ? 1 : 0);
     const config = await cli(root, ["config", "codex"]);
     assert.equal(config.code, 0, config.stdout);
-    assert.match(config.stdout, /http_headers_helper/);
+    assert.match(config.stdout, /mcp/);
     await local.close();
     await ide.close();
     await stopService(root);
@@ -106,7 +113,12 @@ test("model-free Code Run uses MCP policy while CLI/Studio reject creation; cros
     assert.equal(workflow.readiness?.status, "configuration_required");
   }
   assert.deepEqual(await ide.listRuns(), []);
-  const waiting = await ide.flow("fixture", "MCP without model config");
+  const receipt = await ide.flow("fixture", "MCP without model config");
+  const waiting = await untilRun(
+    ide,
+    receipt.runId,
+    (run) => run.status === "waiting",
+  );
   assert.equal(waiting.status, "waiting");
   assert.ok(pending(waiting));
   assert.deepEqual(waiting.execution, {

@@ -15,25 +15,11 @@ description: 编译包资源，验证安装后的产物，并分发 Workflow 归
 
 默认构建配置为 `tsconfig.build.json`。通过 `tsconfigFile` 可以选择包根目录内的其他配置。运行时导入必须是内置模块或已声明的包依赖。Compiler 会从生产输出中排除源码旁的 `.spec.ts`、`.intg.ts` 和 `test/`。
 
-## 验证两个边界
+## 验证你的 Workflow
 
-| 验证方式 | 应覆盖的内容 |
-| --- | --- |
-| 源码单元测试 | Code 行为、Schema、Tool 验证、路由决策和业务错误 |
-| 构建包集成测试 | 公开导出、已安装模块解析、打包资源、真实服务执行、交互和持久化 |
+验证编写的 Code、Schema 和 Tool，再将编译归档安装到干净项目中，通过目标服务检查其实际行为。在无法访问编写源码的环境中验证公开导出、声明和 Skill 资源。生产输出应排除测试文件。
 
-使用 Node.js `node:test`。单元测试放在目标源码旁，集成测试放在 `test/`。类型检查应包含源码、测试和类型契约，生产构建则排除测试。
-
-对于 IntLoom 仓库中的工作区，从仓库根目录运行：
-
-```sh
-bun run build --filter=<package-name> --concurrency=1
-bun run check
-bun run test --filter=<package-name>
-bun run test:intg --filter=<package-name> --concurrency=1
-```
-
-替换包名，并提供对应工作区脚本。Compiler 成功只能证明产物构建成功，不能证明模型质量或工作流的真实副作用。使用受控模型响应实现可重复的引擎测试，再单独验证目标真实模型或 MCP 客户端。
+受控模型响应可以使执行检查可重复，真实模型质量和目标 MCP 客户端仍需单独验收。编译成功本身不能证明这两项。
 
 ## 生成归档文件
 

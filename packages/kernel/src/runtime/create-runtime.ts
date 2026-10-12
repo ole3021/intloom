@@ -2,7 +2,7 @@ import { resolveRunExecution } from "./execution-policy.ts";
 import { KERNEL_ERRORS } from "../errors/kernel.ts";
 import { getLogger, silentLogger } from "@intloom/utils";
 import type { Runtime } from "./contracts.ts";
-import { answerAsk } from "./answer-ask.ts";
+import { answerAsk, submitAnswer } from "./answer-ask.ts";
 import { createRun } from "./create-run.ts";
 import { createRunEntry, type RunEntry, waitUntilStable } from "./run-entry.ts";
 import { launchRunLoop } from "./run-loop.ts";
@@ -33,17 +33,85 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       });
     return entry;
   }
+  async function admitRun(
+    blueprint: Parameters<Runtime["flow"]>[0],
+    intent: string,
+    source: NonNullable<Parameters<Runtime["flow"]>[2]>,
+    waitForStable: boolean,
+  ) {
+    if (suspended) throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE");
+    if (typeof intent !== "string" || !intent.trim())
+      throw KERNEL_ERRORS.create("INVALID_REQUEST", {
+        message: "Workflow intent must be nonblank text.",
+      });
+    options.signal?.throwIfAborted();
+    const execution = options.prepareExecution
+      ? await options.prepareExecution(blueprint, source)
+      : resolveRunExecution(source, false);
+    options.signal?.throwIfAborted();
+    if (
+      [...runs.values()].some(
+        (existing) =>
+          (existing.state.status === "running" ||
+            existing.state.status === "waiting") &&
+          (blueprint.exclusive || existing.blueprint.exclusive),
+      )
+    )
+      throw KERNEL_ERRORS.create("BUSY", {
+        message:
+          "An exclusive project Workflow conflicts with another active Run.",
+      });
+    const entry = createRunEntry(
+      blueprint,
+      createRun(blueprint, intent, execution),
+      options.logger ?? silentLogger,
+    );
+    options.observation?.attach(entry, false, (reason) =>
+      cancelRun(entry, reason),
+    );
+    if (options.recovery) {
+      const workflowIdentity =
+        options.recovery.workflowIdentities[blueprint.flowName];
+      if (!workflowIdentity)
+        throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE", {
+          message: "Workflow recovery identity is missing.",
+        });
+      entry.recovery = {
+        store: options.recovery.store,
+        workflowIdentity,
+        phase: "stage_pending",
+      };
+      saveCheckpoint(entry, "stage_pending");
+    }
+    runs.set(entry.state.id, entry);
+    const requestLog = getLogger();
+    if (requestLog !== silentLogger && requestLog !== options.logger)
+      requestLog.debug("run_requested", { runId: entry.state.id });
+    entry.logger.info("run_started", { flowName: blueprint.flowName });
+    const stable = waitForStable ? waitUntilStable(entry) : undefined;
+    const accepted = toRunView(entry.state);
+    launchRunLoop(entry, options);
+    return { accepted, stable };
+  }
   return {
     async restore() {
       if (restored || runs.size || suspended)
         throw KERNEL_ERRORS.create("CONFLICT");
       restored = true;
       const entries = await restoreRuns(options);
-      for (const entry of entries) runs.set(entry.state.id, entry);
+      for (const entry of entries) {
+        options.observation?.attach(entry, true, (reason) =>
+          cancelRun(entry, reason),
+        );
+        runs.set(entry.state.id, entry);
+      }
       for (const entry of entries) startRecoveredRun(entry, options);
     },
     async suspend() {
       suspended = true;
+      const tasks = [...runs.values()].flatMap((entry) =>
+        entry.task ? [entry.task] : [],
+      );
       for (const entry of runs.values()) {
         if (
           entry.state.status !== "completed" &&
@@ -51,6 +119,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         )
           suspendRun(entry);
       }
+      await Promise.allSettled(tasks);
+      options.observation?.close();
     },
     async getAgentCall(request) {
       return agentCalls.getAgentCall(requireRun(request.runId), request);
@@ -70,56 +140,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     async failAgentCall(request) {
       return agentCalls.failAgentCall(requireRun(request.runId), request);
     },
+    async startFlow(blueprint, intent, source = "cli") {
+      return (await admitRun(blueprint, intent, source, false)).accepted;
+    },
     async flow(blueprint, intent, source = "cli") {
-      if (suspended) throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE");
-      if (typeof intent !== "string" || !intent.trim())
-        throw KERNEL_ERRORS.create("INVALID_REQUEST", {
-          message: "Workflow intent must be nonblank text.",
-        });
-      options.signal?.throwIfAborted();
-      const execution = options.prepareExecution
-        ? await options.prepareExecution(blueprint, source)
-        : resolveRunExecution(source, false);
-      options.signal?.throwIfAborted();
-      if (
-        [...runs.values()].some(
-          (existing) =>
-            (existing.state.status === "running" ||
-              existing.state.status === "waiting") &&
-            (blueprint.exclusive || existing.blueprint.exclusive),
-        )
-      )
-        throw KERNEL_ERRORS.create("BUSY", {
-          message:
-            "An exclusive project Workflow conflicts with another active Run.",
-        });
-      const entry = createRunEntry(
-        blueprint,
-        createRun(blueprint, intent, execution),
-        options.logger ?? silentLogger,
-      );
-      if (options.recovery) {
-        const workflowIdentity =
-          options.recovery.workflowIdentities[blueprint.flowName];
-        if (!workflowIdentity)
-          throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE", {
-            message: "Workflow recovery identity is missing.",
-          });
-        entry.recovery = {
-          store: options.recovery.store,
-          workflowIdentity,
-          phase: "stage_pending",
-        };
-        saveCheckpoint(entry, "stage_pending");
-      }
-      runs.set(entry.state.id, entry);
-      const requestLog = getLogger();
-      if (requestLog !== silentLogger && requestLog !== options.logger)
-        requestLog.debug("run_requested", { runId: entry.state.id });
-      entry.logger.info("run_started", { flowName: blueprint.flowName });
-      const stable = waitUntilStable(entry);
-      launchRunLoop(entry, options);
-      return stable;
+      const result = await admitRun(blueprint, intent, source, true);
+      if (!result.stable) throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE");
+      return result.stable;
     },
     async getRun(runId) {
       return toRunView(requireRun(runId).state);
@@ -132,11 +159,20 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         )
         .map((entry) => toRunView(entry.state));
     },
+    submitAnswer(runId, actionId, answer) {
+      return submitAnswer(requireRun(runId), actionId, answer);
+    },
     async answerAsk(runId, actionId, answer) {
       return answerAsk(requireRun(runId), actionId, answer);
     },
     async cancelRun(runId) {
-      cancelRun(requireRun(runId));
+      const entry = requireRun(runId);
+      if (
+        entry.state.observation &&
+        (entry.state.status === "running" || entry.state.status === "waiting")
+      )
+        entry.state.observation.stopReason ??= "user_cancel";
+      cancelRun(entry);
     },
     async cancelAllRuns() {
       for (const entry of runs.values()) cancelRun(entry);
