@@ -75,3 +75,6 @@ Tools 串行执行。使用相同 `toolCallId` 和相同输入重试，会返回
 
 用户配置见 [MCP 快速开始](../quickstart/mcp.md)，进程边界见[恢复](../usage/recovery.md)。
 
+## 本地镜像工具
+
+`mirror_list`、`mirror_inspect`、`mirror_restore`、`mirror_export` 与 `resume_run` 复用 CLI 的应用接口。inspect/export 不加载 Workflow。restore 参数为 mirrorId、targetProject、scope 与可选 dryRun，源项目由当前认证连接决定；目标须独立、已准备、停止且业务数据为空。resume 参数为 runId、operationId、expectedRevision、serviceInstanceId 与可选 scope；首次沿用保存范围，范围完成后必须明确指定新范围。详情见[镜像恢复](../usage/recovery.md)。

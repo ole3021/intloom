@@ -21,6 +21,7 @@ import { errorView, failure } from "./errors.ts";
 import {
   flowRequestSchema,
   answerRequestSchema,
+  resumeRunSchema,
   type Admission,
   type CoreMeta,
   type OperationReceipt,
@@ -99,11 +100,12 @@ export function createServiceApi(getHost: () => ProjectHost) {
     res.end(JSON.stringify({ ok: true, data, meta }));
   }
   async function admit(
-    kind: "flow" | "answer",
+    kind: "flow" | "answer" | "resume",
     source: RunSource,
     input:
       | ReturnType<typeof flowRequestSchema.parse>
-      | ReturnType<typeof answerRequestSchema.parse>,
+      | ReturnType<typeof answerRequestSchema.parse>
+      | ReturnType<typeof resumeRunSchema.parse>,
     runId?: string,
   ): Promise<Admission> {
     const host = getHost();
@@ -134,11 +136,13 @@ export function createServiceApi(getHost: () => ProjectHost) {
       const run =
         kind === "flow" && "flowName" in input
           ? await application.flow(input.flowName, input.intent)
-          : "actionId" in input && runId
-            ? await application.answerAsk(runId, input.actionId, input.answer)
-            : (() => {
-                throw failure("INVALID_REQUEST", "Invalid admission input.");
-              })();
+          : kind === "resume" && "expectedRevision" in input && runId
+            ? await application.resumeRun(runId, input)
+            : "actionId" in input && runId
+              ? await application.answerAsk(runId, input.actionId, input.answer)
+              : (() => {
+                  throw failure("INVALID_REQUEST", "Invalid admission input.");
+                })();
       const view = snapshot(run);
       operation.receipt = {
         ...base,
@@ -353,7 +357,7 @@ export function createServiceApi(getHost: () => ProjectHost) {
           return true;
         }
         const runMatch =
-          /^\/runs\/([^/]+)(?:\/(answers|cancel|events))?$/u.exec(path);
+          /^\/runs\/([^/]+)(?:\/(answers|cancel|events|resume))?$/u.exec(path);
         if (runMatch?.[1]) {
           const runId = decodeURIComponent(runMatch[1]);
           meta.runId = runId;
@@ -368,6 +372,27 @@ export function createServiceApi(getHost: () => ProjectHost) {
           if (method === "POST" && runMatch[2] === "cancel") {
             z.strictObject({}).parse(body);
             write(res, snapshot(await app.cancelRun(runId)), meta);
+            return true;
+          }
+          if (method === "POST" && runMatch[2] === "resume") {
+            const input = resumeRunSchema.parse(body);
+            meta.operationId = input.operationId;
+            const data = await admit("resume", source, input, runId);
+            if (data.receipt.status === "rejected")
+              res
+                .writeHead(statusCode(data.receipt.error.code), {
+                  "content-type": "application/json",
+                })
+                .end(
+                  JSON.stringify({
+                    ok: false,
+                    error: data.receipt.error,
+                    outcome: "not_applied",
+                    data,
+                    meta,
+                  }),
+                );
+            else write(res, data, meta, 202);
             return true;
           }
           if (method === "POST" && runMatch[2] === "answers") {

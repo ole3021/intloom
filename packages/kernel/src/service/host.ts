@@ -1,3 +1,4 @@
+import { exists, safePath } from "../mirror/files.ts";
 import { createRuntimeObservation } from "../runtime/run-observation.ts";
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import {
@@ -76,6 +77,11 @@ export async function startProjectHost(
     })
     .parse(options);
   const root = await projectRoot(parsed.projectRoot);
+  if (await exists(await safePath(root, ".intloom/restore.lock")))
+    throw failure(
+      "MIRROR_RESTORE_INCOMPLETE",
+      `Incomplete restore detected at ${join(root, ".intloom/restore.lock")}; clean only paths recorded by that attempt before starting.`,
+    );
   const instanceId = randomUUID();
   const release = await acquireServiceLock(root, instanceId);
   let storage: StorageHandle | undefined;
@@ -153,6 +159,7 @@ export async function startProjectHost(
       initializeProject(root, {
         runtimeDirectory: join(root, ".intloom", "runtime"),
         storage: openedStorage.access,
+        storageHandle: openedStorage,
         effector: createEffector({
           maxAgentSteps: limits.maxAgentSteps,
           serviceModelObserver: observation.observer,
@@ -358,6 +365,7 @@ export async function startProjectHost(
             .length,
           waitingRuns: allRuns.filter((item) => item.status === "waiting")
             .length,
+          pausedRuns: allRuns.filter((item) => item.status === "paused").length,
           completedRuns: allRuns.filter((item) => item.status === "completed")
             .length,
           failedRuns: allRuns.filter((item) => item.status === "failed").length,

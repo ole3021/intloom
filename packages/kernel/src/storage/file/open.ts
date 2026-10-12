@@ -1,3 +1,4 @@
+import { parseSnapshot } from "../snapshot.ts";
 import { randomUUID } from "node:crypto";
 import { logStorageAccess } from "../log-access.ts";
 import { mkdir, open, readFile, readdir, realpath, rm } from "node:fs/promises";
@@ -183,6 +184,49 @@ export async function openFileStorage(
     });
     return Object.freeze({
       access: logStorageAccess(access),
+      backend: "file" as const,
+      location: root,
+      exportSnapshot: () =>
+        lifecycle.run(() => {
+          const result = tail.then(() =>
+            parseSnapshot(
+              {
+                schemaVersion: 1,
+                backend: "file",
+                artifacts: store.artifacts,
+                records: store.records,
+                metadata: { storeId: store.storeId, revision: store.revision },
+              },
+              "file",
+            ),
+          );
+          tail = result.catch(() => {});
+          return result;
+        }),
+      importSnapshot: (input: import("../snapshot.ts").LocalStorageSnapshot) =>
+        lifecycle.run(() => {
+          const snapshot = parseSnapshot(input, "file");
+          const result = tail.then(async () => {
+            lifecycle.assertHealthy();
+            if (
+              store.artifacts.length ||
+              store.records.length ||
+              store.revision
+            )
+              throw new Error("Cannot import over existing formal Storage.");
+            const next = storeSchema.parse({
+              version: 1,
+              storeId: snapshot.metadata.storeId,
+              revision: snapshot.metadata.revision,
+              artifacts: snapshot.artifacts,
+              records: snapshot.records,
+            });
+            await publish(root, next, (cause) => lifecycle.fail(cause));
+            store = next;
+          });
+          tail = result.catch(() => {});
+          return result;
+        }),
       dispose: lifecycle.dispose,
     });
   } catch (cause) {

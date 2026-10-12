@@ -20,6 +20,7 @@ export interface InitializeProjectOptions {
   readonly signal?: AbortSignal;
   readonly effector: Effector;
   readonly storage: StorageAccess;
+  readonly storageHandle?: import("../storage/contracts.ts").StorageHandle;
 }
 
 /** Project resource references retained by the host; not a Kernel instance or another Run/Stage state store. */

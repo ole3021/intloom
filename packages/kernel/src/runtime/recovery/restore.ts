@@ -1,3 +1,5 @@
+import { jsonCopy } from "../../mirror/contracts.ts";
+import { validateResult } from "../../mirror/runtime.ts";
 import { isDeepStrictEqual } from "node:util";
 import { silentLogger } from "@intloom/utils";
 import type { RuntimeOptions } from "../contracts.ts";
@@ -28,7 +30,8 @@ export async function restoreRuns(
     const blueprint = blueprints[saved.run.flowName];
     if (
       !blueprint ||
-      workflowIdentities[saved.run.flowName] !== saved.workflowIdentity
+      (!saved.control?.sourceMirrorId &&
+        workflowIdentities[saved.run.flowName] !== saved.workflowIdentity)
     )
       throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE", {
         message: `Cannot restore Run ${saved.run.id}: its exact Workflow resources are unavailable. Recovery files were retained.`,
@@ -38,6 +41,7 @@ export async function restoreRuns(
       throw new Error("Nonterminal checkpoint contains a terminal error.");
     const state: RunState = {
       ...data,
+      ...(saved.control ? { control: jsonCopy(saved.control) } : {}),
       execution: freezeRunExecution(data.execution),
       createdAt: new Date(data.createdAt),
       updatedAt: new Date(data.updatedAt),
@@ -49,7 +53,11 @@ export async function restoreRuns(
     const current = resolveCursor(blueprint, state.cursor);
     if ((saved.phase === "waiting") !== (state.status === "waiting"))
       throw new Error("Checkpoint phase does not match its Run status.");
-    if (saved.phase !== "waiting" && state.status !== "running")
+    if (
+      saved.phase !== "waiting" &&
+      state.status !== "running" &&
+      !(state.status === "paused" && saved.control)
+    )
       throw new Error(
         "A nonterminal recovery checkpoint must be running or waiting.",
       );
@@ -59,7 +67,11 @@ export async function restoreRuns(
       !saved.stage
     )
       throw new Error("The recovery checkpoint is missing Stage State.");
-    if (saved.phase === "stage_pending" && saved.stage)
+    if (
+      saved.phase === "stage_pending" &&
+      saved.stage &&
+      !(saved.control && saved.stage.role === "exited")
+    )
       throw new Error(
         "A pending Stage must not contain the previous Stage's State.",
       );
@@ -68,12 +80,39 @@ export async function restoreRuns(
       state,
       options.logger ?? silentLogger,
     );
+    if (saved.observationBaseline)
+      entry.observationBaseline = saved.observationBaseline;
     entry.recovery = {
       store,
-      workflowIdentity: saved.workflowIdentity,
+      workflowIdentity: saved.control?.sourceMirrorId
+        ? (workflowIdentities[saved.run.flowName] ?? saved.workflowIdentity)
+        : saved.workflowIdentity,
+      ...(saved.control?.sourceMirrorId
+        ? {
+            sourceWorkflowIdentity:
+              saved.sourceWorkflowIdentity ?? saved.workflowIdentity,
+          }
+        : {}),
       phase: saved.phase,
     };
-    if (saved.stage) await entry.stageState.restore(current.stage, saved.stage);
+    if (
+      saved.phase === "stage_pending" &&
+      state.cursor.stepName !== current.stage.entryStepName
+    )
+      throw new Error(
+        "Saved pending Stage entry Step differs from the current entry.",
+      );
+    if (saved.stage?.role === "exited") entry.exitedStage = saved.stage;
+    else if (saved.stage) {
+      if (
+        saved.stage.stageName &&
+        saved.stage.stageName !== current.stage.stageName
+      )
+        throw new Error(
+          "Saved current Stage State belongs to a different Stage.",
+        );
+      await entry.stageState.restore(current.stage, saved.stage);
+    }
     if (saved.phase === "answered") {
       if (
         saved.answer === undefined ||
@@ -92,6 +131,8 @@ export async function restoreRuns(
       if (!saved.result)
         throw new Error("The completed Step checkpoint is missing its result.");
       entry.savedResult = saved.result;
+      if (saved.validatedRoute) entry.savedRoute = saved.validatedRoute;
+      validateResult(entry);
     }
     const recoverableInteraction =
       current.step.execution.kind === "code" &&
@@ -125,7 +166,8 @@ export async function restoreRuns(
 }
 
 export function startRecoveredRun(entry: RunEntry, options: RuntimeOptions) {
-  if (entry.state.status === "failed") return;
+  if (entry.state.status === "failed" || entry.state.status === "paused")
+    return;
   if (entry.state.status === "waiting") {
     const call = beginCall(entry);
     restoreInteraction(entry, () => {
@@ -137,6 +179,7 @@ export function startRecoveredRun(entry: RunEntry, options: RuntimeOptions) {
 
 /** Host shutdown keeps checkpoints; explicit cancelRun remains a terminal cancellation. */
 export function suspendRun(entry: RunEntry): void {
+  if (entry.state.status === "paused") return;
   if (!entry.recovery) {
     failRun(entry, RUNTIME_ERRORS.create("RUN_STOPPED"));
   } else entry.recovery.suspended = true;

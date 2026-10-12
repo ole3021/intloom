@@ -14,6 +14,7 @@ export interface StageStateController {
   readonly access: StateAccess<JsonValue> | undefined;
   /** Internal diagnostic snapshot; retains data after failure without adding it to RunView. */
   readonly value: ReadonlyJsonValue | undefined;
+  settle(): Promise<void>;
   checkpoint(): SavedStage | undefined;
   restore(stage: BlueprintStage, saved: SavedStage): Promise<void>;
   enter(
@@ -76,6 +77,9 @@ export function createStageState(
       return current?.snapshot();
     },
     leave,
+    async settle() {
+      await current?.settle();
+    },
     checkpoint() {
       return ready ? current?.checkpoint() : undefined;
     },

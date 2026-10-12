@@ -9,6 +9,7 @@ export interface WorkflowPackage {
   readonly packageVersion: string;
   /** The intloom.version field in package.json, managed independently of the npm package version. */
   readonly protocolVersion: string;
+  readonly protectedFiles?: readonly string[];
   readonly packageRoot: string;
   /** Absolute file URL resolved through package exports, used for import. */
   readonly entryUrl: string;

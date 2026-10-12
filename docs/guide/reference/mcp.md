@@ -74,3 +74,7 @@ Creating a Run is not idempotent. Query an uncertain result instead of replaying
 Cancellation invalidates ownership and rejects late results. Host restart does not restore active Agent tasks, their original Promise, or receipts; interrupted work becomes `RUN_INTERRUPTED`. There is no lease stealing, automatic model fallback, or connection-triggered client wakeup.
 
 See [MCP quick start](../quickstart/mcp.md) for user setup and [Recovery](../usage/recovery.md) for process boundaries.
+
+## Local mirror tools
+
+`mirror_list`, `mirror_inspect`, `mirror_restore`, `mirror_export` and `resume_run` share the CLI application rules. Inspect/export do not load Workflow Code. Restore takes mirrorId, targetProject, scope and optional dryRun; the authenticated connection supplies the source project. Prepare an independent stopped target with empty business data. Resume takes runId, operationId, expectedRevision, serviceInstanceId and optional scope. The first resume uses the saved scope; a completed scope requires a new explicit scope. See [mirror recovery](../usage/recovery.md).
