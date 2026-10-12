@@ -4,6 +4,7 @@ import {
   runActivitySchema,
   runResultSchema,
 } from "../runtime/run-observation.ts";
+import { controlSchema } from "../mirror/contracts.ts";
 import * as z from "zod";
 import type { RunView, WorkflowView } from "../index.ts";
 
@@ -33,11 +34,12 @@ export const runViewDataSchema = z.strictObject({
   results: z.array(runResultSchema).optional(),
   settled: z.boolean().optional(),
   stopReason: z.enum(["user_cancel", "budget_exceeded"]).optional(),
+  control: controlSchema.optional(),
   runId: z.string().min(1),
   execution: executionSchema,
   flowName: z.string().min(1),
   cursor: cursorSchema,
-  status: z.enum(["running", "waiting", "completed", "failed"]),
+  status: z.enum(["running", "waiting", "paused", "completed", "failed"]),
   pendingAgentCall: z
     .strictObject({
       id: z.string().min(1),
@@ -62,6 +64,7 @@ export const runViewDataSchema = z.strictObject({
 });
 export const runViewSchema = runViewDataSchema.transform((value): RunView => {
   const {
+    control,
     pendingAction,
     pendingAgentCall,
     lastError,
@@ -77,6 +80,7 @@ export const runViewSchema = runViewDataSchema.transform((value): RunView => {
   } = value;
   return {
     ...required,
+    ...(control === undefined ? {} : { control }),
     ...(serviceInstanceId === undefined ? {} : { serviceInstanceId }),
     ...(revision === undefined ? {} : { revision }),
     ...(metrics === undefined ? {} : { metrics }),
@@ -152,6 +156,7 @@ export const serviceStatusSchema = serviceInfoSchema.extend({
   availableWorkflowCount: z.number().int().nonnegative(),
   runningRuns: z.number().int().nonnegative(),
   waitingRuns: z.number().int().nonnegative(),
+  pausedRuns: z.number().int().nonnegative().optional(),
   completedRuns: z.number().int().nonnegative(),
   failedRuns: z.number().int().nonnegative(),
 });

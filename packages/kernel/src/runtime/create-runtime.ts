@@ -1,10 +1,21 @@
+import type { RunView } from "./run-view.ts";
+import { isDeepStrictEqual } from "node:util";
+import { randomUUID } from "node:crypto";
+import { jsonCopy, scopeSchema } from "../mirror/contracts.ts";
+import { validateResult } from "../mirror/runtime.ts";
+import { resolveCursor } from "./resolve-current-execution.ts";
 import { resolveRunExecution } from "./execution-policy.ts";
 import { KERNEL_ERRORS } from "../errors/kernel.ts";
 import { getLogger, silentLogger } from "@intloom/utils";
 import type { Runtime } from "./contracts.ts";
 import { answerAsk, submitAnswer } from "./answer-ask.ts";
 import { createRun } from "./create-run.ts";
-import { createRunEntry, type RunEntry, waitUntilStable } from "./run-entry.ts";
+import {
+  createRunEntry,
+  type RunEntry,
+  notifyRunObservers,
+  waitUntilStable,
+} from "./run-entry.ts";
 import { launchRunLoop } from "./run-loop.ts";
 import { cancelRun } from "./cancel-run.ts";
 import { toRunView } from "./to-run-view.ts";
@@ -23,6 +34,11 @@ import {
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
   const runs = new Map<string, RunEntry>();
+  const resumes = new Map<
+    string,
+    { identity: string; task: Promise<RunView> }
+  >();
+  const resuming = new Set<string>();
   let restored = false;
   let suspended = false;
   function requireRun(runId: string): RunEntry {
@@ -40,6 +56,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     waitForStable: boolean,
   ) {
     if (suspended) throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE");
+    options.mirror?.assertOpen();
     if (typeof intent !== "string" || !intent.trim())
       throw KERNEL_ERRORS.create("INVALID_REQUEST", {
         message: "Workflow intent must be nonblank text.",
@@ -52,9 +69,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     if (
       [...runs.values()].some(
         (existing) =>
-          (existing.state.status === "running" ||
-            existing.state.status === "waiting") &&
-          (blueprint.exclusive || existing.blueprint.exclusive),
+          ((!!options.mirror && !!existing.task) ||
+            existing.state.status === "running" ||
+            existing.state.status === "waiting" ||
+            existing.state.status === "paused") &&
+          (options.mirror ||
+            existing.state.control ||
+            blueprint.exclusive ||
+            existing.blueprint.exclusive),
       )
     )
       throw KERNEL_ERRORS.create("BUSY", {
@@ -66,6 +88,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       createRun(blueprint, intent, execution),
       options.logger ?? silentLogger,
     );
+    if (options.mirror)
+      entry.state.control = {
+        traceId: randomUUID(),
+        stageVisitId: 0,
+        stepVisitId: 0,
+        scope: { kind: "workflow", completed: false },
+      };
     options.observation?.attach(entry, false, (reason) =>
       cancelRun(entry, reason),
     );
@@ -147,6 +176,162 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       const result = await admitRun(blueprint, intent, source, true);
       if (!result.stable) throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE");
       return result.stable;
+    },
+    async resumeRun(runId, request) {
+      const identity = JSON.stringify({
+        runId,
+        operationId: request.operationId,
+        scope: request.scope ?? null,
+        expectedRevision: request.expectedRevision ?? null,
+        serviceInstanceId: request.serviceInstanceId ?? null,
+        abandonMirror: request.abandonMirror ?? false,
+      });
+      const known = resumes.get(request.operationId);
+      if (known) {
+        if (known.identity !== identity)
+          throw KERNEL_ERRORS.create("CONFLICT", {
+            message: "Resume operation ID is bound to different parameters.",
+          });
+        return structuredClone(await known.task);
+      }
+      if (resuming.has(runId))
+        throw KERNEL_ERRORS.create("BUSY", {
+          message: "Another resume is validating this Run.",
+        });
+      resuming.add(runId);
+      const task = Promise.resolve()
+        .then(async () => {
+          if (suspended) throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE");
+          options.mirror?.assertOpen();
+          const entry = requireRun(runId);
+          if (entry.task) await entry.task;
+          const view = toRunView(entry.state);
+          if (
+            request.serviceInstanceId !== undefined &&
+            view.serviceInstanceId !== request.serviceInstanceId
+          )
+            throw KERNEL_ERRORS.create("CONFLICT", {
+              message: "Service instance changed.",
+            });
+          if (
+            request.expectedRevision !== undefined &&
+            view.revision !== request.expectedRevision
+          )
+            throw KERNEL_ERRORS.create("CONFLICT", {
+              message: "Run revision changed.",
+            });
+          const control = entry.state.control;
+          if (entry.state.status !== "paused" || !control)
+            throw KERNEL_ERRORS.create("CONFLICT", {
+              message: "Only a paused mirror Run can resume.",
+            });
+          if (control.scope.completed && !request.scope)
+            throw KERNEL_ERRORS.create("INVALID_REQUEST", {
+              message:
+                "Scope completed; resume requires an explicit new scope.",
+            });
+          const kind = scopeSchema.parse(request.scope ?? control.scope.kind);
+          if (
+            request.abandonMirror &&
+            (control.pauseReason !== "mirror_capture_failed" ||
+              request.scope !== "workflow")
+          )
+            throw KERNEL_ERRORS.create("INVALID_REQUEST", {
+              message:
+                "Explicit abandonment requires mirror_capture_failed and an explicit workflow scope; step/stage scope boundary guarantees remain enforced.",
+            });
+          const boundary =
+            control.capturePending?.boundary.kind ?? control.boundary?.kind;
+          if (
+            kind === "step" &&
+            boundary !== "step_before" &&
+            !(
+              control.pauseReason === "mirror_capture_failed" &&
+              boundary === "step_after" &&
+              !request.scope
+            )
+          )
+            throw KERNEL_ERRORS.create("INVALID_REQUEST", {
+              message:
+                "Step scope requires an actual step_before mirror; choose the next step_before image.",
+            });
+          if (
+            kind === "stage" &&
+            boundary === "stage_end" &&
+            !(control.pauseReason === "mirror_capture_failed" && !request.scope)
+          )
+            throw KERNEL_ERRORS.create("INVALID_REQUEST", {
+              message: "Stage visit already ended.",
+            });
+          const current = resolveCursor(entry.blueprint, entry.state.cursor);
+          const stage = entry.exitedStage
+            ? undefined
+            : entry.stageState.checkpoint();
+          if (stage) {
+            jsonCopy(stage);
+            const parsed =
+              "input" in stage
+                ? await current.stage.stateSchema.safeParseAsync(stage.input)
+                : undefined;
+            if (
+              parsed &&
+              (!parsed.success ||
+                !isDeepStrictEqual(
+                  jsonCopy(parsed.data),
+                  jsonCopy(stage.value),
+                ))
+            )
+              throw KERNEL_ERRORS.create("CONFLICT", {
+                message:
+                  "Saved Stage input no longer matches the current Schema output.",
+              });
+          }
+          validateResult(entry);
+          const execution = options.prepareExecution
+            ? await options.prepareExecution(
+                entry.blueprint,
+                entry.state.execution.source,
+              )
+            : entry.state.execution;
+          if (
+            JSON.stringify(execution) !== JSON.stringify(entry.state.execution)
+          )
+            throw KERNEL_ERRORS.create("CONFLICT", {
+              message: "Saved execution policy changed.",
+            });
+          if (entry.state.status !== "paused" || suspended)
+            throw KERNEL_ERRORS.create("CONFLICT");
+          control.scope = {
+            kind,
+            completed: false,
+            ...(kind === "stage"
+              ? {
+                  stageVisitId:
+                    boundary === "workflow_start"
+                      ? control.stageVisitId + 1
+                      : control.stageVisitId,
+                }
+              : {}),
+          };
+          if (request.abandonMirror) {
+            control.captureDisabled = true;
+            delete control.capturePending;
+            entry.logger.warn("mirror_capture_abandoned", {
+              boundary: control.boundary?.kind,
+            });
+          }
+          delete control.pauseReason;
+          entry.state.status = "running";
+          entry.state.updatedAt = new Date();
+          saveCheckpoint(entry, entry.recovery?.phase ?? "stage_pending");
+          notifyRunObservers(entry);
+          const accepted = toRunView(entry.state);
+          launchRunLoop(entry, options);
+          return structuredClone(accepted);
+        })
+        .finally(() => resuming.delete(runId));
+      resumes.set(request.operationId, { identity, task });
+      return task;
     },
     async getRun(runId) {
       return toRunView(requireRun(runId).state);

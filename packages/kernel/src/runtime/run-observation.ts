@@ -104,6 +104,10 @@ export interface RunObservationState {
   stopReason?: "user_cancel" | "budget_exceeded";
   started: number;
   humanWait: number;
+  pausedSince?: number;
+  pausedDuration?: number;
+  mirrorDuration?: number;
+  mirrorStartedAt?: number;
   waitingSince?: number;
   terminalAt?: number;
   inFlight: number;
@@ -123,13 +127,27 @@ export function sampleRunObservation(state: RunState): void {
   const now = performance.now();
   const terminal = state.status === "completed" || state.status === "failed";
   if (terminal) meta.terminalAt ??= now;
-  const end = meta.terminalAt ?? now;
+  if (state.status === "paused") meta.pausedSince ??= now;
+  else if (meta.pausedSince !== undefined) {
+    meta.pausedDuration = (meta.pausedDuration ?? 0) + now - meta.pausedSince;
+    delete meta.pausedSince;
+  }
+  const end = meta.terminalAt ?? meta.pausedSince ?? now;
   if (state.pendingAction && !terminal) meta.waitingSince ??= now;
   else if (meta.waitingSince !== undefined) {
     meta.humanWait += Math.max(0, end - meta.waitingSince);
     delete meta.waitingSince;
   }
-  const elapsed = Math.max(0, end - meta.started);
+  const elapsed = Math.max(
+    0,
+    end -
+      meta.started -
+      (meta.pausedDuration ?? 0) -
+      (meta.mirrorDuration ?? 0) -
+      (meta.mirrorStartedAt === undefined
+        ? 0
+        : Math.max(0, end - meta.mirrorStartedAt)),
+  );
   const waiting =
     meta.humanWait +
     (meta.waitingSince === undefined
@@ -268,7 +286,8 @@ export function sampleRunObservation(state: RunState): void {
               }),
             ),
           ];
-  meta.settled = terminal && meta.inFlight === 0;
+  if (state.status === "paused") meta.activity = [];
+  meta.settled = (terminal || state.status === "paused") && meta.inFlight === 0;
   const fingerprint = JSON.stringify({
     status: state.status,
     cursor: state.cursor,
@@ -359,7 +378,17 @@ export function createRuntimeObservation(options: {
                 (usage.outputTokens ?? 0) >= limits.maxKnownOutputTokens
               ? "known_output_tokens"
               : limits.maxDurationMs !== undefined &&
-                  performance.now() - meta.started - meta.humanWait >=
+                  performance.now() -
+                    meta.started -
+                    meta.humanWait -
+                    (meta.pausedDuration ?? 0) -
+                    (meta.mirrorDuration ?? 0) -
+                    (meta.mirrorStartedAt === undefined
+                      ? 0
+                      : Math.max(
+                          0,
+                          performance.now() - meta.mirrorStartedAt,
+                        )) >=
                     limits.maxDurationMs
                 ? "duration"
                 : undefined;
@@ -478,11 +507,22 @@ export function createRuntimeObservation(options: {
             !state.pendingAction &&
             state.status !== "completed" &&
             state.status !== "failed" &&
-            performance.now() - meta.started - meta.humanWait >=
+            state.status !== "paused" &&
+            performance.now() -
+              meta.started -
+              meta.humanWait -
+              (meta.pausedDuration ?? 0) -
+              (meta.mirrorDuration ?? 0) -
+              (meta.mirrorStartedAt === undefined
+                ? 0
+                : Math.max(0, performance.now() - meta.mirrorStartedAt)) >=
               limits.maxDurationMs
           )
             stop(entry, meta, "duration", cancel);
-          if (meta.settled) {
+          if (
+            meta.settled &&
+            (state.status === "completed" || state.status === "failed")
+          ) {
             if (!meta.summaryLogged) {
               meta.summaryLogged = true;
               entry.logger.info("run_usage_summary", summary(meta));

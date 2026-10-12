@@ -1,4 +1,11 @@
 import {
+  listMirrors,
+  inspectMirror,
+  restoreMirror,
+  exportMirrors,
+  resumeRunSchema,
+} from "./mirrors.ts";
+import {
   listWorkflows,
   getRun,
   listRuns,
@@ -18,6 +25,19 @@ export interface ProjectApplication
   extends Omit<ProjectClient, "close">,
     AgentCallApi {
   readonly source: RunSource;
+  listMirrors(): Promise<unknown[]>;
+  inspectMirror(mirrorId: string): ReturnType<typeof inspectMirror>;
+  restoreMirror(
+    input: Omit<import("./mirrors.ts").RestoreMirrorInput, "sourceProject">,
+  ): ReturnType<typeof restoreMirror>;
+  exportMirrors(
+    traceId: string,
+    target: string,
+  ): ReturnType<typeof exportMirrors>;
+  resumeRun(
+    runId: string,
+    input: import("zod").infer<typeof resumeRunSchema>,
+  ): Promise<import("../../runtime/run-view.ts").RunView>;
   status(): Promise<ServiceStatus>;
 }
 
@@ -92,6 +112,29 @@ export function createProjectApplication(
     async getRecord(recordId) {
       assertOpen();
       return (await host.storage.access.getRecordById(recordId)) ?? null;
+    },
+    listMirrors() {
+      assertOpen();
+      return listMirrors(host.info.projectRoot);
+    },
+    inspectMirror(mirrorId) {
+      assertOpen();
+      return inspectMirror(host.info.projectRoot, mirrorId);
+    },
+    restoreMirror(input) {
+      assertOpen();
+      return restoreMirror({ ...input, sourceProject: host.info.projectRoot });
+    },
+    exportMirrors(traceId, target) {
+      assertOpen();
+      return exportMirrors(host.info.projectRoot, traceId, target);
+    },
+    resumeRun(runId, input) {
+      assertOpen(runId);
+      return host.execution.runtime.resumeRun(
+        runId,
+        resumeRunSchema.parse(input),
+      );
     },
     async status() {
       assertOpen();

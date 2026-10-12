@@ -1,3 +1,11 @@
+import { createMirrorCoordinator } from "../mirror/coordinator.ts";
+import {
+  protectedWorkflowPaths,
+  safePath,
+  exists,
+  readBytes,
+} from "../mirror/files.ts";
+import { join, relative, sep } from "node:path";
 import { createProjectAccess } from "../project/access.ts";
 import { createExecutionPreparation } from "./prepare-execution.ts";
 import { KERNEL_ERRORS } from "../errors/kernel.ts";
@@ -40,23 +48,90 @@ export async function initializeProject(
     project.config,
     registries.agents,
   );
+  const access = createProjectAccess(project.projectRoot);
+  if (
+    await exists(await safePath(project.projectRoot, ".intloom/restore.lock"))
+  )
+    throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE", {
+      message:
+        "Incomplete mirror restore detected; inspect .intloom/restore.lock and clean only this attempt's created paths before starting.",
+    });
+  const runtimeDirectory =
+    options.runtimeDirectory ??
+    (project.config.mirror?.enabled
+      ? join(project.projectRoot, ".intloom/runtime")
+      : undefined);
+  const checkpointStore = runtimeDirectory
+    ? openRunCheckpointStore(runtimeDirectory)
+    : undefined;
+  const persisted = checkpointStore?.read() ?? [];
+  const mirrorEnabled =
+    project.config.mirror?.enabled ||
+    persisted.some((saved) => !!saved.control && saved.phase !== "terminal");
+  const mirror = mirrorEnabled ? options.storageHandle : undefined;
+  if (mirrorEnabled && !mirror)
+    throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE", {
+      message: "Mirror capture requires the host-owned StorageHandle.",
+    });
+  const coordinator = mirror
+    ? createMirrorCoordinator(project.projectRoot, mirror, {
+        include: project.config.mirror?.files?.include ?? [],
+        exclude: project.config.mirror?.files?.exclude ?? [],
+        protectedPaths: await protectedWorkflowPaths(
+          project.projectRoot,
+          registries.sources,
+        ),
+        ...(mirror.location
+          ? {
+              storagePath: relative(project.projectRoot, mirror.location)
+                .split(sep)
+                .join("/"),
+            }
+          : {}),
+      })
+    : undefined;
+  const identities = checkpointStore
+    ? Object.fromEntries(
+        await Promise.all(
+          Object.entries(registries.sources).map(async ([name, source]) => [
+            name,
+            await workflowIdentity(source),
+          ]),
+        ),
+      )
+    : {};
+  if (checkpointStore)
+    for (const saved of persisted) {
+      const commitId = saved.control?.restoreCommitId;
+      if (!commitId) continue;
+      const marker = JSON.parse(
+        (
+          await readBytes(
+            project.projectRoot,
+            `.intloom/restores/${commitId}.json`,
+          )
+        ).toString("utf8"),
+      );
+      if (
+        !marker.complete ||
+        marker.commitId !== commitId ||
+        marker.runId !== saved.run.id ||
+        marker.traceId !== saved.control?.traceId ||
+        marker.sourceMirrorId !== saved.control?.sourceMirrorId
+      )
+        throw new Error(
+          "Mirror restore completion marker is missing or inconsistent.",
+        );
+    }
   const runtime = createRuntime({
-    project: createProjectAccess(project.projectRoot),
-    ...(options.runtimeDirectory
+    ...(coordinator ? { mirror: coordinator } : {}),
+    project: coordinator ? coordinator.gate.project(access) : access,
+    ...(runtimeDirectory
       ? {
           recovery: {
-            store: openRunCheckpointStore(options.runtimeDirectory),
+            store: checkpointStore as NonNullable<typeof checkpointStore>,
             blueprints: registries.blueprints,
-            workflowIdentities: Object.fromEntries(
-              await Promise.all(
-                Object.entries(registries.sources).map(
-                  async ([name, source]) => [
-                    name,
-                    await workflowIdentity(source),
-                  ],
-                ),
-              ),
-            ),
+            workflowIdentities: identities,
           },
         }
       : {}),
@@ -68,7 +143,9 @@ export async function initializeProject(
     agentResources: registries.agents,
     prepareExecution: preparation.prepare,
     effector: options.effector,
-    storage: options.storage,
+    storage: coordinator
+      ? coordinator.gate.storage(options.storage)
+      : options.storage,
   });
   await runtime.restore();
   return Object.freeze({

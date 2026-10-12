@@ -1,6 +1,6 @@
 import { validateAgentResources } from "./validate-agent-resources.ts";
 import { realpath, stat } from "node:fs/promises";
-import { createRequire, findPackageJSON } from "node:module";
+import { createRequire, findPackageJSON, registerHooks } from "node:module";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getLogger, LoomError, withLogger } from "@intloom/utils";
@@ -10,6 +10,35 @@ import type { LoadedWorkflow, WorkflowPackage } from "./types.ts";
 import type { ExecutableCode } from "../effector/execution.ts";
 import type { AgentTool } from "@intloom/workflow-sdk";
 import { validateWorkflow } from "./validate-workflow.ts";
+
+const loadedPaths = new Map<string, readonly string[]>();
+async function importWorkflow(
+  source: WorkflowPackage,
+): Promise<{ module: unknown; files: readonly string[] }> {
+  const known = loadedPaths.get(source.entryUrl);
+  if (known) return { module: await import(source.entryUrl), files: known };
+  const urls = new Set([source.entryUrl]);
+  const hook = registerHooks({
+    resolve(specifier, context, nextResolve) {
+      const resolved = nextResolve(specifier, context);
+      if (
+        context.parentURL &&
+        urls.has(context.parentURL) &&
+        resolved.url.startsWith("file:")
+      )
+        urls.add(resolved.url);
+      return resolved;
+    },
+  });
+  try {
+    const module: unknown = await import(source.entryUrl);
+    const files = [...urls].map((url) => fileURLToPath(url)).sort();
+    loadedPaths.set(source.entryUrl, files);
+    return { module, files };
+  } finally {
+    hook.deregister();
+  }
+}
 
 function inside(root: string, file: string): boolean {
   const path = relative(root, file);
@@ -113,8 +142,11 @@ export async function loadWorkflow(
       );
     }
     // Import evaluates top-level definitions; validation does not invoke Code, Tools, or models.
-    const module: unknown = await import(source.entryUrl);
-    const workflow = validateWorkflow(source, module);
+    const imported = await importWorkflow(source);
+    const workflow = validateWorkflow(
+      { ...source, protectedFiles: imported.files },
+      imported.module,
+    );
     for (const agent of Object.values(workflow.agentSpecs)) {
       for (const skill of agent.skills) {
         for (const asset of skill.assets) {

@@ -12,6 +12,7 @@ description: intloom.yaml 字段、模型定义和受管理的包声明。
 | 字段 | 类型／默认值 | 含义 |
 | --- | --- | --- |
 | `localStorage` | `file` 或 `sqlite`；默认 `file` | 正式数据后端 |
+| `mirror` | 可选对象，默认关闭 | 本地安全边界完整镜像；`enabled` 默认 false，`files.include/exclude` 为 glob 数组 |
 | `useMcpAgent` | 布尔值，默认 `true` | 外部 MCP 为 true 时使用客户端 Agent 任务，为 false 时使用服务模型 |
 | `workflows` | 数组；默认 `[]` | CLI 管理的已安装包声明 |
 | `intent` | 必填对象 | 当前配置包含应用偏好；未使用时保留 `{ apps: [] }` |

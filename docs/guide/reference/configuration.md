@@ -12,6 +12,7 @@ Projects use `intloom.yaml`. The host reads configuration on startup; restart to
 | Field | Type / default | Meaning |
 | --- | --- | --- |
 | `localStorage` | `file` or `sqlite`; default `file` | Formal-data backend |
+| `mirror` | Optional object; disabled by default | Complete local safe-boundary images; `enabled` defaults to false, `files.include/exclude` are glob arrays |
 | `useMcpAgent` | Boolean, default `true` | External MCP uses client Agent tasks when true; service models when false |
 | `workflows` | Array; default `[]` | CLI-managed installed package declarations |
 | `intent` | Required object | Current configuration includes application preferences; use `{ apps: [] }` when unused |

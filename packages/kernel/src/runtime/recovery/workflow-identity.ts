@@ -34,5 +34,16 @@ export async function workflowIdentity(
     }
   }
   await visit(source.assetRoot, "");
+  for (const file of source.protectedFiles ?? []) {
+    const path = (await import("node:path")).relative(source.assetRoot, file);
+    if (
+      !path.startsWith("..") ||
+      file.split((await import("node:path")).sep).includes("node_modules")
+    )
+      continue;
+    const bytes = await readFile(file);
+    hash.update(JSON.stringify([path, bytes.length]));
+    hash.update(bytes);
+  }
   return hash.digest("hex");
 }

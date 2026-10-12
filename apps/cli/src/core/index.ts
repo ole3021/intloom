@@ -1,3 +1,11 @@
+import {
+  listMirrors,
+  inspectMirror,
+  restoreMirror,
+  exportMirrors,
+  type RestoreMirrorInput,
+} from "@intloom/kernel/service/application/mirrors";
+import type { MirrorScope } from "@intloom/kernel";
 import { randomUUID } from "node:crypto";
 import * as z from "zod";
 import {
@@ -94,7 +102,7 @@ export interface WaitRunInput extends RunInput {
 }
 export interface WaitRunResult {
   readonly run: ServiceRunView;
-  readonly reason?: "human_action" | "agent_action" | "terminal";
+  readonly reason?: "human_action" | "agent_action" | "paused" | "terminal";
 }
 
 const projectInputSchema = z.object({
@@ -450,6 +458,58 @@ export function createCliCore() {
         },
       );
     },
+    listMirrors(input: ProjectInput) {
+      return local(input, (meta) => listMirrors(meta.projectRoot));
+    },
+    inspectMirror(input: ProjectInput & { mirrorId: string }) {
+      return local(input, (meta) =>
+        inspectMirror(meta.projectRoot, input.mirrorId),
+      );
+    },
+    restoreMirror(
+      input: ProjectInput & Omit<RestoreMirrorInput, "sourceProject">,
+    ) {
+      return local(input, (meta) =>
+        restoreMirror({
+          sourceProject: meta.projectRoot,
+          mirrorId: input.mirrorId,
+          targetProject: input.targetProject,
+          scope: input.scope,
+          ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
+        }),
+      );
+    },
+    exportMirrors(
+      input: ProjectInput & { traceId: string; targetProject: string },
+    ) {
+      return local(input, (meta) =>
+        exportMirrors(meta.projectRoot, input.traceId, input.targetProject),
+      );
+    },
+    resumeRun(
+      input: RunInput & {
+        operationId: string;
+        expectedRevision: number;
+        abandonMirror?: boolean;
+        serviceInstanceId: string;
+        scope?: MirrorScope;
+      },
+    ) {
+      return request(
+        input,
+        `/api/v1/cli/runs/${encodeURIComponent(input.runId)}/resume`,
+        admissionSchema,
+        {
+          operationId: input.operationId,
+          expectedRevision: input.expectedRevision,
+          ...(input.abandonMirror === undefined
+            ? {}
+            : { abandonMirror: input.abandonMirror }),
+          serviceInstanceId: input.serviceInstanceId,
+          ...(input.scope ? { scope: input.scope } : {}),
+        },
+      );
+    },
     cancelRun(input: RunInput) {
       return request(
         input,
@@ -652,11 +712,13 @@ export function createCliCore() {
           const reason =
             last.status === "completed" || last.status === "failed"
               ? "terminal"
-              : input.until !== "terminal" && last.pendingAction
-                ? "human_action"
-                : input.until !== "terminal" && last.pendingAgentCall
-                  ? "agent_action"
-                  : undefined;
+              : input.until !== "terminal" && last.status === "paused"
+                ? "paused"
+                : input.until !== "terminal" && last.pendingAction
+                  ? "human_action"
+                  : input.until !== "terminal" && last.pendingAgentCall
+                    ? "agent_action"
+                    : undefined;
           if (reason) return { ok: true, data: { run: last, reason }, meta };
         }
         return {

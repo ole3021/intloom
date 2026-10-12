@@ -1,3 +1,5 @@
+import { resumeRunSchema } from "./application/mirrors.ts";
+export { resumeRunSchema };
 import * as z from "zod";
 import {
   errorViewSchema,
@@ -72,13 +74,13 @@ export const operationReceiptSchema = z.discriminatedUnion("status", [
     status: z.literal("pending"),
     serviceInstanceId: z.uuid(),
     operationId: z.uuid(),
-    kind: z.enum(["flow", "answer"]),
+    kind: z.enum(["flow", "answer", "resume"]),
   }),
   z.strictObject({
     status: z.literal("accepted"),
     serviceInstanceId: z.uuid(),
     operationId: z.uuid(),
-    kind: z.enum(["flow", "answer"]),
+    kind: z.enum(["flow", "answer", "resume"]),
     runId: z.string(),
     acceptedAt: z.iso.datetime(),
     acceptedRevision: z.number().int().positive(),
@@ -87,7 +89,7 @@ export const operationReceiptSchema = z.discriminatedUnion("status", [
     status: z.literal("rejected"),
     serviceInstanceId: z.uuid(),
     operationId: z.uuid(),
-    kind: z.enum(["flow", "answer"]),
+    kind: z.enum(["flow", "answer", "resume"]),
     error: errorViewSchema,
   }),
 ]);

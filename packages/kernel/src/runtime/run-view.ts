@@ -3,7 +3,12 @@ import type { Cursor } from "../workflow/blueprint.ts";
 import type { ReadonlyJsonValue } from "../shared/json.ts";
 import type { PendingAgentCall } from "./agent-call-types.ts";
 
-export type RunStatus = "running" | "waiting" | "completed" | "failed";
+export type RunStatus =
+  | "running"
+  | "waiting"
+  | "paused"
+  | "completed"
+  | "failed";
 
 export type PendingUserActionKind =
   | "user_ask_questions"
@@ -37,6 +42,7 @@ export interface RunView {
   readonly results?: readonly import("./run-observation.ts").RunResult[];
   readonly settled?: boolean;
   readonly stopReason?: "user_cancel" | "budget_exceeded";
+  readonly control?: import("../mirror/contracts.ts").MirrorControl;
   readonly runId: string;
   readonly flowName: string;
   readonly execution: RunExecution;

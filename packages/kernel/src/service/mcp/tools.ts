@@ -1,5 +1,9 @@
 import { packageVersion } from "../version.ts";
 import { getLogger } from "@intloom/utils";
+import {
+  restoreMirrorSchema,
+  resumeRunSchema,
+} from "../application/mirrors.ts";
 import * as z from "zod";
 import {
   McpServer,
@@ -227,6 +231,76 @@ export function createToolServer(
       toolResult({
         record: await application.getRecord(recordId),
       }),
+    ),
+  );
+  server.registerTool(
+    "mirror_list",
+    {
+      description: "List local immutable mirrors without Workflow execution.",
+      inputSchema: z.strictObject({}),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    guard(async () => toolResult({ mirrors: await application.listMirrors() })),
+  );
+  server.registerTool(
+    "mirror_inspect",
+    {
+      description:
+        "Inspect raw checkpoint, State, Storage, files and exclusions offline.",
+      inputSchema: z.strictObject({ mirrorId: z.uuid() }),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    guard(async ({ mirrorId }) =>
+      toolResult(await application.inspectMirror(mirrorId)),
+    ),
+  );
+  server.registerTool(
+    "mirror_restore",
+    {
+      description:
+        "Restore a safe boundary into an independent prepared stopped project, paused until explicit resume.",
+      inputSchema: restoreMirrorSchema.omit({ sourceProject: true }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+    },
+    guard(async (input) => toolResult(await application.restoreMirror(input))),
+  );
+  server.registerTool(
+    "mirror_export",
+    {
+      description: "Export raw mirror trace into a new independent directory.",
+      inputSchema: z.strictObject({
+        traceId: z.uuid(),
+        targetProject: z.string().min(1),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+    },
+    guard(async ({ traceId, targetProject }) =>
+      toolResult(await application.exportMirrors(traceId, targetProject)),
+    ),
+  );
+  server.registerTool(
+    "resume_run",
+    {
+      description:
+        "Explicitly resume paused mirror execution. Reuse operationId after a lost response; scope completion requires a new explicit scope. Bind current serviceInstanceId and expectedRevision from get_run.",
+      inputSchema: resumeRunSchema.extend({ runId: z.string().min(1) }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    guard(async ({ runId, ...input }) =>
+      toolResult({ run: await application.resumeRun(runId, input) }),
     ),
   );
   return server;

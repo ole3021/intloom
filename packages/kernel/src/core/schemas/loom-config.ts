@@ -21,6 +21,17 @@ export type WorkflowDependency = z.infer<typeof workflowDependencySchema>;
 
 export const loomConfigSchema = z.strictObject({
   workflows: workflowDependenciesSchema.optional(),
+  mirror: z
+    .strictObject({
+      enabled: z.boolean().default(false),
+      files: z
+        .strictObject({
+          include: z.array(z.string().min(1)).default([]),
+          exclude: z.array(z.string().min(1)).default([]),
+        })
+        .optional(),
+    })
+    .optional(),
   localStorage: z.enum(["file", "sqlite"]).optional(),
   // workflow specific configs
   intent: intentConfigSchema,

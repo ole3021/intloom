@@ -1,4 +1,4 @@
-import * as z from "zod";
+import { jsonCopy } from "../mirror/contracts.ts";
 import { isDeepStrictEqual } from "node:util";
 import type { SavedStage } from "./recovery/store.ts";
 import { getLogger } from "@intloom/utils";
@@ -13,6 +13,7 @@ export interface StageStateBinding {
     assertScope: () => void,
     allowAgentWait?: boolean,
   ): StateAccess<JsonValue>;
+  settle(): Promise<void>;
   snapshot(): ReadonlyJsonValue | undefined;
   checkpoint(): SavedStage;
   restore(saved: SavedStage): Promise<void>;
@@ -27,11 +28,10 @@ export function createStageStateBinding(
   let value: JsonValue | undefined;
   let inputValue: JsonValue | undefined;
   let queue: Promise<void> = Promise.resolve();
-  const json = z.json();
 
   function copyJson(input: unknown): JsonValue {
     try {
-      return structuredClone(json.parse(input));
+      return jsonCopy(input) as JsonValue;
     } catch (cause) {
       throw RUNTIME_ERRORS.wrap("STAGE_STATE_INVALID", cause);
     }
@@ -117,12 +117,17 @@ export function createStageStateBinding(
     access: bind(() => {}),
     bind,
     snapshot,
+    settle: () => queue,
     checkpoint: () =>
       structuredClone({
         ...(inputValue === undefined ? {} : { input: inputValue }),
         ...(value === undefined ? {} : { value }),
       }),
     async restore(saved) {
+      if (saved.exists === false && ("input" in saved || "value" in saved))
+        throw RUNTIME_ERRORS.create("STAGE_STATE_INVALID");
+      if (saved.exists === true && (!("input" in saved) || !("value" in saved)))
+        throw RUNTIME_ERRORS.create("STAGE_STATE_INVALID");
       if (saved.input === undefined && saved.value === undefined) return;
       if (saved.input === undefined || saved.value === undefined)
         throw RUNTIME_ERRORS.create("STAGE_STATE_INVALID");

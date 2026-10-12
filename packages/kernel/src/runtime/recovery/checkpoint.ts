@@ -1,3 +1,5 @@
+import { checkpointSchema } from "./store.ts";
+import { jsonCopy } from "../../mirror/contracts.ts";
 import type { RunEntry } from "../run-entry.ts";
 import { RUNTIME_ERRORS } from "../../errors/runtime.ts";
 import type { CheckpointPhase, RunCheckpointStore } from "./store.ts";
@@ -5,28 +7,33 @@ import type { CheckpointPhase, RunCheckpointStore } from "./store.ts";
 export interface RunRecoveryControl {
   readonly store: RunCheckpointStore;
   readonly workflowIdentity: string;
+  readonly sourceWorkflowIdentity?: string;
   phase: CheckpointPhase;
   error?: Error;
   suspended?: boolean;
 }
 
-export function saveCheckpoint(entry: RunEntry, phase: CheckpointPhase): void {
-  const recovery = entry.recovery;
-  if (!recovery || recovery.suspended) return;
-  if (recovery.error) throw recovery.error;
-  recovery.phase = phase;
+export function checkpointData(
+  entry: RunEntry,
+  phase: CheckpointPhase,
+): import("./store.ts").RunCheckpoint {
   const state = entry.state;
-  try {
-    recovery.store.write({
-      version: 1,
-      workflowIdentity: recovery.workflowIdentity,
+  const stage = entry.exitedStage ?? entry.stageState.checkpoint();
+  return checkpointSchema.parse(
+    jsonCopy({
+      version: 2,
+      schemaVersion: 2,
+      workflowIdentity: entry.recovery?.workflowIdentity ?? "untracked",
+      ...(entry.recovery?.sourceWorkflowIdentity
+        ? { sourceWorkflowIdentity: entry.recovery.sourceWorkflowIdentity }
+        : {}),
       phase,
       run: {
         id: state.id,
         flowName: state.flowName,
         execution: state.execution,
         intent: state.intent,
-        cursor: state.cursor,
+        cursor: { ...state.cursor },
         status: state.status,
         ...(state.pendingAction ? { pendingAction: state.pendingAction } : {}),
         ...(state.pendingAgentCall
@@ -44,9 +51,23 @@ export function saveCheckpoint(entry: RunEntry, phase: CheckpointPhase): void {
             }
           : {}),
       },
-      ...(entry.stageState.checkpoint()
-        ? { stage: entry.stageState.checkpoint() }
+      ...(stage
+        ? {
+            stage: {
+              ...stage,
+              stageName: stage.stageName ?? state.cursor.stageName,
+              stageVisitId:
+                stage.stageVisitId ?? state.control?.stageVisitId ?? 0,
+              role: stage.role ?? "current",
+              exists: stage.exists ?? "value" in stage,
+            },
+          }
         : {}),
+      ...(entry.observationBaseline
+        ? { observationBaseline: entry.observationBaseline }
+        : {}),
+      ...(state.control ? { control: structuredClone(state.control) } : {}),
+      ...(entry.savedRoute ? { validatedRoute: entry.savedRoute } : {}),
       ...(entry.recoveredAnswer
         ? {
             answer: entry.recoveredAnswer.answer,
@@ -54,7 +75,18 @@ export function saveCheckpoint(entry: RunEntry, phase: CheckpointPhase): void {
           }
         : {}),
       ...(entry.savedResult ? { result: entry.savedResult } : {}),
-    });
+    }),
+  );
+}
+
+export function saveCheckpoint(entry: RunEntry, phase: CheckpointPhase): void {
+  const recovery = entry.recovery;
+  if (!recovery || recovery.suspended) return;
+  if (recovery.error) throw recovery.error;
+  recovery.phase = phase;
+  const state = entry.state;
+  try {
+    recovery.store.write(checkpointData(entry, phase));
   } catch (cause) {
     const error = RUNTIME_ERRORS.wrap("RUN_CHECKPOINT_FAILED", cause);
     recovery.error = error;

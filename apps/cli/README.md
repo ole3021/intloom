@@ -146,3 +146,23 @@ All limits are positive integers. Other supported Run limits are `maxKnownInputT
 `src/core` owns client calls/local data operations; `src/cmd` owns parsing and command output; `src/tui` owns terminal state/rendering. `packages/kernel/src/service` owns the independent process, resources, JSON/SSE contracts and MCP server. Former CLI Service modules are forwarding imports during internal migration, not additional owners.
 
 Use the repository's Bun scripts for build/typecheck/unit/integration/package validation. Integration fixtures use local model responses; they do not prove real provider behavior or IDE acceptance. No global install, publication, restart/adoption policy or new recovery strategy is implied by local tests.
+
+## Local execution mirrors
+
+Enable `mirror.enabled` explicitly in `intloom.yaml`. Every reached safe boundary captures complete local State, formal Storage and declared business files under `.intloom/mirrors/`.
+
+```sh
+intloom mirror list --project ./source --json
+intloom mirror inspect <mirrorId> --project ./source --json
+intloom mirror restore <step-before-id> --project ./source --to ../case-step --scope step
+intloom start --project ../case-step
+intloom run resume <runId> --project ../case-step
+intloom run resume <runId> --project ../case-step --scope workflow
+intloom mirror export <traceId> --project ./source --to ../mirror-data
+```
+
+Prepare the target's current config/Workflow and stop its service before restore. Restore preserves IDs/revisions/timestamps and starts paused; host startup also remains paused. Step scope requires a real step_before; stage scope ends one visit before the next initializer. step_after never repeats the call and rejects step scope; terminal images are offline only. A completed scope requires an explicit new scope on resume. `mirror restore --dry-run` returns its validated write plan.
+
+For an exact resume retry retain the original instance, operation UUID, revision and scope. CLI and MCP share the application rules; MCP tools are mirror_list, mirror_inspect, mirror_restore, mirror_export and resume_run. Inspect/export work without loading old Workflow Code. The [recovery guide](../../docs/guide/usage/recovery.md) describes file exclusions, conservative current-Schema compatibility, capture retry and incomplete-restore diagnostics.
+
+After persistent mirror_capture_failed, `run resume <runId> --scope workflow --abandon-mirror` explicitly stops capture for this Run and records captureDisabled/cause. There is no automatic downgrade; step/stage scopes keep their saved-boundary guarantees.

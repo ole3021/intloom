@@ -54,6 +54,7 @@ export function assertRunState(run: Readonly<RunState>): void {
       }
       break;
     }
+    case "paused":
     case "running":
     case "completed":
     case "failed":

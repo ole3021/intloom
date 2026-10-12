@@ -15,17 +15,33 @@ import {
 import { createHash, randomUUID } from "node:crypto";
 import { join } from "node:path";
 import * as z from "zod";
+import { controlSchema, jsonCopy } from "../../mirror/contracts.ts";
 import { pendingUserActionSchema } from "../schemas/pending-user-action.ts";
 import { cursorSchema } from "../../workflow/schemas/cursor.ts";
 
 const savedStageSchema = z.strictObject({
+  stageName: z.string().optional(),
+  stageVisitId: z.number().int().nonnegative().optional(),
+  role: z.enum(["current", "exited"]).optional(),
+  exists: z.boolean().optional(),
   input: z.json().optional(),
   value: z.json().optional(),
 });
 export type SavedStage = z.infer<typeof savedStageSchema>;
 export const checkpointSchema = z.strictObject({
-  version: z.literal(1),
+  version: z.union([z.literal(1), z.literal(2)]),
+  observationBaseline: z.json().optional(),
+  schemaVersion: z.literal(2).optional(),
+  control: controlSchema.optional(),
+  validatedRoute: z
+    .strictObject({
+      kind: z.enum(["move_step", "enter_stage", "complete"]),
+      cursor: cursorSchema,
+      status: z.enum(["running", "completed"]),
+    })
+    .optional(),
   workflowIdentity: z.string().min(1),
+  sourceWorkflowIdentity: z.string().min(1).optional(),
   phase: z.enum([
     "stage_pending",
     "step_ready",
@@ -44,7 +60,7 @@ export const checkpointSchema = z.strictObject({
       agentExecutor: z.enum(["service", "mcp_client"]),
     }),
     cursor: cursorSchema,
-    status: z.enum(["running", "waiting", "completed", "failed"]),
+    status: z.enum(["running", "waiting", "paused", "completed", "failed"]),
     pendingAction: pendingUserActionSchema.optional(),
     pendingAgentCall: z
       .strictObject({
@@ -108,7 +124,7 @@ export function openRunCheckpointStore(directory: string) {
   }
   function write(input: unknown) {
     if (failure) throw failure;
-    const checkpoint = checkpointSchema.parse(input);
+    const checkpoint = checkpointSchema.parse(jsonCopy(input));
     const id = checkpoint.run.id;
     const target = join(directory, name(id));
     // Explicit removal opts this Run out of recovery for the remainder of this process.

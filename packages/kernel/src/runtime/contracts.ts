@@ -13,6 +13,16 @@ import type { RunCheckpointStore } from "./recovery/store.ts";
 
 /** Execution resources supplied after project initialization, without business access bound to a specific Run. */
 export interface RuntimeOptions {
+  readonly mirror?: {
+    assertOpen(): void;
+    capture(
+      entry: import("./run-entry.ts").RunEntry,
+      checkpoint: import("./recovery/store.ts").RunCheckpoint,
+      pending: NonNullable<
+        import("../mirror/contracts.ts").MirrorControl["capturePending"]
+      >,
+    ): Promise<void>;
+  };
   readonly project?: import("@intloom/workflow-sdk").ProjectAccess;
   readonly recovery?: {
     readonly store: RunCheckpointStore;
@@ -50,6 +60,16 @@ export interface Runtime extends AgentCallApi {
     blueprint: Blueprint,
     intent: string,
     source?: RunSource,
+  ): Promise<RunView>;
+  resumeRun(
+    runId: string,
+    request: {
+      operationId: string;
+      abandonMirror?: boolean | undefined;
+      scope?: import("../mirror/contracts.ts").MirrorScope | undefined;
+      expectedRevision?: number;
+      serviceInstanceId?: string;
+    },
   ): Promise<RunView>;
   getRun(runId: string): Promise<RunView>;
   listRuns(flowName?: string): Promise<RunView[]>;

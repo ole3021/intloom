@@ -1,3 +1,16 @@
+export type { LocalStorageSnapshot } from "./storage/snapshot.ts";
+export type {
+  MirrorScope,
+  MirrorManifest,
+  MirrorBoundary,
+  MirrorControl,
+} from "./mirror/contracts.ts";
+export {
+  listMirrors,
+  inspectMirror,
+  restoreMirror,
+  exportMirrors,
+} from "./service/application/mirrors.ts";
 export { isLoomError, LoomError } from "@intloom/utils";
 export type {
   InitializeProjectOptions,

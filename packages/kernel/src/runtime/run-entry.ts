@@ -36,6 +36,9 @@ export interface RunEntry {
   recovery?: RunRecoveryControl;
   recoveredAnswer?: { action: PendingUserAction; answer: ReadonlyJsonValue };
   savedResult?: StepResult;
+  savedRoute?: import("./recovery/store.ts").RunCheckpoint["validatedRoute"];
+  observationBaseline?: import("../shared/json.ts").JsonValue;
+  exitedStage?: import("./recovery/store.ts").SavedStage;
   agentCall?: AgentCallControl;
   agentReceipt?: AgentCompletionReceipt;
 }

@@ -1,3 +1,4 @@
+import { parseSnapshot } from "../snapshot.ts";
 import { mkdir } from "node:fs/promises";
 import { logStorageAccess } from "../log-access.ts";
 import { dirname, resolve } from "node:path";
@@ -131,6 +132,77 @@ export async function openSqliteStorage(
     });
     return Object.freeze({
       access: logStorageAccess(access),
+      backend: "sqlite" as const,
+      location: filename,
+      exportSnapshot: () =>
+        lifecycle.run(() =>
+          db.transaction((tx) =>
+            parseSnapshot(
+              {
+                schemaVersion: 1,
+                backend: "sqlite",
+                artifacts: tx
+                  .select()
+                  .from(artifacts)
+                  .where(eq(artifacts.projectId, projectId))
+                  .all()
+                  .map(readArtifact),
+                records: tx
+                  .select()
+                  .from(records)
+                  .where(eq(records.projectId, projectId))
+                  .all()
+                  .map(readRecord),
+                metadata: {
+                  projectId,
+                  revision:
+                    tx
+                      .select()
+                      .from(projects)
+                      .where(eq(projects.projectId, projectId))
+                      .get()?.revision ?? 0,
+                },
+              },
+              "sqlite",
+            ),
+          ),
+        ),
+      importSnapshot: (input: import("../snapshot.ts").LocalStorageSnapshot) =>
+        lifecycle.run(() => {
+          const snapshot = parseSnapshot(input, "sqlite");
+          db.transaction((tx) => {
+            if (
+              tx
+                .select()
+                .from(artifacts)
+                .where(eq(artifacts.projectId, projectId))
+                .get() ||
+              tx
+                .select()
+                .from(records)
+                .where(eq(records.projectId, projectId))
+                .get() ||
+              tx
+                .select()
+                .from(projects)
+                .where(eq(projects.projectId, projectId))
+                .get()?.revision
+            )
+              throw new Error("Cannot import over existing formal Storage.");
+            for (const item of snapshot.artifacts)
+              tx.insert(artifacts)
+                .values({ ...item, projectId })
+                .run();
+            for (const item of snapshot.records)
+              tx.insert(records)
+                .values({ ...item, projectId })
+                .run();
+            tx.update(projects)
+              .set({ revision: snapshot.metadata.revision })
+              .where(eq(projects.projectId, projectId))
+              .run();
+          });
+        }),
       dispose: lifecycle.dispose,
     });
   } catch (cause) {

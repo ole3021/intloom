@@ -1,3 +1,8 @@
+import {
+  captureBoundary,
+  scopeEnded,
+  validateResult,
+} from "../mirror/runtime.ts";
 import { sampleRunObservation } from "./run-observation.ts";
 import { setImmediate } from "node:timers/promises";
 import { withLogger } from "@intloom/utils";
@@ -44,7 +49,22 @@ export function launchRunLoop(entry: RunEntry, options: RuntimeOptions): void {
 async function enterStage(
   entry: RunEntry,
   stage: BlueprintStage,
+  options: RuntimeOptions,
 ): Promise<boolean> {
+  const control = entry.state.control;
+  if (control && !control.stagePendingVisit) {
+    control.stageVisitId++;
+    control.stagePendingVisit = true;
+    if (
+      control.scope.kind === "stage" &&
+      control.scope.stageVisitId === undefined
+    )
+      control.scope.stageVisitId = control.stageVisitId;
+  }
+  delete entry.exitedStage;
+  saveCheckpoint(entry, "stage_pending");
+  if (!(await captureBoundary(entry, options, "stage_before_init")))
+    return false;
   const call = beginCall(entry);
   const log = entry.logger.child({ stageName: stage.stageName });
   const started = performance.now();
@@ -61,11 +81,15 @@ async function enterStage(
     log.debug("stage_initialized", {
       durationMs: Math.round(performance.now() - started),
     });
-    return true;
+    if (control) delete control.stagePendingVisit;
+    endCall(entry, call);
+    return captureBoundary(entry, options, "stage_start");
   } catch (cause) {
     if (ownsCall(entry, call)) {
       log.error("stage_initialization_failed", { err: cause });
       failRun(entry, runtimeError(cause, "RUN_INITIALIZATION_FAILED"));
+      endCall(entry, call);
+      await captureBoundary(entry, options, "workflow_end");
     }
     return false;
   } finally {
@@ -77,15 +101,49 @@ async function runLoop(
   entry: RunEntry,
   options: RuntimeOptions,
 ): Promise<void> {
+  const control = entry.state.control;
+  if (control?.capturePending) {
+    const boundary = control.capturePending.boundary;
+    if (
+      !(await captureBoundary(
+        entry,
+        options,
+        boundary.kind,
+        boundary.stageName,
+      ))
+    )
+      return;
+    if (
+      (boundary.kind === "step_after" || boundary.kind === "stage_end") &&
+      scopeEnded(entry, boundary.kind)
+    )
+      return;
+  }
+  if (control && !control.boundary) {
+    if (!(await captureBoundary(entry, options, "workflow_start"))) return;
+  }
+  if (entry.exitedStage) {
+    entry.stageState.leave();
+    delete entry.exitedStage;
+  }
   const initial = resolveCurrentExecution(entry.blueprint, entry.state);
   if (
     initial.kind === "halt" ||
-    (!entry.stageState.access && !(await enterStage(entry, initial.stage)))
+    (!entry.stageState.access &&
+      !(await enterStage(entry, initial.stage, options)))
   )
     return;
   while (entry.state.status === "running") {
     const executed = resolveCurrentExecution(entry.blueprint, entry.state);
     if (executed.kind === "halt") return;
+    if (!entry.savedResult) {
+      if (control && !control.stepPendingVisit) {
+        control.stepVisitId++;
+        control.stepPendingVisit = true;
+      }
+      saveCheckpoint(entry, "step_ready");
+      if (!(await captureBoundary(entry, options, "step_before"))) return;
+    }
     const call = beginCall(entry);
     const log = entry.logger.child({
       ...entry.state.cursor,
@@ -124,15 +182,35 @@ async function runLoop(
         throw RUNTIME_ERRORS.create("STEP_INTERACTION_INVALID");
       entry.savedResult = result;
       delete entry.recoveredAnswer;
+      validateResult(entry);
       saveCheckpoint(entry, "step_result");
+      endCall(entry, call);
+      if (!(await captureBoundary(entry, options, "step_after"))) return;
+      if (scopeEnded(entry, "step_after")) return;
       transition = applyStepResult(
         entry.blueprint,
         entry.state,
         executed,
         result,
       );
+      if (control && transition.kind === "complete")
+        control.scope.completed = true;
       delete entry.savedResult;
-      if (transition.kind === "enter_stage") entry.stageState.leave();
+      delete entry.savedRoute;
+      if (control) delete control.stepPendingVisit;
+      if (transition.kind === "enter_stage" || transition.kind === "complete") {
+        const state = entry.stageState.checkpoint();
+        if (control && state)
+          entry.exitedStage = {
+            ...state,
+            role: "exited",
+            stageName: executed.stage.stageName,
+            stageVisitId: control?.stageVisitId ?? 0,
+            exists: "value" in state,
+          };
+      }
+      if (!control && transition.kind === "enter_stage")
+        entry.stageState.leave();
       saveCheckpoint(
         entry,
         transition.kind === "complete"
@@ -141,6 +219,20 @@ async function runLoop(
             ? "stage_pending"
             : "step_ready",
       );
+      if (transition.kind === "enter_stage" || transition.kind === "complete") {
+        if (
+          !(await captureBoundary(
+            entry,
+            options,
+            "stage_end",
+            executed.stage.stageName,
+          ))
+        )
+          return;
+        if (transition.kind === "enter_stage") entry.stageState.leave();
+        if (scopeEnded(entry, "stage_end")) return;
+        if (transition.kind === "enter_stage") delete entry.exitedStage;
+      }
       log.info("step_completed", {
         durationMs: Math.max(
           0,
@@ -155,7 +247,10 @@ async function runLoop(
           nextStep: entry.state.cursor.stepName,
         });
     } catch (cause) {
-      if (ownsCall(entry, call)) {
+      if (
+        ownsCall(entry, call) ||
+        (entry.state.status === "running" && entry.savedResult)
+      ) {
         log.error("step_failed", {
           err: runtimeError(cause),
           durationMs: Math.max(
@@ -165,6 +260,8 @@ async function runLoop(
           ),
         });
         failRun(entry, runtimeError(cause));
+        endCall(entry, call);
+        await captureBoundary(entry, options, "workflow_end");
       } else log.debug("late_error_ignored");
       return;
     } finally {
@@ -174,11 +271,12 @@ async function runLoop(
     notifyRunObservers(entry);
     if (transition.kind === "complete") {
       entry.logger.info("run_completed");
+      await captureBoundary(entry, options, "workflow_end");
       return;
     }
     if (
       transition.kind === "enter_stage" &&
-      !(await enterStage(entry, transition.stage))
+      !(await enterStage(entry, transition.stage, options))
     )
       return;
     // Yield even for synchronous Code loops so queries and cancellation can run.

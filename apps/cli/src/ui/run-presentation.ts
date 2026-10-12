@@ -22,17 +22,24 @@ export function presentRun(run: RunView): RunPresentation {
     };
   const titles = {
     running: "Running",
+    paused: "Paused",
     waiting: "Waiting for an answer",
     completed: "Completed",
     failed: "Execution failed",
   };
   return {
     title: titles[run.status],
-    details: run.lastError
-      ? [
-          `${run.lastError.code}: ${run.lastError.message}`,
-          "Failure does not undo committed data. Inspect the results before running again.",
-        ]
-      : [],
+    details:
+      run.status === "paused"
+        ? [
+            `${run.control?.pauseReason ?? "paused"}: explicit intloom run resume required.`,
+            ...(run.control?.pauseCause ? [run.control.pauseCause] : []),
+          ]
+        : run.lastError
+          ? [
+              `${run.lastError.code}: ${run.lastError.message}`,
+              "Failure does not undo committed data. Inspect the results before running again.",
+            ]
+          : [],
   };
 }

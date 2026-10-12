@@ -40,7 +40,7 @@ export function renderStatus(status: ServiceStatus) {
       ? [`${status.logError.code}: ${status.logError.message}`]
       : []),
     `Workflows ${status.availableWorkflowCount} / ${status.workflowCount} available`,
-    `Runs running ${status.runningRuns} · waiting ${status.waitingRuns} · completed ${status.completedRuns} · failed or stopped ${status.failedRuns}`,
+    `Runs running ${status.runningRuns} · waiting ${status.waitingRuns} · paused ${status.pausedRuns ?? 0} · completed ${status.completedRuns} · failed or stopped ${status.failedRuns}`,
   ].join("\n");
 }
 export function renderDiagnosis(diagnosis: ProjectDiagnosis) {
