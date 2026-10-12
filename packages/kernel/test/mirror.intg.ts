@@ -362,11 +362,7 @@ for (const backend of ["file", "sqlite"] as const)
     );
   });
 
-test("safe file scope rejects symlinks, case normalization, traversal and target Code conflicts", async (t) => {
-  const p = await mirrorProject(t, "file");
-  await writeFile(join(p.root, "case.txt"), "one");
-  await writeFile(join(p.root, "Case.txt"), "two").catch(() => {});
-  // macOS usually has a case-insensitive filesystem; the manifest still rejects collisions deterministically.
+test("safe file manifests reject case normalization, traversal and target Code conflicts", () => {
   assert.throws(
     () =>
       validateFilePaths({
@@ -399,6 +395,27 @@ test("safe file scope rejects symlinks, case normalization, traversal and target
       ),
     );
   }
+});
+
+test("safe file scan rejects case collisions on case-sensitive filesystems", async (t) => {
+  const p = await mirrorProject(t, "file");
+  await writeFile(join(p.root, "case.txt"), "one");
+  try {
+    await writeFile(join(p.root, "Case.txt"), "two", { flag: "wx" });
+  } catch (cause) {
+    if (!(cause instanceof Error && "code" in cause && cause.code === "EEXIST"))
+      throw cause;
+    t.skip("Filesystem cannot create distinct case.txt and Case.txt entries.");
+    return;
+  }
+  await assert.rejects(
+    scanFiles(p.root, {}),
+    /Case or Unicode normalization conflict/u,
+  );
+});
+
+test("safe file scan rejects symlinks", async (t) => {
+  const p = await mirrorProject(t, "file");
   await symlink("/tmp", join(p.root, "external"));
   await assert.rejects(scanFiles(p.root, {}), /Symbolic link/u);
 });
