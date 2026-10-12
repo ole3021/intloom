@@ -9,13 +9,9 @@ import { defineAgentTool } from "@intloom/workflow-sdk";
 import { Agent } from "@mastra/core/agent";
 import { noopLogger } from "@mastra/core/logger";
 import * as z from "zod";
-import {
-  agentSpec,
-  credential,
-  testConfig,
-} from "../../../test/agent-fixture.ts";
-import { agentId, source } from "../../../test/workflow-fixture.ts";
-import { createAgent } from "./create-agent.ts";
+import { agentSpec, credential, testConfig } from "./agent-fixture.ts";
+import { agentId, source } from "./workflow-fixture.ts";
+import { createAgent } from "../src/effector/service/create-agent.ts";
 
 test("assembles an actual Agent, inline Skill, Tools and model defaults without calling them", async (t) => {
   credential(t);
@@ -242,16 +238,16 @@ test("rejects duplicate Tools, duplicate Skills and invalid provider options", a
 
 test("actual SDK gate and Tool failures never print raw errors through internal stream Workflows", () => {
   const createAgentUrl = pathToFileURL(
-    resolve(import.meta.dirname, "create-agent.ts"),
+    resolve(import.meta.dirname, "../src/effector/service/create-agent.ts"),
   ).href;
   const accessUrl = pathToFileURL(
-    resolve(import.meta.dirname, "../../../test/effector-fixture.ts"),
+    resolve(import.meta.dirname, "effector-fixture.ts"),
   ).href;
   const agentFixtureUrl = pathToFileURL(
-    resolve(import.meta.dirname, "../../../test/agent-fixture.ts"),
+    resolve(import.meta.dirname, "agent-fixture.ts"),
   ).href;
   const workflowFixtureUrl = pathToFileURL(
-    resolve(import.meta.dirname, "../../../test/workflow-fixture.ts"),
+    resolve(import.meta.dirname, "workflow-fixture.ts"),
   ).href;
   const script = String.raw`
     import assert from "node:assert/strict";
@@ -305,7 +301,7 @@ test("actual SDK gate and Tool failures never print raw errors through internal 
       ["--input-type=module", "--eval", script, mode],
       {
         encoding: "utf8",
-        cwd: resolve(import.meta.dirname, "../../.."),
+        cwd: resolve(import.meta.dirname, ".."),
         timeout: 20000,
         env: {
           ...process.env,

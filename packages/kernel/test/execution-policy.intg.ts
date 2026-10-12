@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { projectFixture } from "../../test/project-fixture.ts";
-import { compiledWorkflow } from "../../test/initialization-fixture.ts";
-import { runtimeFixture } from "../../test/runtime-fixture.ts";
-import { agentId, codeId } from "../../test/workflow-fixture.ts";
-import { credential, testConfig } from "../../test/agent-fixture.ts";
-import { initializeProject } from "./initialize-project.ts";
-import { flow, listRuns, listWorkflows } from "./execution.ts";
-import { createEffector } from "../effector/create-effector.ts";
-import { loadConfig } from "./load-config.ts";
+import { projectFixture } from "./project-fixture.ts";
+import { compiledWorkflow } from "./initialization-fixture.ts";
+import { runtimeFixture } from "./runtime-fixture.ts";
+import { agentId, codeId } from "./workflow-fixture.ts";
+import { credential, testConfig } from "./agent-fixture.ts";
+import { initializeProject } from "../src/core/initialize-project.ts";
+import { flow, listRuns, listWorkflows } from "../src/core/execution.ts";
+import { createEffector } from "../src/effector/create-effector.ts";
+import { loadConfig } from "../src/core/load-config.ts";
 
 test("optional models and default policy preserve strict supplied config validation", async (t) => {
   const project = await projectFixture(t);

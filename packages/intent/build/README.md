@@ -20,4 +20,4 @@ bun run pack --filter=@intloom/workflow-intent --concurrency=1
 
 The pack task builds prerequisites and packs `dist`, writing the archive to the repository's `.release/` directory. Packing the private development root produces a different layout and is not the publication path. Building or packing does not publish to a registry. See [repository release tooling](../../../scripts/README.md) for archive validation and publication.
 
-[packed-package.intg.ts](../test/packed-package.intg.ts) installs archives with npm in an isolated consumer and checks resources, declarations, runtime dependencies, and file/SQLite access. These installation checks are separate from the manifest unit test.
+[packed-package.intg.ts](../test/package/packed-package.intg.ts) installs archives with npm in an isolated consumer and checks resources, declarations, runtime dependencies, and file/SQLite access. These installation checks are separate from the manifest unit test.

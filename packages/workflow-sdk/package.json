@@ -23,8 +23,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test \"src/**/*.spec.ts\"",
-    "test:intg": "node --test \"test/**/*.intg.ts\"",
-    "pack": "node ../../scripts/pack-package.ts ."
+    "pack": "node ../../scripts/pack-package.ts .",
+    "test:package": "node --test \"test/package/*.intg.ts\""
   },
   "license": "Apache-2.0",
   "repository": {
@@ -37,7 +37,7 @@
     "url": "https://github.com/ole3021/intloom/issues"
   },
   "engines": {
-    "node": ">=22.22.0"
+    "node": ">=26.4.0"
   },
   "publishConfig": {
     "access": "public"

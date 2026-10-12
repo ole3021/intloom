@@ -9,13 +9,13 @@ import { promisify } from "node:util";
 import type { Blueprint, ExecutableCode } from "@intloom/workflow-sdk";
 
 const packageName = "@intloom/workflow-intent";
-const root = fileURLToPath(new URL("../", import.meta.url));
+const root = fileURLToPath(new URL("../../", import.meta.url));
 const run = promisify(execFile);
 
 test("compiled Workflow exposes executable resources and excludes test files", async () => {
   assert.equal(
     import.meta.resolve(packageName),
-    new URL("../dist/workflow.generated.js", import.meta.url).href,
+    new URL("../../dist/workflow.generated.js", import.meta.url).href,
   );
   const output = await import(packageName);
   assert.deepEqual(Object.keys(output).sort(), [

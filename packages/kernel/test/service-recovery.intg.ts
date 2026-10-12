@@ -5,12 +5,15 @@ import { createServer } from "node:http";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
-import { projectFixture } from "../../test/project-fixture.ts";
-import { claimServiceRecovery } from "./discovery.ts";
-import { diagnoseProject, recoverProject } from "./recovery.ts";
+import { stopProject as projectFixture } from "./service-fixture.ts";
+import { claimServiceRecovery } from "@intloom/kernel/service/discovery";
+import {
+  diagnoseProject,
+  recoverProject,
+} from "@intloom/kernel/service/recovery";
 
 test("diagnosis does not create resources; clean recovery is a no-op", async (t) => {
-  const root = await projectFixture(t, false);
+  const root = await projectFixture(t);
   assert.equal((await diagnoseProject(root)).status, "offline");
   assert.equal((await recoverProject(root)).recovered, false);
   await assert.rejects(readFile(join(root, ".intloom/service.lock")), {
@@ -19,7 +22,7 @@ test("diagnosis does not create resources; clean recovery is a no-op", async (t)
 });
 
 test("unknown owner is blocked and malformed metadata is preserved", async (t) => {
-  const root = await projectFixture(t, false);
+  const root = await projectFixture(t);
   await mkdir(join(root, ".intloom"), { mode: 0o700 });
   const filename = join(root, ".intloom/service.lock");
   const original = JSON.stringify({
@@ -44,7 +47,7 @@ test("unknown owner is blocked and malformed metadata is preserved", async (t) =
 });
 
 test("recovery lock release never removes a replacement instance", async (t) => {
-  const root = await projectFixture(t, false);
+  const root = await projectFixture(t);
   await mkdir(join(root, ".intloom"), { mode: 0o700 });
   const filename = join(root, ".intloom/service.lock");
   const release = await claimServiceRecovery(root, undefined);
@@ -58,7 +61,7 @@ test("recovery lock release never removes a replacement instance", async (t) => 
 });
 
 test("interrupted cleanup with an absent recovery owner can be resumed", async (t) => {
-  const root = await projectFixture(t, false);
+  const root = await projectFixture(t);
   const child = spawn(process.execPath, ["-e", ""], { stdio: "ignore" });
   await new Promise<void>((resolve) => child.once("exit", () => resolve()));
   assert.ok(child.pid);

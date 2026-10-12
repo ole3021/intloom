@@ -26,7 +26,7 @@ Workflow 定义一个流程，Run 是针对一个意图的一次执行。Agents 
 
 ## 开始使用
 
-CLI 和启动包需要 Node.js 26.4.0+，其他公共包保持支持 Node.js 22.22.0+。开发本仓库需要 Node.js 26.4.0+、Bun 1.4.0+ 和 npm。以下使用源码版本；发布版本的使用前提和完整配置步骤见[安装指南](./docs/zh/guide/quickstart/installation.md)。
+所有 IntLoom 包统一要求 Node.js 26.4.0+。开发本仓库需要 Node.js 26.4.0+、Bun 1.4.0+ 和 npm。以下使用源码版本；发布版本的使用前提和完整配置步骤见[安装指南](./docs/zh/guide/quickstart/installation.md)。
 
 在仓库根目录构建 CLI，并查看帮助：
 

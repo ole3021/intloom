@@ -46,7 +46,14 @@ interface Task {
   resolvedTaskDefinition: { outputs: string[]; cache: boolean };
 }
 
-for (const command of ["build", "typecheck", "test", "test:intg", "pack"]) {
+for (const command of [
+  "build",
+  "typecheck",
+  "test",
+  "test:intg",
+  "test:package",
+  "pack",
+]) {
   test(`${command}: resolved task graph preserves build prerequisites and outputs`, async () => {
     const { stdout } = await run(
       resolve(root, "node_modules/.bin/turbo"),
@@ -103,11 +110,27 @@ for (const command of ["build", "typecheck", "test", "test:intg", "pack"]) {
           `${id} must run`,
         );
       }
-      // CLI source tests share a fixture that imports the built public CLI entry.
-      if (command === "test" && name === "@intloom/cli") {
-        assert.ok(
+      if (command === "test") {
+        assert.equal(
           required.has(`${name}#build`),
-          `${id} must wait for its shared fixture's build`,
+          false,
+          `${id} must not build its own package`,
+        );
+        assert.equal(
+          task.resolvedTaskDefinition.cache,
+          false,
+          `${id} must execute tests`,
+        );
+      }
+      if (command === "test:package") {
+        assert.ok(
+          required.has(`${name}#pack`),
+          `${id} must consume its packed archive`,
+        );
+        assert.equal(
+          task.resolvedTaskDefinition.cache,
+          false,
+          `${id} must execute consumers`,
         );
       }
       if (command === "build") {

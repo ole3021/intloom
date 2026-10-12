@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Require Node.js 26.4.0+ across packages and Node.js 26 declarations; reduce consumer verification to the minimum and latest Node 26 on Linux/macOS.
+- Separate unit, business integration and prepared-archive consumer tests with one `bun run verify` entry; cover the complete Intent Workflow and repair after a real failed host check.
+- Keep the existing logger serializer signature self-contained so strict Node.js 26 declaration consumers do not inherit unrelated Pino transport types.
 - Retry npm publication visibility before consumer verification, and distinguish unavailable versions from actual archive integrity conflicts.
 - Reserve CLI start/stop for service lifecycle and use flow, cancelRun, and cancelAllRuns for Kernel/Runtime execution.
 - Standardize RunView.cursor across CLI/MCP, query and answer names, and Workflow initialization diagnostic types.

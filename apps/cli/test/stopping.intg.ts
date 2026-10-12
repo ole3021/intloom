@@ -227,6 +227,7 @@ for (const storage of ["file", "sqlite"] as const)
           json: false,
           stdoutBytes: Buffer.byteLength(result.stdout),
           stderrBytes: Buffer.byteLength(result.stderr),
+          stderr: result.stderr.slice(0, 400),
           stderrMarker: [
             "ENOENT",
             "EACCES",

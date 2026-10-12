@@ -9,8 +9,8 @@ import {
   storageContract,
   storageDirectory,
   storageCleanup,
-} from "../../../test/storage-contract.ts";
-import { openSqliteStorage } from "./open.ts";
+} from "./storage-contract.ts";
+import { openSqliteStorage } from "../src/storage/sqlite/open.ts";
 
 storageContract("sqlite", (directory) =>
   openSqliteStorage({

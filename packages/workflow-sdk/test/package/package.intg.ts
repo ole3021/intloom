@@ -1,8 +1,8 @@
+import { testArchives } from "../../../../scripts/test-packages.ts";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
   cp,
-  mkdir,
   mkdtemp,
   readFile,
   readdir,
@@ -23,7 +23,7 @@ import {
 } from "@intloom/workflow-sdk";
 
 const run = promisify(execFile);
-const root = fileURLToPath(new URL("../", import.meta.url));
+const root = fileURLToPath(new URL("../../", import.meta.url));
 const require = createRequire(import.meta.url);
 const tsc = resolve(
   dirname(require.resolve("typescript/package.json")),
@@ -35,14 +35,14 @@ test("loads the built SDK without a Kernel, Agent framework, or database depende
   assert.equal(typeof defineAgentTool, "function");
   assert.equal(
     import.meta.resolve("@intloom/workflow-sdk"),
-    new URL("../dist/index.js", import.meta.url).href,
+    new URL("../../dist/index.js", import.meta.url).href,
   );
   assert.equal(
     userAnswerConfirmationSchema.parse({ isConfirmed: false }).isConfirmed,
     false,
   );
   assert.equal(workflowProtocolVersion, "2026-10-08");
-  const root = new URL("../", import.meta.url);
+  const root = new URL("../../", import.meta.url);
   const manifest = JSON.parse(
     await readFile(new URL("package.json", root), "utf8"),
   );
@@ -76,24 +76,14 @@ test("installs SDK archives and checks runtime and declarations without reposito
 }, async (t) => {
   const temporary = await mkdtemp(resolve(tmpdir(), "intloom-sdk-consumer-"));
   t.after(() => rm(temporary, { recursive: true, force: true }));
-  const archives = resolve(temporary, "archives");
   const consumer = resolve(temporary, "consumer");
-  await mkdir(archives);
   await cp(resolve(root, "test/fixtures/consumer"), consumer, {
     recursive: true,
   });
-  const packages: Record<string, string> = {};
-  for (const [name, directory] of [
-    ["@intloom/workflow-sdk", root],
-    ["@intloom/utils", resolve(root, "../utils")],
-  ] as const) {
-    const { stdout } = await run(
-      "bun",
-      ["pm", "pack", "--destination", archives, "--ignore-scripts", "--quiet"],
-      { cwd: directory },
-    );
-    packages[name] = resolve(archives, stdout.trim());
-  }
+  const packages = await testArchives([
+    "@intloom/workflow-sdk",
+    "@intloom/utils",
+  ]);
   const manifest = JSON.parse(
     await readFile(resolve(root, "package.json"), "utf8"),
   );
@@ -108,7 +98,7 @@ test("installs SDK archives and checks runtime and declarations without reposito
         "@intloom/utils": `file:${packages["@intloom/utils"]}`,
         zod: manifest.dependencies.zod,
       },
-      devDependencies: { "@types/node": "^22" },
+      devDependencies: { "@types/node": "^26" },
     }),
   );
   const base = JSON.parse(

@@ -52,8 +52,9 @@
     "build": "bun build/clean.ts && tsc -p tsconfig.build.json && bun build/compile-tui.ts && node build/prepare-package.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test \"src/**/*.spec.ts\"",
-    "test:intg": "node --test \"test/**/*.intg.ts\"",
-    "pack": "node ../../scripts/pack-package.ts .publish && node ../../scripts/pack-package.ts .publish-intloom"
+    "test:intg": "node --test \"test/*.intg.ts\"",
+    "pack": "node ../../scripts/pack-package.ts .publish && node ../../scripts/pack-package.ts .publish-intloom",
+    "test:package": "node --test \"test/package/*.intg.ts\""
   },
   "license": "Apache-2.0",
   "repository": {

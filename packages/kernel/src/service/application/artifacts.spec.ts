@@ -7,7 +7,7 @@ import {
   listArtifacts,
 } from "./artifacts.ts";
 import type { StorageReadAccess } from "@intloom/kernel";
-import { artifact } from "../../test/artifact-fixture.ts";
+import { artifact } from "../../../test/artifact-fixture.ts";
 
 test("Artifact selectors accept exactly one identity and reject incomplete or unsafe inputs", () => {
   assert.deepEqual(parseArtifactSelector({ artifactId: "ART-todo" }), {

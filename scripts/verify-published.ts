@@ -7,6 +7,9 @@ import { promisify } from "node:util";
 import { retryPublishedInstall, verifyPublishedEntries } from "./registry.ts";
 import { readReleaseManifest } from "./release-files.ts";
 
+const [major = 0, minor = 0] = process.versions.node.split(".").map(Number);
+if (major < 26 || (major === 26 && minor < 4))
+  throw new Error("Consumer verification requires Node >=26.4.0.");
 const release = await readReleaseManifest();
 if (process.env.GITHUB_SHA && release.commit !== process.env.GITHUB_SHA)
   throw new Error("Release commit mismatch.");
@@ -14,17 +17,11 @@ await verifyPublishedEntries(release.entries);
 const temporary = await mkdtemp(resolve(tmpdir(), "intloom-published-"));
 const run = promisify(execFile);
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-const [major = 0, minor = 0] = process.versions.node.split(".").map(Number);
-const supportsCli = major > 26 || (major === 26 && minor >= 4);
 try {
-  for (const launcher of supportsCli ? ["@intloom/cli", "intloom"] : [null]) {
+  for (const launcher of ["@intloom/cli", "intloom"]) {
     const project = resolve(
       temporary,
-      launcher === null
-        ? "sdk"
-        : launcher === "intloom"
-          ? "launcher"
-          : "scoped",
+      launcher === "intloom" ? "launcher" : "scoped",
     );
     await mkdir(project);
     const dependencies = Object.fromEntries(
@@ -69,24 +66,18 @@ assert.equal(typeof compileWorkflow,"function");
 assert.equal(workflowProtocolVersion,createRequire(import.meta.url)("@intloom/workflow-intent/package.json").intloom.version);
 assert.equal(blueprint.flowName,"intent");
 await assert.rejects(import("@intloom/kernel"),{code:"ERR_MODULE_NOT_FOUND"});
-${
-  supportsCli
-    ? `const require = createRequire(import.meta.resolve("@intloom/cli"));
+const require = createRequire(import.meta.resolve("@intloom/cli"));
 for (const [specifier, options] of [["file",{directory:resolve("file-store")}],["sqlite",{filename:resolve("store.sqlite"),projectId:"published"}]]) {
  const storage = await import(pathToFileURL(require.resolve("@intloom/kernel/storage/"+specifier)).href);
  const handle = await (specifier === "file" ? storage.openFileStorage(options) : storage.openSqliteStorage(options));
  try {await handle.access.commit([{type:"append_record",id:"published",payload:{flowName:"intent",stageName:"specification",data:"verified"}}]);assert.equal((await handle.access.getRecordById("published")).data,"verified");}
  finally {await handle.dispose();}
 }
-`
-    : ""
-}
 `,
     );
     await run(process.execPath, [resolve(project, "consumer.mjs")], {
       cwd: project,
     });
-    if (launcher === null) continue;
     // Isolated global prefixes exercise each advertised install command without changing the user's global bin.
     const prefix = resolve(project, "global");
     await retryPublishedInstall(release.entries, () =>
@@ -169,9 +160,7 @@ for (const [specifier, options] of [["file",{directory:resolve("file-store")}],[
     }
   }
   console.log(
-    supportsCli
-      ? "Both npm entries, Workflow imports, CLI setup and file/SQLite storage passed; remote models remain separate acceptance."
-      : "Public SDK imports passed on this runtime. CLI requires Node >=26.4.0.",
+    "Both npm entries, Workflow imports, CLI setup and file/SQLite storage passed; remote models remain separate acceptance.",
   );
 } finally {
   await rm(temporary, { recursive: true, force: true });

@@ -15,25 +15,11 @@ The generated entry exports exactly `blueprint`, `codes`, and `agentSpecs`. Keep
 
 Default build configuration is `tsconfig.build.json`. `tsconfigFile` can select another configuration inside the package root. Referenced runtime imports must be built-in modules or declared package dependencies. Compiler excludes source-adjacent `.spec.ts`, `.intg.ts`, and `test/` from production output.
 
-## Validate two boundaries
+## Validate your Workflow
 
-| Validation | What to exercise |
-| --- | --- |
-| Source unit tests | Code behavior, schemas, Tool validation, routing decisions, and business errors |
-| Built-package integration | Public exports, installed module resolution, packaged assets, real host execution, interaction, and persistence |
+Test the authored Code, Schemas and Tools, then install the compiled archive into a clean project and verify its behavior through the intended host. Check public exports, declarations and Skill assets without access to the authoring source. Keep tests out of production output.
 
-Use Node.js `node:test` for tests. Keep unit tests beside their target source and integration tests in `test/`. Include source, tests, and type contracts in type checking, while production builds exclude tests.
-
-For an IntLoom repository workspace, run from the repository root:
-
-```sh
-bun run build --filter=<package-name> --concurrency=1
-bun run check
-bun run test --filter=<package-name>
-bun run test:intg --filter=<package-name> --concurrency=1
-```
-
-Replace the package name and provide workspace scripts. A Compiler success proves artifact construction, not model quality or the workflow's real side effects. Use controlled model responses for repeatable engine tests, and separately validate the intended real model or MCP client.
+Controlled model responses make execution checks repeatable. Validate real model quality and the intended MCP client separately. Compilation success alone does not establish either.
 
 ## Produce an archive
 

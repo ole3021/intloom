@@ -267,7 +267,8 @@ llms:
   for (const stage of Object.values(blueprint.stages)) {
     for (const step of Object.values(stage.steps)) {
       if (step.execution.kind !== "code") continue;
-      const code = execution.registries.codes[step.execution.codeId];
+      const code: ExecutableCode | undefined =
+        execution.registries.codes[step.execution.codeId];
       assert.ok(code);
       names.set(code, step.stepName);
     }

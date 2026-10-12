@@ -8,8 +8,8 @@ import {
   storageContract,
   storageDirectory,
   storageCleanup,
-} from "../../../test/storage-contract.ts";
-import { openFileStorage } from "./open.ts";
+} from "./storage-contract.ts";
+import { openFileStorage } from "../src/storage/file/open.ts";
 
 storageContract("file", (directory) => openFileStorage({ directory }));
 storageContract("directories", (directory) =>

@@ -15,18 +15,18 @@ import {
   executionAccess,
   latestToolResult,
   scriptedAgent,
-} from "../../test/effector-fixture.ts";
+} from "./effector-fixture.ts";
 import {
   agentExecutionContextKey,
   getAgentExecutionAccess,
-} from "./agent-context.ts";
-import { createEffector } from "./create-effector.ts";
-import { agentJsonSchema } from "./agent-tool.ts";
-import { deferred, runtimeFixture } from "../../test/runtime-fixture.ts";
-import { createRuntime } from "../runtime/create-runtime.ts";
-import type { Blueprint } from "../workflow/blueprint.ts";
-import type { AgentExecutionAccess } from "./execution.ts";
-import type { JsonValue } from "../shared/json.ts";
+} from "../src/effector/agent-context.ts";
+import { createEffector } from "../src/effector/create-effector.ts";
+import { agentJsonSchema } from "../src/effector/agent-tool.ts";
+import { deferred, runtimeFixture } from "./runtime-fixture.ts";
+import { createRuntime } from "../src/runtime/create-runtime.ts";
+import type { Blueprint } from "../src/workflow/blueprint.ts";
+import type { AgentExecutionAccess } from "../src/effector/execution.ts";
+import type { JsonValue } from "../src/shared/json.ts";
 
 test("invalid Tool inputs can be corrected in the same Agent invocation before side effects", async () => {
   let attempts = 0;

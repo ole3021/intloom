@@ -2,14 +2,10 @@ import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { test } from "node:test";
-import { compiledWorkflow } from "../../test/initialization-fixture.ts";
-import {
-  askingCode,
-  configText,
-  projectFixture,
-} from "../../test/project-fixture.ts";
-import { runtimeFixture } from "../../test/runtime-fixture.ts";
-import { codeId, agentId } from "../../test/workflow-fixture.ts";
+import { compiledWorkflow } from "./initialization-fixture.ts";
+import { askingCode, configText, projectFixture } from "./project-fixture.ts";
+import { runtimeFixture } from "./runtime-fixture.ts";
+import { codeId, agentId } from "./workflow-fixture.ts";
 import {
   answerAsk,
   getRun,
@@ -17,8 +13,8 @@ import {
   listWorkflows,
   flow,
   cancelAllRuns,
-} from "./execution.ts";
-import { initializeProject } from "./initialize-project.ts";
+} from "../src/core/execution.ts";
+import { initializeProject } from "../src/core/initialize-project.ts";
 
 test("initializes stable Registries and an idle Runtime without creating a Kernel facade", async (t) => {
   const project = await projectFixture(t);

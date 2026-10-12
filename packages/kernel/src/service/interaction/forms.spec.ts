@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { actionForm } from "./forms.ts";
-import { action, confirmation } from "../../test/unit-fixture.ts";
+import { action, confirmation } from "../../../test/interaction-fixture.ts";
 import { resolveIde } from "../ide/resolve.ts";
 
 test("flat native form maps options to exact labels and explicit skip", () => {

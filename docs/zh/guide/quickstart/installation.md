@@ -5,7 +5,7 @@ description: 准备 CLI，初始化空项目，并安装兼容的 Workflow 包�
 
 # 安装与项目配置
 
-CLI/入口包要求 Node.js >=26.4.0；公共 SDK/Compiler 保留 Node.js >=22.22.0。开发本仓库和准备发布需要 Node.js 26.4.0 或更新版本，以及 Bun 1.4.0 或更新版本。安装 Workflow 要求 `PATH` 中可找到 npm。
+所有 IntLoom 包统一要求 Node.js >=26.4.0。开发本仓库和准备发布需要 Node.js 26.4.0 或更新版本，以及 Bun 1.4.0 或更新版本。安装 Workflow 要求 `PATH` 中可找到 npm。
 
 ## 使用当前源码
 

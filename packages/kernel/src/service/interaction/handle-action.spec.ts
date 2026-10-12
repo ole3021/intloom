@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { handlePendingAction } from "./handle-action.ts";
-import { view, action } from "../../test/unit-fixture.ts";
+import { view, action } from "../../../test/interaction-fixture.ts";
 
 test("submits to the original Run/action and returns the next authoritative view", async () => {
   const next = {

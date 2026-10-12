@@ -1,8 +1,99 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { test } from "node:test";
 import { createCliCore } from "@intloom/cli";
 import { projectFixture } from "./project-fixture.ts";
+
+test("a lost mutation response is recovered from its receipt without submitting a second Run", {
+  timeout: 20000,
+}, async (t) => {
+  const projectPath = await projectFixture(t);
+  const core = createCliCore();
+  const started = await core.startService({ projectPath });
+  assert.ok(started.ok);
+  const serviceInstanceId = started.data.service.instanceId;
+  const operationId = randomUUID();
+  const original = globalThis.fetch;
+  let submissions = 0;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (...args: Parameters<typeof fetch>) => {
+      const response = await original(...args);
+      if (
+        new URL(String(args[0])).pathname === "/api/v1/cli/runs" &&
+        args[1]?.method === "POST"
+      ) {
+        submissions++;
+        assert.equal(response.status, 200);
+        await response.arrayBuffer();
+        throw new TypeError("simulated response loss after admission");
+      }
+      return response;
+    },
+  );
+  const result = await core.flow({
+    projectPath,
+    serviceInstanceId,
+    operationId,
+    flowName: "fixture",
+    intent: "one admission",
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "REQUEST_OUTCOME_UNKNOWN");
+    assert.equal(result.outcome, "unknown");
+  }
+  const receipt = await core.getOperation({
+    projectPath,
+    serviceInstanceId,
+    operationId,
+  });
+  assert.ok(receipt.ok && receipt.data?.status === "accepted");
+  const run = await core.getRun({
+    projectPath,
+    serviceInstanceId,
+    runId: receipt.data.runId,
+  });
+  assert.ok(run.ok);
+  const all = await core.listRuns({ projectPath });
+  assert.ok(all.ok);
+  assert.deepEqual(
+    all.data.map((item) => item.runId),
+    [receipt.data.runId],
+  );
+  assert.equal(submissions, 1);
+});
+
+test("stale configuration revisions preserve the latest edit through the public Core", async (t) => {
+  const projectPath = await projectFixture(t, false);
+  const core = createCliCore();
+  const initial = await core.readProjectConfig({ projectPath });
+  assert.ok(initial.ok);
+  const configuration = "intent: {apps: []}\n# latest user edit\n";
+  const updated = await core.updateProjectConfig({
+    projectPath,
+    revision: initial.data.revision,
+    configuration,
+  });
+  assert.ok(updated.ok);
+  const stale = await core.updateProjectConfig({
+    projectPath,
+    revision: initial.data.revision,
+    configuration: "intent: {apps: []}\n# stale edit\n",
+  });
+  assert.equal(stale.ok, false);
+  if (!stale.ok) assert.equal(stale.error.code, "CONFLICT");
+  assert.equal(
+    await readFile(join(projectPath, "intloom.yaml"), "utf8"),
+    configuration,
+  );
+  const current = await core.readProjectConfig({ projectPath });
+  assert.ok(current.ok);
+  assert.equal(current.data.revision, updated.data.revision);
+});
 
 test("Core uses the independent Kernel process and shares full snapshots across clients", {
   timeout: 20000,

@@ -55,7 +55,7 @@ jobs:
           bun run check
           bun run test
           bun run test:intg
-          node scripts/pack-package.ts --selected
+          bun run pack
           node scripts/release-manifest.ts --selected
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: steps.plan.outputs.has-release == 'true'
@@ -68,6 +68,7 @@ jobs:
             packages/workflow-sdk/dist/
             packages/compiler/dist/
             packages/intent/dist/
+            .release/*.tgz
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
@@ -119,7 +120,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node: ['22.22.0', '22', '24', '26.4.0', '26']
+        node: ['26.4.0', '26']
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:

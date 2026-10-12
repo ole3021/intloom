@@ -1,3 +1,4 @@
+import { testArchives } from "../../../../scripts/test-packages.ts";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
@@ -6,7 +7,6 @@ import {
   readFile,
   readdir,
   rm,
-  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -14,112 +14,24 @@ import { resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import type { LoomConfig } from "@intloom/kernel";
-import {
-  discoverWorkflows,
-  initializeWorkflows,
-  loadWorkflow,
-} from "@intloom/kernel/workflow";
+import { modelConfig } from "../loader-fixture.ts";
 
 const run = promisify(execFile);
-const root = fileURLToPath(new URL("../", import.meta.url));
-
-function modelConfig(version: string): LoomConfig {
-  return {
-    intent: { apps: [] },
-    localStorage: "file",
-    workflows: [
-      { name: "@intloom/workflow-intent", version, sha256: "a".repeat(64) },
-    ],
-    useMcpAgent: true,
-    llms: {
-      default: {
-        provider: "openai-compatible",
-        model: "fixture-model",
-        secret: "ENV.INTLOOM_PACKED_TEST_KEY",
-        baseURL: "https://model.invalid/v1",
-      },
-    },
-  };
-}
-
-test("loads local workspace Intent with resources relative to its resolved entry", async (t) => {
-  const previous = process.env.INTLOOM_PACKED_TEST_KEY;
-  process.env.INTLOOM_PACKED_TEST_KEY = "fixture-credential";
-  t.after(() => {
-    if (previous === undefined) delete process.env.INTLOOM_PACKED_TEST_KEY;
-    else process.env.INTLOOM_PACKED_TEST_KEY = previous;
-  });
-  t.mock.method(globalThis, "fetch", async () => {
-    throw new Error("Initialization must not call the model");
-  });
-  const project = await mkdtemp(resolve(tmpdir(), "intent-local-"));
-  t.after(() => rm(project, { recursive: true, force: true }));
-  const installation = resolve(project, ".intloom/workflows");
-  await mkdir(resolve(installation, "node_modules/@intloom"), {
-    recursive: true,
-  });
-  await symlink(
-    root,
-    resolve(installation, "node_modules/@intloom/workflow-intent"),
-    "dir",
-  );
-  const manifest = JSON.parse(
-    await readFile(resolve(root, "package.json"), "utf8"),
-  );
-  const config = modelConfig(manifest.version);
-  const {
-    sources: [source],
-    failures,
-  } = await discoverWorkflows(installation, config.workflows);
-  assert.deepEqual(failures, []);
-  assert.ok(source);
-  assert.equal(source.assetRoot, resolve(source.packageRoot, "dist"));
-  const workflow = await loadWorkflow(source);
-  assert.equal(workflow.blueprint.flowName, "intent");
-  const result = await initializeWorkflows({
-    projectRoot: project,
-    config,
-  });
-  assert.deepEqual(result.workflows, [
-    {
-      packageName: "@intloom/workflow-intent",
-      flowName: "intent",
-      isAvailable: true,
-    },
-  ]);
-  for (const agent of Object.values(result.registries.agents)) {
-    assert.equal(
-      agent.spec.skills.length,
-      agent.spec.name === "intent-analyst" ? 3 : 0,
-    );
-    assert.ok(agent.spec.tools.length >= 2);
-  }
-});
+const root = fileURLToPath(new URL("../../", import.meta.url));
 
 test("installs root-layout tarballs and loads Intent without repository sources or Compiler", {
   timeout: 120_000,
 }, async (t) => {
   const temporary = await mkdtemp(resolve(tmpdir(), "intent-install-"));
   t.after(() => rm(temporary, { recursive: true, force: true }));
-  const archives = resolve(temporary, "archives");
   const project = resolve(temporary, "consumer/.intloom/workflows");
-  await mkdir(archives);
   await mkdir(project, { recursive: true });
-  const packages: Record<string, string> = {};
-  for (const [name, directory] of [
-    ["workflow-intent", resolve(root, "dist")],
-    ["cli", resolve(root, "../../apps/cli/.publish")],
-    ["workflow-sdk", resolve(root, "../workflow-sdk")],
-    ["utils", resolve(root, "../utils")],
-  ]) {
-    const { stdout } = await run(
-      "bun",
-      ["pm", "pack", "--destination", archives, "--ignore-scripts", "--quiet"],
-      { cwd: directory },
-    );
-    packages[`@intloom/${name}`] = resolve(archives, stdout.trim());
-  }
+  const packages = await testArchives([
+    "@intloom/workflow-intent",
+    "@intloom/cli",
+    "@intloom/workflow-sdk",
+    "@intloom/utils",
+  ]);
   await writeFile(
     resolve(project, "package.json"),
     JSON.stringify({
@@ -127,6 +39,7 @@ test("installs root-layout tarballs and loads Intent without repository sources 
       dependencies: Object.fromEntries(
         Object.entries(packages).map(([name, file]) => [name, `file:${file}`]),
       ),
+      devDependencies: { "@types/node": "^26" },
       // Resolve internal dependencies and peers to the tarballs produced by this test.
       overrides: Object.fromEntries(
         Object.entries(packages).map(([name, file]) => [name, `file:${file}`]),
@@ -135,11 +48,15 @@ test("installs root-layout tarballs and loads Intent without repository sources 
   );
   try {
     // npm exercises bundled dependencies and native installation; Node runs consumers.
-    await run("npm", ["install", "--no-audit", "--no-fund"], {
-      cwd: project,
-      timeout: 90_000,
-      maxBuffer: 1024 * 1024,
-    });
+    await run(
+      "npm",
+      ["install", "--engine-strict", "--no-audit", "--no-fund"],
+      {
+        cwd: project,
+        timeout: 90_000,
+        maxBuffer: 1024 * 1024,
+      },
+    );
   } catch (cause) {
     throw new Error(
       `Tarball installation failed: ${cause instanceof Error && "stderr" in cause ? String(cause.stderr) : String(cause)}`,
@@ -292,12 +209,6 @@ workflow.blueprint satisfies Blueprint;
       },
       files: ["consumer.ts"],
     }),
-  );
-  // Install type dependencies too; do not link repository sources or declarations.
-  await run(
-    "bun",
-    ["add", "--dev", "@types/node@24", "--ignore-scripts", "--no-progress"],
-    { cwd: project, timeout: 30_000 },
   );
   try {
     await run(

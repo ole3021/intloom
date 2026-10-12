@@ -1,3 +1,4 @@
+import { testArchives } from "../../../../scripts/test-packages.ts";
 import assert from "node:assert/strict";
 import { execFile, type ExecFileOptions } from "node:child_process";
 import {
@@ -34,11 +35,9 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
 }, async (t) => {
   const temporary = await mkdtemp(join(tmpdir(), "intloom-cli-package-"));
   t.after(() => rm(temporary, { recursive: true, force: true }));
-  const archives = join(temporary, "archives");
   const consumerRoot = join(temporary, "consumer");
-  await mkdir(archives);
   await mkdir(consumerRoot);
-  const root = fileURLToPath(new URL("../../../", import.meta.url));
+  const root = fileURLToPath(new URL("../../../../", import.meta.url));
   const repositoryManifest = JSON.parse(
     await readFile(join(root, "package.json"), "utf8"),
   );
@@ -46,24 +45,13 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
     dirname(createRequire(import.meta.url).resolve("typescript/package.json")),
     "bin/tsc",
   );
-  const packages: Record<string, string> = {};
-  for (const [name, directory] of [
-    ["cli", "apps/cli/.publish"],
-    ["intloom", "apps/cli/.publish-intloom"],
-    ["workflow-sdk", "packages/workflow-sdk"],
-    ["workflow-intent", "packages/intent/dist"],
-    ["utils", "packages/utils"],
-  ] as const) {
-    const { stdout } = await run(
-      "bun",
-      ["pm", "pack", "--destination", archives, "--ignore-scripts", "--quiet"],
-      { cwd: resolve(root, directory) },
-    );
-    packages[name === "intloom" ? name : `@intloom/${name}`] = resolve(
-      archives,
-      stdout.trim(),
-    );
-  }
+  const packages = await testArchives([
+    "@intloom/cli",
+    "intloom",
+    "@intloom/workflow-sdk",
+    "@intloom/workflow-intent",
+    "@intloom/utils",
+  ]);
   function archiveFor(name: string): string {
     const archive = packages[name];
     assert.ok(archive, `Missing archive for ${name}`);
@@ -145,7 +133,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
         ),
       );
       assert.equal(embeddedKernel.private, true);
-      assert.equal(embeddedKernel.engines.node, ">=22.22.0");
+      assert.equal(embeddedKernel.engines.node, ">=26.4.0");
       assert.equal(embeddedKernel.dependencies, undefined);
       assert.equal(
         files.some((file) =>

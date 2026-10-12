@@ -1,6 +1,7 @@
+import { testArchives } from "../../../../scripts/test-packages.ts";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
@@ -13,7 +14,7 @@ const run = promisify(execFile);
 test("loads the compiler through the built package entry", async () => {
   assert.equal(
     import.meta.resolve("@intloom/compiler"),
-    new URL("../dist/index.js", import.meta.url).href,
+    new URL("../../dist/index.js", import.meta.url).href,
   );
   const compiler = await import("@intloom/compiler");
   assert.equal(typeof compiler.compileWorkflow, "function");
@@ -24,32 +25,26 @@ test("installs public Compiler/SDK archives and compiles a Workflow without Kern
 }, async (t) => {
   const temporary = await mkdtemp(resolve(tmpdir(), "intloom-author-"));
   t.after(() => rm(temporary, { recursive: true, force: true }));
-  const archives = resolve(temporary, "archives");
   const project = resolve(temporary, "workflow");
-  await mkdir(archives);
   await cp(
-    fileURLToPath(new URL("./fixtures/workflow/", import.meta.url)),
+    fileURLToPath(new URL("../fixtures/workflow/", import.meta.url)),
     project,
     { recursive: true },
   );
-  const repository = fileURLToPath(new URL("../../../", import.meta.url));
-  const packages: Record<string, string> = {};
-  for (const name of ["compiler", "workflow-sdk", "utils"]) {
-    const { stdout } = await run(
-      "bun",
-      ["pm", "pack", "--destination", archives, "--ignore-scripts", "--quiet"],
-      { cwd: resolve(repository, "packages", name) },
-    );
-    packages[`@intloom/${name}`] = resolve(archives, stdout.trim());
-  }
+  const repository = fileURLToPath(new URL("../../../../", import.meta.url));
+  const packages = await testArchives([
+    "@intloom/compiler",
+    "@intloom/workflow-sdk",
+    "@intloom/utils",
+  ]);
   const manifest = JSON.parse(
     await readFile(resolve(project, "package.json"), "utf8"),
   );
   manifest.dependencies["@intloom/workflow-sdk"] =
-    packages["@intloom/workflow-sdk"];
+    `file:${packages["@intloom/workflow-sdk"]}`;
   manifest.devDependencies = {
-    "@intloom/compiler": packages["@intloom/compiler"],
-    "@types/node": "^22",
+    "@intloom/compiler": `file:${packages["@intloom/compiler"]}`,
+    "@types/node": "^26",
   };
   manifest.overrides = Object.fromEntries(
     Object.entries(packages).map(([name, file]) => [name, `file:${file}`]),
@@ -74,10 +69,20 @@ test("installs public Compiler/SDK archives and compiles a Workflow without Kern
     resolve(project, "codes/sdk-contract.ts"),
     'import type { Blueprint, ExecutableCode } from "@intloom/workflow-sdk"; export const code: ExecutableCode = () => ({ outcome: "done" }); export type Contract = Blueprint;',
   );
-  await run("bun", ["install", "--ignore-scripts", "--no-progress"], {
-    cwd: project,
-    timeout: 90_000,
-  });
+  await run(
+    "npm",
+    [
+      "install",
+      "--engine-strict",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+    ],
+    {
+      cwd: project,
+      timeout: 90_000,
+    },
+  );
   await writeFile(
     resolve(project, "build.mjs"),
     'import assert from "node:assert/strict"; import { compileWorkflow } from "@intloom/compiler"; await assert.rejects(import("@intloom/kernel"), { code: "ERR_MODULE_NOT_FOUND" }); await compileWorkflow({ packageRoot: process.cwd() }); const output = await import("./dist/workflow.generated.js"); assert.equal(typeof output.blueprint.flowName, "string"); assert.equal(typeof Object.values(output.codes)[0], "function");',
@@ -102,7 +107,7 @@ test("resolves compiler declarations without source path mappings", async () => 
     tsc,
     "--project",
     fileURLToPath(
-      new URL("./fixtures/consumer/tsconfig.json", import.meta.url),
+      new URL("../fixtures/consumer/tsconfig.json", import.meta.url),
     ),
     "--pretty",
     "false",

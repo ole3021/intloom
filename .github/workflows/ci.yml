@@ -43,6 +43,7 @@ jobs:
             packages/workflow-sdk/dist/
             packages/compiler/dist/
             packages/intent/dist/
+            .release/*.tgz
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7

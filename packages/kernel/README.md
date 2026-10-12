@@ -66,7 +66,7 @@ The Runtime owns transient Run and Stage State. A host owns the Effector and Sto
 
 ## Development
 
-Use Node.js 24+ with Bun from the repository root:
+Use Node.js 26.4.0+ with Bun from the repository root:
 
 ```sh
 bun run typecheck --filter=@intloom/kernel
@@ -74,7 +74,7 @@ bun run test --filter=@intloom/kernel
 bun run test:intg --filter=@intloom/kernel
 ```
 
-Unit tests cover Kernel modules beside their source. Integration tests use the built package and exercise project initialization, Workflow loading, Runtime execution, and the formal Storage backends. They do not establish live model quality or a particular CLI/IDE user interface.
+Unit tests cover Kernel modules beside their source. Integration tests use source modules for detailed filesystem/SDK boundaries and built public entries for project initialization, Workflow loading, Runtime, service lifecycle and formal Storage contracts. Service tests belong here even when CLI consumes the same modules. They do not establish live model quality or a particular CLI/IDE user interface.
 
 ## Distribution
 

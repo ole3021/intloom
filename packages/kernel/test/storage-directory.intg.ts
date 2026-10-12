@@ -7,8 +7,8 @@ import {
   create,
   storageDirectory,
   storageCleanup,
-} from "../../../test/storage-contract.ts";
-import { openFileStorage } from "./open.ts";
+} from "./storage-contract.ts";
+import { openFileStorage } from "../src/storage/file/open.ts";
 
 test("directory layout publishes Artifact and Record together; failed publication and orphan content do not advance the visible store", async (t) => {
   const directory = await storageDirectory(t);

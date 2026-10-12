@@ -4,15 +4,12 @@ import fs, { chmod, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { join } from "node:path";
 import { test } from "node:test";
-import {
-  storageDirectory,
-  storageCleanup,
-} from "../../../test/storage-contract.ts";
-import { openFileStorage } from "./open.ts";
+import { storageDirectory, storageCleanup } from "./storage-contract.ts";
+import { openFileStorage } from "../src/storage/file/open.ts";
 import {
   inspectFileStorageLock,
   recoverFileStorageLock,
-} from "./maintenance.ts";
+} from "../src/storage/file/maintenance.ts";
 
 test("file maintenance is read-only and refuses a live owner", async (t) => {
   const directory = await storageDirectory(t);
