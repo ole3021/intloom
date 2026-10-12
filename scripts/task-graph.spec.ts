@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { glob, readFile } from "node:fs/promises";
+import {
+  cp,
+  glob,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -45,6 +54,55 @@ interface Task {
   dependencies: string[];
   resolvedTaskDefinition: { outputs: string[]; cache: boolean };
 }
+
+test("Kernel typecheck succeeds without its own generated declarations", async (t) => {
+  await run(
+    resolve(root, "node_modules/.bin/turbo"),
+    ["run", "build", "--filter=@intloom/kernel^..."],
+    { cwd: root },
+  );
+  const fixture = await mkdtemp(resolve(tmpdir(), "intloom-kernel-typecheck-"));
+  t.after(() => rm(fixture, { recursive: true, force: true }));
+  const source = resolve(root, "packages/kernel");
+  const directory = resolve(fixture, "packages/kernel");
+  await mkdir(directory, { recursive: true });
+  for (const path of [
+    "src",
+    "test",
+    "drizzle.config.ts",
+    "package.json",
+    "tsconfig.json",
+  ]) {
+    await cp(resolve(source, path), resolve(directory, path), {
+      recursive: true,
+    });
+  }
+  await cp(
+    resolve(root, "tsconfig.base.json"),
+    resolve(fixture, "tsconfig.base.json"),
+  );
+  // Reuse installed dependencies, but expose no Kernel dist or self-package link.
+  await symlink(
+    resolve(source, "node_modules"),
+    resolve(directory, "node_modules"),
+    "dir",
+  );
+  await mkdir(resolve(fixture, "node_modules"));
+  await symlink(
+    resolve(root, "node_modules/@types"),
+    resolve(fixture, "node_modules/@types"),
+    "dir",
+  );
+  await run(
+    process.execPath,
+    [
+      resolve(root, "node_modules/typescript/bin/tsc"),
+      "-p",
+      resolve(directory, "tsconfig.json"),
+    ],
+    { cwd: fixture },
+  );
+});
 
 for (const command of [
   "build",

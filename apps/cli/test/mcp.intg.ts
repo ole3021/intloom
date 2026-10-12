@@ -21,12 +21,28 @@ for (const era of ["legacy", "modern"] as const)
   }, async (t) => {
     const root = await projectFixture(t);
     await startService({ projectRoot: root });
-    const { client, transport } = await mcpClient(t, root, {
-      capabilities: { elicitation: { form: {} } },
-      ...(era === "modern"
-        ? { versionNegotiation: { mode: { pin: "2026-07-28" } } }
-        : {}),
-    });
+    let standaloneRequests = 0;
+    const { client, transport } = await mcpClient(
+      t,
+      root,
+      {
+        capabilities: { elicitation: { form: {} } },
+        ...(era === "modern"
+          ? { versionNegotiation: { mode: { pin: "2026-07-28" } } }
+          : {}),
+      },
+      "codex",
+      era === "legacy"
+        ? async (url, init) => {
+            // Native forms must use the tool's stream, even without a background SSE channel.
+            if (init?.method === "GET") {
+              standaloneRequests++;
+              return new Response(null, { status: 405 });
+            }
+            return fetch(url, init);
+          }
+        : undefined,
+    );
     if (era === "modern") assert.equal(transport.protocolVersion, "2026-07-28");
     let prompts = 0;
     client.setRequestHandler("elicitation/create", async (request) => {
@@ -54,10 +70,13 @@ for (const era of ["legacy", "modern"] as const)
       receipt.runId,
       (run) => run.status === "waiting",
     );
-    const reply = await client.callTool({
-      name: "interact",
-      arguments: { runId: initial.runId, actionId: pending(initial).id },
-    });
+    const reply = await client.callTool(
+      {
+        name: "interact",
+        arguments: { runId: initial.runId, actionId: pending(initial).id },
+      },
+      { timeout: 5_000 },
+    );
     assert.equal(reply.isError, undefined, JSON.stringify(reply));
     assert.equal(data(reply).run.status, "running");
     const confirm = await untilRun(
@@ -81,6 +100,7 @@ for (const era of ["legacy", "modern"] as const)
       (run) => run.status === "completed",
     );
     assert.equal(prompts, 2);
+    if (era === "legacy") assert.ok(standaloneRequests > 0);
     assert.equal((await observer.listRuns()).length, 1);
     assert.notEqual(await observer.getRecord(`once-${initial.runId}`), null);
     await observer.close();

@@ -193,6 +193,7 @@ export async function mcpClient(
   root: string,
   options: ClientOptions = {},
   profile = "codex",
+  fetch?: typeof globalThis.fetch,
 ) {
   const saved = await connection(root);
   const client = new Client(
@@ -203,7 +204,10 @@ export async function mcpClient(
     new URL(
       `http://127.0.0.1:${saved.port}/mcp${profile ? `/${profile}` : ""}`,
     ),
-    { requestInit: { headers: { authorization: `Bearer ${saved.token}` } } },
+    {
+      requestInit: { headers: { authorization: `Bearer ${saved.token}` } },
+      ...(fetch ? { fetch } : {}),
+    },
   );
   await client.connect(transport, { timeout: 5_000 });
   t.after(async () => {

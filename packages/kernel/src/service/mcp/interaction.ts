@@ -66,7 +66,10 @@ export function mcpPresenter(
               message: form.message,
               requestedSchema,
             },
-            { timeout: 300_000 },
+            {
+              timeout: 300_000,
+              relatedRequestId: context.mcpReq.id,
+            },
           );
         } catch (cause) {
           if (context.mcpReq.signal.aborted) return { kind: "dismissed" };
