@@ -2,8 +2,15 @@ import { execFile } from "node:child_process";
 import { appendFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
-import { publications, repositoryRoot, writeJson } from "./publication.ts";
 import {
+  type PackageManifest,
+  publications,
+  readManifest,
+  repositoryRoot,
+  writeJson,
+} from "./publication.ts";
+import {
+  assertDeliveryVersion,
   assertReleasePlan,
   type PublicationVersions,
   readVersions,
@@ -19,14 +26,33 @@ const versions = await readVersions();
 const previous: Partial<PublicationVersions> = {};
 const base = process.env.RELEASE_BASE;
 const run = promisify(execFile);
-if (base && !/^0+$/.test(base)) {
-  if (!/^[a-f0-9]{40}$/.test(base))
-    throw new Error("Invalid release base commit.");
+if (!base || !/^[a-f0-9]{40}$/.test(base))
+  throw new Error(
+    "Release preparation requires RELEASE_BASE as a full commit SHA.",
+  );
+const initialPush =
+  /^0+$/.test(base) && process.env.GITHUB_EVENT_NAME === "push";
+if (/^0+$/.test(base) && !initialPush)
+  throw new Error(
+    "Manual release preparation requires an existing base commit.",
+  );
+const directories = [
+  ...new Set(publications.map((item) => item.directory)),
+  "packages/kernel",
+];
+const currentManifests = new Map<string, PackageManifest>();
+const previousManifests = new Map<string, PackageManifest>();
+for (const directory of directories)
+  currentManifests.set(
+    directory,
+    await readManifest(resolve(repositoryRoot, directory)),
+  );
+if (!initialPush) {
   await run("git", ["cat-file", "-e", `${base}^{commit}`], {
     cwd: repositoryRoot,
   });
-  for (const item of publications) {
-    const path = `${item.directory}/package.json`;
+  for (const directory of directories) {
+    const path = `${directory}/package.json`;
     const { stdout: files } = await run(
       "git",
       ["ls-tree", "--name-only", base, "--", path],
@@ -36,16 +62,27 @@ if (base && !/^0+$/.test(base)) {
     const { stdout } = await run("git", ["show", `${base}:${path}`], {
       cwd: repositoryRoot,
     });
-    const manifest = JSON.parse(stdout);
-    if (
-      manifest.name === (item.name === "intloom" ? "@intloom/cli" : item.name)
-    )
-      previous[item.name] = manifest.version;
+    const manifest: PackageManifest = JSON.parse(stdout);
+    if (manifest.name === currentManifests.get(directory)?.name)
+      previousManifests.set(directory, manifest);
   }
 }
+const snapshot = (manifests: Map<string, PackageManifest>) =>
+  Object.fromEntries(
+    [...manifests.values()].map(({ name, version }) => [name, version]),
+  );
+const currentVersions = snapshot(currentManifests);
+const previousVersions = snapshot(previousManifests);
+for (const [directory, current] of currentManifests) {
+  const old = previousManifests.get(directory);
+  if (old)
+    assertDeliveryVersion(current, old, currentVersions, previousVersions);
+}
+for (const item of publications) {
+  const old = previousManifests.get(item.directory);
+  if (old) previous[item.name] = old.version;
+}
 const requested = process.env.RELEASE_PACKAGES;
-if (!base && !requested)
-  throw new Error("Manual preparation requires an explicit package selection.");
 const selected = requested
   ? selectPublications(
       requested === "all"

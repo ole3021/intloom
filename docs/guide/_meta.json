@@ -4,35 +4,52 @@
     "label": "Understand IntLoom"
   },
   "introduction",
-  "workflow",
-  "status",
-  {
-    "type": "section-header",
-    "label": "Get started"
-  },
-  "getting-started",
   {
     "type": "dir",
-    "name": "quickstart",
-    "label": "Quick start",
+    "name": "about",
+    "label": "Overview",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "start",
+    "label": "Get started",
     "collapsed": false
   },
   {
     "type": "dir",
     "name": "usage",
-    "label": "Using IntLoom",
+    "label": "Use IntLoom",
     "collapsed": false
   },
   {
     "type": "dir",
+    "name": "intent",
+    "label": "Intent Workflow",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "concepts",
+    "label": "Concepts and architecture",
+    "collapsed": true
+  },
+  {
+    "type": "dir",
     "name": "development",
-    "label": "Build workflows",
+    "label": "Develop Workflows",
     "collapsed": true
   },
   {
     "type": "dir",
     "name": "reference",
     "label": "Reference",
+    "collapsed": true
+  },
+  {
+    "type": "dir",
+    "name": "help",
+    "label": "FAQ and troubleshooting",
     "collapsed": true
   }
 ]

@@ -10,10 +10,10 @@ export function ClosingSection() {
       </h2>
       <div>
         <a href="/examples">
-          CHECK REAL EXAMPLE <Arrow />
+          CHECK REAL EXAMPLE <Arrow direction="right" />
         </a>
         <a href="/guide/introduction">
-          READ THE DOCUMENTATION <Arrow />
+          READ THE DOCUMENTATION <Arrow direction="right" />
         </a>
       </div>
     </section>

@@ -1,0 +1,13 @@
+[
+  "overview",
+  "walkthrough",
+  "stages",
+  "interaction",
+  "results",
+  {
+    "type": "dir",
+    "name": "agents",
+    "label": "内部 Agent 角色",
+    "collapsed": false
+  }
+]

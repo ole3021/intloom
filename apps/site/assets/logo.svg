@@ -1,6 +1,13 @@
-<svg width="340" height="130" viewBox="0 0 340 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="584" height="195" viewBox="0 0 584 195" fill="none" xmlns="http://www.w3.org/2000/svg">
 <title>IntLoom logo</title>
-<path d="M0 70L70.6023 0H120V60L50.0726 130H0V70Z" fill="#0EC614"/>
-<path d="M110 70L180.602 0H230V60L160.073 130H110V70Z" fill="#F7F7FB"/>
-<path d="M220 70L290.602 0H340V60L270.073 130H220V70Z" fill="#F7F7FB"/>
+<g clip-path="url(#clip0_83_99)">
+<path d="M0 140.16L140.16 0H235.547V62.2933L103.173 194.667H0V140.16Z" fill="#1EC71E"/>
+<path d="M180.613 116.8L297.413 0H392.8V62.2933L260.427 194.667H180.613V116.8Z" fill="#ECECEC"/>
+<path d="M337.813 116.8L454.613 0H550V62.2933L417.627 194.667H337.813V116.8Z" fill="#ECECEC"/>
+</g>
+<defs>
+<clipPath id="clip0_83_99">
+<rect width="584" height="194.667" fill="white"/>
+</clipPath>
+</defs>
 </svg>

@@ -955,11 +955,80 @@ test("Tool-round text cannot replace the final stop outcome", async () => {
   }
 });
 
+test("host completion is isolated from business Tool IDs, validates original output once and requires an untruncated response", async () => {
+  for (const reason of ["tool-calls", "length"] as const) {
+    let writes = 0,
+      parses = 0;
+    const business = createTool({
+      id: "intloom_complete_step",
+      description: "An existing business Tool",
+      inputSchema: z.strictObject({}),
+      execute: async () => ({ saved: ++writes }),
+    });
+    const original = scriptedAgent(
+      (request) => {
+        if (writes === 0)
+          return { calls: [{ name: "intloom_complete_step", input: {} }] };
+        assert.ok(
+          request.tools?.some(
+            (tool) => tool.name === "intloom_complete_step_1",
+          ),
+        );
+        return {
+          reason,
+          calls: [
+            { name: "intloom_complete_step_1", input: { outcome: "complete" } },
+          ],
+        };
+      },
+      { intloom_complete_step: business },
+    );
+    const executable = {
+      ...original,
+      outputSchema: z
+        .strictObject({ outcome: z.literal("complete") })
+        .transform((value) => {
+          parses++;
+          return value;
+        }),
+    };
+    const result = createEffector().executeAgent(
+      executable,
+      null,
+      executionAccess().agent,
+    );
+    if (reason === "length")
+      await assert.rejects(result, { code: "STEP_EXECUTION_FAILED" });
+    else assert.deepEqual(await result, { outcome: "complete" });
+    assert.equal(writes, 1);
+    assert.equal(parses, reason === "length" ? 0 : 1);
+    assert.equal(original.requests.length, 2);
+  }
+});
+
+test("invalid host completion is a fatal Agent output error without another model request", async () => {
+  const original = scriptedAgent(() => ({
+    calls: [{ name: "intloom_complete_step", input: { outcome: "invented" } }],
+  }));
+  const executable = {
+    ...original,
+    outputSchema: z.strictObject({ outcome: z.literal("complete") }),
+  };
+  await assert.rejects(
+    createEffector().executeAgent(executable, null, executionAccess().agent),
+    { code: "AGENT_OUTPUT_INVALID" },
+  );
+  assert.equal(original.requests.length, 1);
+});
+
 test("a Tool-round outcome cannot authorize an invalid or empty final stop response", async () => {
   for (const finalText of [
     '{"outcome":1}',
     "",
     "not json",
+    'Saved the current draft.\n{"outcome":"complete"}',
+    'Saved the current draft.\n```json\n{"outcome":"complete"}\n```',
+    '{"outcome":"premature"}\n{"outcome":"complete"}',
     '{"outcome":"complete"}',
   ]) {
     let toolCalls = 0;
@@ -987,7 +1056,10 @@ test("a Tool-round outcome cannot authorize an invalid or empty final stop respo
       null,
       executionAccess().agent,
     );
-    if (finalText === '{"outcome":"complete"}')
+    if (
+      finalText === '{"outcome":"complete"}' ||
+      finalText.startsWith("Saved the current draft.")
+    )
       assert.deepEqual(await promise, { outcome: "complete" });
     else await assert.rejects(promise, { code: "AGENT_OUTPUT_INVALID" });
     assert.equal(executable.requests.length, 2);

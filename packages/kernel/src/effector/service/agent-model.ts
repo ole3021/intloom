@@ -5,6 +5,11 @@ import * as z from "zod";
 import type { LoomConfig } from "../../core/schemas/loom-config.ts";
 import { fail } from "../../workflow/errors.ts";
 import { agentModelRoleSchema } from "../../workflow/schemas/workflow-module.ts";
+import { packageVersion } from "../../shared/version.ts";
+import {
+  createCredentialResolver,
+  type CredentialResolver,
+} from "./credentials.ts";
 
 const providerOptionsSchema = z.record(
   z.string(),
@@ -15,6 +20,7 @@ export function resolveModelConfig(
   roleName: string,
   configuration: LoomConfig,
   label: string,
+  credentials: CredentialResolver = createCredentialResolver(),
 ) {
   const role = agentModelRoleSchema.safeParse(roleName);
   if (!role.success)
@@ -25,12 +31,10 @@ export function resolveModelConfig(
       message: "Service execution requires llms.default in intloom.yaml.",
     });
   const config = configuration.llms[role.data] ?? configuration.llms.default;
-  // ENV and DENV both read the startup environment; the dotenvx launcher decrypts DENV values.
-  const variable = config.secret.slice(config.secret.indexOf(".") + 1);
-  const apiKey = process.env[variable];
+  const apiKey = credentials(config.secret);
   if (!apiKey?.trim() || apiKey.startsWith("encrypted:")) {
     throw KERNEL_ERRORS.create("INVALID_REQUEST", {
-      message: `${label}: Missing decrypted credential: ${config.secret}. Export it and restart the service.`,
+      message: `${label}: Missing decrypted credential: ${config.secret}. ${config.secret.startsWith("ENV.") ? "Set it in process.env or the project's .env" : "Export its decrypted value"} and restart the service.`,
     });
   }
 
@@ -47,12 +51,14 @@ export function createModelOptions(
     config.provider === "anthropic"
       ? createAnthropic({
           apiKey,
+          headers: { "User-Agent": `intloom/${packageVersion}` },
           ...(config.baseURL ? { baseURL: config.baseURL } : {}),
         })(config.model)
       : {
           providerId: "openai",
           modelId: config.model,
           apiKey,
+          headers: { "User-Agent": `intloom/${packageVersion}` },
           ...(config.baseURL ? { url: config.baseURL } : {}),
         };
   const providerOptions =

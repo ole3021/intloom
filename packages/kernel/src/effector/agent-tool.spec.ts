@@ -3,7 +3,41 @@ import { test } from "node:test";
 import * as z from "zod";
 import { defineAgentTool } from "@intloom/workflow-sdk";
 import { executionAccess } from "../../test/effector-fixture.ts";
-import { executeAgentTool } from "./agent-tool.ts";
+import { executeAgentTool, isAgentToolInputError } from "./agent-tool.ts";
+
+test("input diagnostics omit dynamic dictionary keys, values and refinement messages", async () => {
+  let executed = false;
+  const tool = defineAgentTool({
+    id: "labels",
+    description: "Validate labels.",
+    inputSchema: z.object({
+      labels: z.record(
+        z.string(),
+        z.string().refine(() => false, "private-message"),
+      ),
+    }),
+    outputSchema: z.boolean(),
+    execute: () => {
+      executed = true;
+      return true;
+    },
+  });
+  await assert.rejects(
+    executeAgentTool(
+      tool,
+      { labels: { "private-key": "private-value" } },
+      executionAccess().agent,
+    ),
+    (error: unknown) => {
+      assert.ok(isAgentToolInputError(error));
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /labels\.item \(custom\)/u);
+      assert.doesNotMatch(error.message, /private-(?:key|value|message)/u);
+      return true;
+    },
+  );
+  assert.equal(executed, false);
+});
 
 for (const asynchronous of [false, true])
   test(`host parses cross-type Tool output once (${asynchronous ? "async" : "sync"})`, async () => {

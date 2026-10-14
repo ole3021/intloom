@@ -22,6 +22,7 @@ stage:
         - "@skills/specification-review"
       tools:
         - "@tools/specification:readSpecification"
+        - "@tools/specification:editSpecification"
         - "@tools/specification:submitSpecification"
       on:
         clarification_required:

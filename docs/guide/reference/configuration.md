@@ -1,72 +1,60 @@
 ---
 title: Configuration reference
-description: intloom.yaml fields, model definitions, and managed package declarations.
 ---
 
 # Configuration reference
 
-Projects use `intloom.yaml`. The host reads configuration on startup; restart to apply changes. The top-level Schema is strict.
+`intloom.yaml` uses a strict top-level Schema. Unknown fields are rejected.
 
-## Top-level fields
+## Project fields
 
-| Field | Type / default | Meaning |
-| --- | --- | --- |
-| `localStorage` | `file` or `sqlite`; default `file` | Formal-data backend |
-| `mirror` | Optional object; disabled by default | Complete local safe-boundary images; `enabled` defaults to false, `files.include/exclude` are glob arrays |
-| `useMcpAgent` | Boolean, default `true` | External MCP uses client Agent tasks when true; service models when false |
-| `workflows` | Array; default `[]` | CLI-managed installed package declarations |
-| `intent` | Required object | Current configuration includes application preferences; use `{ apps: [] }` when unused |
-| `llms` | Optional object | Service model definitions; `default` required when this object exists |
-
-Configuration loading defaults omitted `localStorage` to `file` and `workflows` to `[]`. CLI and Studio backend execution always select service models regardless of `useMcpAgent`.
-
-## Workflow declarations
-
-Each declaration contains:
-
-| Field | Meaning |
+| Field | Contract |
 | --- | --- |
-| `name` | Unique npm package name |
-| `version` | Resolved exact semantic version |
-| `sha256` | Lowercase 64-character SHA-256 of the original distribution archive |
-| `source` | Optional local archive source; the installer writes an absolute path |
+| `workflows` | Optional array of unique package declarations: name, exact semver, 64-character lowercase sha256, optional local source |
+| `localStorage` | Optional `file` or `sqlite` |
+| `useMcpAgent` | Boolean, default true; external MCP executor preference |
+| `intent.apps` | Required app preference array; may be empty |
+| `mirror.enabled` | Boolean, default false |
+| `mirror.files.include/exclude` | Optional arrays of nonempty file rules |
+| `llms.default` | Required inside supplied llms |
+| `llms.reasoning/coding/review` | Optional complete role-specific model definitions |
 
-Use `workflow add/remove` to manage these entries. The project archive checksum is distinct from package-publishing integrity metadata. It does not lock all transitive dependencies.
+CLI maintains installed Workflow declarations. Use package management rather than inventing archive hashes.
 
-## Model definitions
+## Model definition
 
-`llms.default` is required for service admission. Optional complete role entries are `reasoning`, `coding`, and `review`. A missing role falls back to `default`.
+`provider` is `anthropic` or `openai-compatible`; `model` is a nonempty string. `secret` is `ENV.NAME` or `DENV.NAME`, where NAME matches an uppercase environment identifier. Optional `baseURL` is a URL.
 
-| Model field | Requirement |
-| --- | --- |
-| `provider` | `anthropic` or `openai-compatible` |
-| `model` | Nonempty provider model identifier |
-| `secret` | `ENV.NAME` or `DENV.NAME`; uppercase environment variable name |
-| `baseURL` | Optional valid URL for a custom provider endpoint |
-| `parameters.temperature` | Optional number |
-| `parameters.maxOutputTokens` | Optional positive integer |
-| `parameters.topP` | Optional number |
-| `providerOptions` | Optional provider-keyed object containing JSON option objects |
+`ENV.NAME`: defined `process.env` values take precedence; undefined variables fall back only to the selected project's regular `.env`. Empty/encrypted values fail preparation. `DENV.NAME`: externally decrypted startup environment only. Restart after `.env` edits; there is no directory search, dotenv variant loading, variable expansion, internal decryption or global environment mutation.
 
-Provider-specific validity is not fully established by these generic fields. The service adapter validates the option-object shape; the selected provider determines supported parameter values and behavior.
+`parameters` supports numeric temperature/topP and positive integer maxOutputTokens. `providerOptions` is a provider-keyed JSON object. Roles fall back to default without partial merging.
 
-Both credential prefixes read the host startup environment. The CLI does not load or decrypt dotenv files automatically. Empty values and still-encrypted ciphertext are rejected for referenced Agents.
+## Intent application preferences
 
-## Application preferences
+Every app has `name` and `type`, plus optional `dependencies`/`patterns` arrays of name/description pairs. Types are web, service, worker, mobile, desktop and mini-app. Service/worker allow runtime. Mobile/desktop/mini-app require nonempty supported platform lists: ios/android; macos/windows/linux; wechat/alipay/douyin/qq/baidu.
 
-The framework's current configuration requires `intent.apps`, an array of application descriptors. This reference covers accepted fields without defining a package-specific business workflow.
+## Host observation and limits
 
-| Field | Requirement |
-| --- | --- |
-| `name` | Required nonempty name |
-| `type` | `web`, `service`, `worker`, `mobile`, `desktop`, or `mini-app` |
-| `dependencies` | Optional array of `{ name, description }` technology preferences |
-| `patterns` | Optional array of `{ name, description }` architectural preferences |
-| `runtime` | Optional nonempty string for `service` or `worker` |
-| `platforms` | Required nonempty array for `mobile`, `desktop`, and `mini-app` |
+Optional `intloom/host.json`:
 
-Mobile platforms: `ios`, `android`. Desktop: `macos`, `windows`, `linux`. Mini-app: `wechat`, `alipay`, `douyin`, `qq`, `baidu`.
+```json
+{
+  "maxAgentSteps": 64,
+  "run": {
+    "maxModelCalls": 100,
+    "maxDurationMs": 600000,
+    "maxKnownInputTokens": 100000,
+    "maxKnownOutputTokens": 20000
+  },
+  "prices": [{
+    "modelId": "example",
+    "inputPerMillion": 1,
+    "outputPerMillion": 2,
+    "pricingId": "local-estimate"
+  }]
+}
+```
 
-Application preferences do not install business dependencies or replace a project's package-manager lockfile. Keep `apps: []` for framework-only use.
+Limits are positive integers. Human wait time does not consume execution duration. Rates estimate USD for known usage and do not enforce a monetary ceiling or represent provider billing.
 
-See [Configuration guide](../usage/configuration.md) for startup and execution selection.
+Changes apply at Service startup. See [configuration guide](../usage/configuration.md).

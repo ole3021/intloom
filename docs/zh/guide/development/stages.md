@@ -1,74 +1,46 @@
 ---
-title: Stages、Steps 与路由
-description: 为编译后的工作流定义状态初始化和明确的 outcome 路由。
+title: 定义阶段与路由
 ---
 
-# Stages、Steps 与路由
+# 定义阶段与路由
 
-源 YAML 定义两级路由。Step 路由到另一个 Step，或结束所属 Stage；Stage 再路由到另一个 Stage，或结束 Workflow。
-
-## 明确声明 outcome 路由
+在 YAML 中定义 Workflow 和 Stage 拓扑。入口和路由目标必须在各自拓扑中存在。
 
 ```yaml
-stage:
+workflow:
   name: review
-  state:
-    schema: "@schemas/review"
-    initialize: "@initializers/review"
-  entry: check
-  steps:
-    check:
-      type: code
-      code: "@codes/check"
-      on:
-        revise:
-          target: revise
-        accepted:
-          end: true
-    revise:
-      type: code
-      code: "@codes/revise"
+  entry: review
+  stages:
+    review:
+      stage: "@stages/review"
       on:
         complete:
-          target: check
+          end: true
 ```
 
-该定义需要提供引用的模块。外层 Workflow 必须在这个 Stage 的路由中处理 `accepted`。`complete` 是部分包采用的约定，不是隐含的成功路由。
+Stage 内将 Code 结果路由到另一个 Step 或 Stage 结束：
 
-执行返回 `{ outcome: "revise" }` 时，转到命名的 Step。返回 `{ outcome: "accepted" }` 时，以该 outcome 结束 Stage。未处理的 outcome 会使 Run 失败；异常也会使执行失败，而不会自动选择路由。
+```yaml
+check:
+  type: code
+  code: "@codes/check"
+  on:
+    repair_required:
+      target: revise
+    complete:
+      end: true
+```
+
+第二段是 `stage.steps` 的片段，需要声明 `revise` Step。Code 必须返回精确匹配的 `outcome`。Step 结束时把 outcome 交给 Stage 的 Workflow 路由；缺失路由会失败，不选择默认值。
 
 ## State 生命周期
 
-进入 Stage 时，初始化器接收 `{ runId, flowName, stageName, intent }`。返回值由 Stage Schema 验证，并成为当前业务 State。每个 Stage 拥有独立的初始化值；离开 Stage 时，对它的访问会释放。
+每个 Stage 声明 `state.schema` 和 `state.initialize`。初始化器接收 Run 上下文并返回 Schema 输入。State 属于一次 Stage 访问：同 Stage 的 Step 循环保留 State，重新进入 Stage 则运行新初始化器。
 
-后续 Stage 需要早期正式结果时，通过 Storage 读取。前一个 Stage 的草稿不会自动合并到下一个 Stage。清空 State 不会触发自动重新初始化。
+阶段之间通过明确正式输出传递数据，不隐式复制 State。
 
-## Agent Steps
+## Agent Step
 
-```yaml
-review:
-  type: agent
-  agent: "@agents/reviewer"
-  llm: review
-  outputSchema: "@schemas/review-result"
-  tools:
-    - "@tools/review:readDraft"
-  skills:
-    - "@skills/review"
-  on:
-    accepted:
-      end: true
-    revise:
-      target: revise
-```
+Agent Step 声明指令、模型角色、输出 Schema、Tools 和 Skills。宿主解析最终输出，再应用返回的 outcome。模型角色使用 `reasoning`、`coding`、`review`。
 
-Agent 最终输出 Schema 必须能够解析出有效的 Step 结果。通过业务 Tools 保存分析和提案，最终输出只包含路由 outcome。`llm` 角色在服务执行时选择项目配置，在客户端执行时仍保留在任务描述中。
-
-## 并发与循环
-
-需要避免同一服务内其他活跃 Run 重叠执行的项目写入工作流，应设置 `workflow.exclusive: true`。独占范围包括人工等待和 Agent 等待，但不能阻止独立的外部编辑器修改文件。
-
-路由可以形成循环。在 State 中定义业务修复次数预算，并由 Code 执行限制；拓扑本身不保证业务语义上的自动终止。用户等待或外部操作后，上游数据可能变化，需要重新验证假设。
-
-字段说明见 [YAML 参考](../reference/workflow-yaml.md)，Code 和 Agent 契约见[执行资源](./execution.md)。
-
+参见 [YAML 参考](../reference/workflow-yaml.md)和[执行资源](./execution.md)。

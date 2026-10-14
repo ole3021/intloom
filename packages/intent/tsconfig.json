@@ -11,6 +11,7 @@
     "test/**/*.ts",
     "build.ts",
     "build/**/*.ts",
-    "tools/**/*.ts"
+    "tools/**/*.ts",
+    "e2e/checks/**/*.ts"
   ]
 }

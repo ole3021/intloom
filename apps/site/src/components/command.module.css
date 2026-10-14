@@ -5,9 +5,10 @@
 .command-line button {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--site-spacing-05);
   width: 100%;
-  padding: 17px 18px;
+  min-height: var(--site-spacing-09);
+  padding: var(--site-spacing-05);
   border: 1px solid #394a34;
   background: #0d150eef;
   color: var(--site-color-text);
@@ -19,6 +20,9 @@
 .command-line button:hover {
   border-color: var(--site-color-accent);
   background: #142315;
+}
+.command-line button:active {
+  background: var(--site-color-surface-raised);
 }
 .command-line code {
   flex: 1;
@@ -49,20 +53,25 @@
 
 @media (max-width: 480px) {
   .command-line button {
-    padding: 13px;
+    padding: var(--site-spacing-04);
   }
 }
 
 .command-line[data-compact="true"] button {
-  padding: 10px 12px;
+  min-height: var(--site-spacing-08);
+  padding: var(--site-spacing-03) var(--site-spacing-05);
   background: #0b100b;
 }
 .command-line[data-compact="true"] code {
   font: var(--site-type-code);
 }
+.command-line[data-compact="true"] button:active {
+  background: var(--site-color-surface-raised);
+}
 @media (max-width: 480px) {
   .command-line[data-compact="true"] button {
-    gap: 8px;
-    padding-inline: 8px;
+    gap: var(--site-spacing-03);
+    min-height: 44px;
+    padding-inline: var(--site-spacing-03);
   }
 }

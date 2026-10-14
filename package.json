@@ -9,7 +9,8 @@
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "e2e"
   ],
   "scripts": {
     "dev": "turbo run dev",
@@ -21,9 +22,12 @@
     "lint": "biome lint .",
     "format": "biome format --write .",
     "test": "node --test \"scripts/*.spec.ts\" && turbo run test",
-    "test:intg": "turbo run test:intg",
+    "test:intg": "turbo run test:intg --filter=!@intloom/e2e",
     "test:package": "turbo run test:package",
-    "verify": "bun run check && bun run test && bun run test:intg && bun run test:package && node scripts/release-manifest.ts"
+    "verify": "bun run check && bun run test && bun run test:intg && bun run test:package && node scripts/release-manifest.ts",
+    "e2e:cmd": "node e2e/run.ts cmd",
+    "e2e:mcp": "node e2e/run.ts mcp",
+    "e2e:codex": "node e2e/run.ts codex"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",

@@ -2,13 +2,33 @@
 
 ## Unreleased
 
-- Require Node.js 26.4.0+ across packages and Node.js 26 declarations; reduce consumer verification to the minimum and latest Node 26 on Linux/macOS.
 - Separate unit, business integration and prepared-archive consumer tests with one `bun run verify` entry; cover the complete Intent Workflow and repair after a real failed host check.
-- Keep the existing logger serializer signature self-contained so strict Node.js 26 declaration consumers do not inherit unrelated Pino transport types.
 - Retry npm publication visibility before consumer verification, and distinguish unavailable versions from actual archive integrity conflicts.
 - Reserve CLI start/stop for service lifecycle and use flow, cancelRun, and cancelAllRuns for Kernel/Runtime execution.
 - Standardize RunView.cursor across CLI/MCP, query and answer names, and Workflow initialization diagnostic types.
 - Deprecate Query and SnapshotCategory in favor of StorageQuery and StorageCategory; retain compatibility aliases.
+
+## @intloom/cli@0.0.6
+
+- Distinguish incompatible Service APIs, invalid responses, HTTP availability errors, and timeouts while retaining unknown outcomes for transmitted writes without a valid receipt.
+- Record model request, Tool execution, and Agent execution durations with bounded diagnostics and remove repeated successful Run query logging.
+- Align the CLI, launcher, and bundled Kernel with the updated public dependencies; require a reviewed baseline and version increases for changed consumer delivery metadata during release preparation.
+
+## @intloom/workflow-intent@0.0.4
+
+- Use the updated public Workflow SDK and Utils releases while retaining the 2026-10-08 Workflow protocol and existing Intent execution behavior.
+
+## @intloom/compiler@0.0.3
+
+- Require Node.js 26.4.0+ and use the Node.js 26 declaration baseline with the updated public Workflow SDK and Utils dependencies.
+
+## @intloom/workflow-sdk@0.0.3
+
+- Require Node.js 26.4.0+ and expose the Node.js 26 declaration baseline with the updated Utils dependency.
+
+## @intloom/utils@0.0.3
+
+- Require Node.js 26.4.0+ and keep the logger serializer signature self-contained so strict declaration consumers do not inherit unrelated Pino transport types.
 
 ## @intloom/cli@0.0.5
 

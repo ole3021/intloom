@@ -1,0 +1,7 @@
+id: S01
+version: 3
+name: Local task CLI
+scale: small
+description: Complete one local task CLI Intent.
+intents:
+  - "Build a local command-line task manager for my daily work. I need to add tasks, list them and mark them complete. Keep the project simple and preserve the existing workspace conventions."

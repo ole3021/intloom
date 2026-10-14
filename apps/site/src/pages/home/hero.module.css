@@ -10,15 +10,21 @@
   color: #828b79;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--site-spacing-03);
   padding-bottom: 3px;
 }
 .field-hero {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 735px;
-  height: calc(100svh - 175px);
+  min-height: min-content;
+  height: calc(
+    100svh -
+    var(--site-notice-height) -
+    var(--site-header-height) -
+    var(--site-ticker-height) -
+    var(--site-spacing-03)
+  );
   max-height: 900px;
   border-bottom: 1px solid var(--site-color-border);
   background: linear-gradient(
@@ -49,7 +55,7 @@
 .field-hero-top {
   display: flex;
   justify-content: space-between;
-  padding: 21px 28px 0;
+  padding: var(--site-spacing-06) var(--site-spacing-06) 0;
 }
 .field-hero-top > .eyebrow {
   color: #788071;
@@ -59,13 +65,13 @@
   position: relative;
   z-index: 2;
   text-align: center;
-  padding-top: 28px;
+  padding-top: var(--site-spacing-07);
   pointer-events: none;
 }
 .field-heading-label {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--site-spacing-03);
   color: #a0a79a;
   font: var(--site-type-label);
   letter-spacing: 0.1em;
@@ -86,7 +92,7 @@
   font-weight: var(--site-weight-heading);
   text-transform: uppercase;
   letter-spacing: -0.065em;
-  margin: 20px 0;
+  margin: var(--site-spacing-06) 0;
 }
 .field-hero h1 em {
   color: var(--site-color-accent);
@@ -140,11 +146,11 @@
   position: relative;
   z-index: 3;
   margin-top: auto;
-  padding: 0 27px 20px;
+  padding: 0 var(--site-spacing-06) var(--site-spacing-06);
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: end;
-  gap: 25px;
+  gap: var(--site-spacing-06);
 }
 .hero-instrument-label i {
   width: 5px;
@@ -162,35 +168,30 @@
   position: relative;
   pointer-events: auto;
   width: min(100%, 380px);
-  margin: 26px auto 0;
+  margin: var(--site-spacing-06) auto 0;
 }
 .hero-command > p {
   font: var(--site-type-note);
-  margin-top: 15px;
+  margin-top: var(--site-spacing-05);
   color: var(--site-color-muted);
 }
 .hero-command > a {
   font: var(--site-type-note);
   display: inline-flex;
-  gap: 12px;
+  gap: var(--site-spacing-03);
+  align-items: center;
+  min-height: 44px;
   color: var(--site-color-accent);
-  margin-top: 7px;
+  margin-top: var(--site-spacing-03);
 }
 
 @media (min-width: 1700px) {
   .field-hero-heading {
     padding-top: 48px;
   }
-  .field-hero {
-    min-height: 820px;
-  }
 }
 
 @media (max-width: 760px) {
-  .field-hero {
-    min-height: 700px;
-    height: auto;
-  }
   .field-hero-heading {
     padding-top: 50px;
   }
@@ -207,9 +208,6 @@
 }
 
 @media (max-width: 480px) {
-  .field-hero {
-    min-height: 720px;
-  }
   .field-hero-top {
     padding: 17px 16px 0;
   }

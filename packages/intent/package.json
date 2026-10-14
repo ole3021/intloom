@@ -1,6 +1,6 @@
 {
   "name": "@intloom/workflow-intent",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": true,
   "type": "module",
   "exports": {
@@ -26,7 +26,7 @@
     "dev": "node --test --watch \"codes/**/*.spec.ts\" \"schemas/**/*.spec.ts\" \"src/**/*.spec.ts\" \"tools/**/*.spec.ts\"",
     "build": "node build.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test \"codes/**/*.spec.ts\" \"schemas/**/*.spec.ts\" \"build/**/*.spec.ts\" \"src/**/*.spec.ts\" \"tools/**/*.spec.ts\"",
+    "test": "node --test \"codes/**/*.spec.ts\" \"schemas/**/*.spec.ts\" \"build/**/*.spec.ts\" \"src/**/*.spec.ts\" \"tools/**/*.spec.ts\" \"e2e/checks/*.spec.ts\"",
     "test:intg": "node --test \"test/*.intg.ts\"",
     "pack": "node ../../scripts/pack-package.ts dist",
     "test:package": "node --test \"test/package/*.intg.ts\""

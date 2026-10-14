@@ -46,7 +46,7 @@ intloom tui
 
 Initialization reports `scaffold`, `workflows`, `mcp`, and `service` separately as completed, failed, or skipped. `--start` is optional. A later failure retains earlier successful steps; inspect its result rather than blindly repeating init. Existing files are never overwritten by scaffold creation.
 
-A Service can start without model configuration. CLI/Studio service Agent execution requires `llms.default` and its environment credential; external MCP Agent execution uses the existing `useMcpAgent` policy. `doctor` reads readiness without calling a real model. Running Services retain their startup configuration and environment.
+A Service can start without model configuration. CLI/Studio service Agent execution requires `llms.default` and its credential; external MCP Agent execution uses the existing `useMcpAgent` policy. `ENV.NAME` uses `process.env` first, falling back only when undefined to the selected project root's regular `.env`. Parent directories, the caller's working directory, `.env.local` and symlink files are not loaded. Empty or encrypted environment values are rejected rather than replaced. `DENV.NAME` still requires external decryption into the startup environment. `doctor` reads readiness without calling a real model. Restart the Service after changing configuration or `.env`.
 
 Workflow package changes require a stopped Service:
 
@@ -95,9 +95,26 @@ Streams use JSON Lines. `meta` carries request/project/instance/operation/Run id
 
 ## TUI
 
-The home screen shows project and connection state. Select Start Service explicitly, then choose a Workflow or Run. Ctrl+N opens Workflows, Ctrl+L Runs, Ctrl+H Home, Ctrl+G Settings, Ctrl+R refreshes the connection. Ctrl+Enter submits complete multiline intent or the current custom answer. Question options require selection; complete answers are reviewed before submission. Escape/Ctrl+C closes the interface.
+TUI is a current-project workbench for Workflow execution, Run control and read-only resources. Invalid projects direct users to CMD `intloom init`; valid projects reuse Service or automatically start a verified stopped Service. One unfinished Run opens automatically, several open a picker, and none shows the logo/intent composer. Configuration/readiness errors remain visible. Closing TUI leaves Service and Runs running.
 
-The execution area stays visible with stage/step, activity, sampled execution/human wait time, model/Tool counts, known tokens, estimated cost and completeness. Settings provide initialization, Workflow package changes, safe config inspection/editing, diagnostics and Codex MCP setup. UI connection/selection/drafts are local; execution data comes from Core.
+Tab cycles **Run → Logs → Assets**. Ctrl+O opens Run selection while retaining the current window; Ctrl+P selects Workflow for a new draft. A leading `/` in input immediately opens the full six-command list; continue typing to filter, arrows/Enter select and execute, Esc dismisses. The same entry works from question choices, Logs and Assets. Unavailable commands stay listed with explanations. A slash inside ordinary text remains text. Former global Ctrl navigation bindings are removed.
+
+| MVP command | Action |
+| --- | --- |
+| `/run [workflow]` | Open an intent draft; submitting intent creates the Run. |
+| `/workflow` | Choose Workflow for a new Run; same as Ctrl+P. |
+| `/runs` | Search/switch Runs in this Service; same as Ctrl+O. |
+| `/resume` | Continue a paused Run with existing or explicit Step/Stage/Workflow scope; invalid boundaries are disabled. |
+| `/stop` | Confirm stopping an unfinished Run; committed resources remain. |
+| `/quit` | Close TUI while background execution continues. |
+
+Enter submits intent/custom answers or confirmation feedback; Shift+Enter inserts a newline, Ctrl+J remains an input-only fallback, and long input wraps. Complete answer sets are reviewed before submission. Esc revisits a question/confirmation choice. Drafts survive window/Run switching and reconnecting. Input modifiers require terminal reporting through the Kitty keyboard protocol.
+
+Run displays logs, human interaction and the status sidebar, compacted below 100 columns. Logs uses arrows/PageUp/PageDown for scrolling and Home/End for beginning/latest. The live log view and Assets remain mounted across window switches to retain position/filters. TUI keeps 200 log entries and reports omissions; older persisted logs remain accessible through CMD. Activity indicators and brief brand-green border transitions retain the existing animation behavior.
+
+Assets shows the selected Run's commit references, or project resources without a selected Run. Left opens local controls for Artifact/Record, project/Run scope, filters and refresh; Right returns to the list. Up/Down switches filter fields and Enter applies. Workflow/Stage filters use exact names; text searches loaded IDs/metadata. Lists load 50 entries per page with a next-page action. Enter opens JSON, arrows/PageUp/PageDown scroll, and Esc returns. Unavailable old revisions show `historical_revision_unavailable`; Assets does not export or modify resources.
+
+Core owns Run state, metrics, pending actions and receipts. Unknown write outcomes retain original operation/Service identity and block another submission; select **Inspect original operation** to query the original receipt/Run without replay. For a stopped/disconnected Service, select **Inspect and reconnect**, which starts only a verified stopped Service. Stopping uses the existing `failed/RUN_STOPPED` contract and displays cancelled. Run lists/metrics belong to the Service instance. Initialization, configuration, package management, diagnostics, MCP setup and mirror administration remain CMD operations.
 
 ## MCP setup
 

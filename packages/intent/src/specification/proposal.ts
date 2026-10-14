@@ -31,33 +31,46 @@ export async function submitProposal(
   state.proposalCount = (state.proposalCount ?? 0) + 1;
   const oldQuestions = new Map(state.questions.map((q) => [q.id, q]));
   const ids = new Set(proposal.questions.map((q) => q.id));
-  if (
-    ids.size !== proposal.questions.length ||
-    state.questions.some((q) => !ids.has(q.id))
-  )
-    fail("Questions must retain unique IDs and existing history");
-  if (
-    proposal.processedFeedbackCount < state.processedFeedbackCount ||
-    proposal.processedFeedbackCount > state.feedbacks.length
-  )
-    fail("Invalid processed feedback count");
-  state.questions = proposal.questions.map((q) => {
+  const issues: string[] = [];
+  if (ids.size !== proposal.questions.length)
+    issues.push("Question IDs must be unique within the proposal.");
+  if (proposal.processedFeedbackCount !== state.feedbacks.length)
+    issues.push("processedFeedbackCount must equal expectedFeedbackCount.");
+  for (const q of proposal.questions) {
     if (
       q.options &&
       (new Set(q.options.map((o) => o.id)).size !== q.options.length ||
         q.options.some((o) => !o.id.startsWith(`${q.id}:`)))
     )
-      fail(`Invalid question option IDs: ${q.id}`);
+      issues.push(
+        `Invalid question option IDs: ${q.id}. Use ${q.id}:<unique-key>.`,
+      );
     const old = oldQuestions.get(q.id);
-    if (!old) return q;
-    if (!isDeepStrictEqual(questionContent(old), questionContent(q)))
-      fail(`Existing question content is immutable: ${q.id}`);
+    if (old && !isDeepStrictEqual(questionContent(old), questionContent(q)))
+      issues.push(
+        `Existing question content is immutable: ${q.id}. Omit it; Code preserves its content and answer.`,
+      );
+  }
+  if (issues.length) {
+    await saveState(access, state);
+    getLogger().debug("specification_proposal_rejected", {
+      rule: "SPECIFICATION_PROPOSAL_INVALID",
+      issueCount: issues.length,
+    });
     return {
-      ...q,
-      ...(old.answer === undefined ? {} : { answer: old.answer }),
-      ...(old.skipped === undefined ? {} : { skipped: old.skipped }),
+      saved: false as const,
+      feedback: {
+        rule: "SPECIFICATION_PROPOSAL_INVALID" as const,
+        issues,
+        existingQuestionIds: [...oldQuestions.keys()],
+        expectedFeedbackCount: state.feedbacks.length,
+      },
     };
-  });
+  }
+  // Existing questions and human responses belong to Code, not the next draft.
+  state.questions.push(
+    ...proposal.questions.filter((q) => !oldQuestions.has(q.id)),
+  );
   state.changes = proposal.changes;
   state.processedFeedbackCount = proposal.processedFeedbackCount;
   delete state.confirmation;
@@ -66,5 +79,5 @@ export async function submitProposal(
     questionCount: state.questions.length,
     processedFeedbackCount: state.processedFeedbackCount,
   });
-  return { saved: true };
+  return { saved: true as const };
 }

@@ -21,6 +21,9 @@ export const validationTargetSchema = z.strictObject({
     "scenario",
     "concept",
     "decision",
+    "deferred",
+    "risk",
+    "diagram",
   ]),
   ref: text,
 });
@@ -148,6 +151,10 @@ export const validationStateSchema = z.strictObject({
   solution: basisSchema.optional(),
   baseline: basisSchema.nullable().optional(),
   implementationRecordId: z.string().optional(),
+  scopeMode: z.enum(["run", "full"]).default("run"),
+  scopeContext: z.record(z.string(), z.json()).default({}),
+  scopeReasons: z.record(z.string(), z.array(z.string())).default({}),
+  changedPaths: z.array(z.string()).default([]),
   fileSnapshot: snapshotSchema.optional(),
   commandResults: z.array(checkResultSchema).default([]),
   scope: z
@@ -158,6 +165,27 @@ export const validationStateSchema = z.strictObject({
     .optional(),
   proposal: validationProposalSchema.optional(),
   submissionCount: z.number().int().min(0).max(2).default(0),
+  submissionFeedback: validationFeedbackSchema.optional(),
+});
+export const validationContextSchema = z.strictObject({
+  id: z.string(),
+  intent: z.string(),
+  implementationRecordId: z.string().optional(),
+  scope: validationStateSchema.shape.scope,
+  scopeMode: z.enum(["run", "full"]),
+  targets: z.array(
+    z.object({
+      type: z.string(),
+      ref: z.string(),
+      data: z.json().optional(),
+      reasons: z.array(z.string()),
+    }),
+  ),
+  changedPaths: z.array(z.string()),
+  commandResults: z.array(
+    checkResultSchema.omit({ stdout: true, stderr: true }),
+  ),
+  submissionCount: z.number(),
   submissionFeedback: validationFeedbackSchema.optional(),
 });
 export type ValidationState = z.infer<typeof validationStateSchema>;

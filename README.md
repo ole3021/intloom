@@ -26,7 +26,7 @@ You can work through the CLI or a connected Agent IDE using MCP. Both use the sa
 
 ## Getting started
 
-All IntLoom packages require Node.js 26.4.0+. Working on this repository requires Node.js 26.4.0+, Bun 1.4.0+, and npm. These instructions use a source checkout; see [Installation](./docs/guide/quickstart/installation.md) for published-release prerequisites and complete setup.
+All IntLoom packages require Node.js 26.4.0+. Working on this repository requires Node.js 26.4.0+, Bun 1.4.0+, and npm. These instructions use a source checkout; see [Installation](./docs/guide/start/installation.md) for published-release prerequisites and complete setup.
 
 From the repository root, build the CLI and inspect its help:
 
@@ -49,8 +49,8 @@ node apps/cli/dist/bin.js --project my-project start
 
 Starting the service does not execute a Workflow. Choose an execution path next:
 
-- [CLI](./docs/guide/quickstart/cli.md): configure the project's model and credentials, then use `flow` to begin a Run.
-- [Agent IDE / MCP](./docs/guide/quickstart/mcp.md): connect Codex or another capable MCP client. The default client Agent mode needs no project model configuration.
+- [CLI](./docs/guide/start/cmd.md): configure the project's model and credentials, then use `flow` to begin a Run.
+- [Agent IDE / MCP](./docs/guide/start/mcp.md): connect Codex or another capable MCP client. The default client Agent mode needs no project model configuration.
 
 Answer questions and confirmations to continue the same Run. Use `runs` to inspect execution, `attach` to continue from the terminal, and `artifacts` to inspect saved results. Process completion and the quality of its business results are separate things.
 
@@ -58,11 +58,12 @@ Answer questions and confirmations to continue the same Run. Use `runs` to inspe
 
 IntLoom is in early development. Local Workflow execution, CLI/MCP access, file and SQLite storage, and bounded restart recovery are implemented. Studio remains planned.
 
-Model behavior and client support need validation in the intended environment. See [Current capabilities](./docs/guide/status.md) for supported behavior and verification boundaries.
+Model behavior and client support need validation in the intended environment. See [Versions and compatibility](./docs/guide/reference/compatibility.md) for supported behavior and verification boundaries.
 
 ## Documentation
 
 - [About IntLoom](./docs/guide/introduction.md)
-- [Getting started](./docs/guide/getting-started.md)
+- [Getting started](./docs/guide/start/installation.md)
 - [CLI command reference](./docs/guide/reference/cli.md)
 - [Create a Workflow](./docs/guide/development/create.md)
+- [AI-driven E2E testing](./e2e/README.md)

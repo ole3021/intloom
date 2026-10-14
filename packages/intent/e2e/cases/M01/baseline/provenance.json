@@ -1,0 +1,10 @@
+{
+  "initialIntent": "Build a simple browser task list with English controls. I need to add tasks, mark individual tasks complete and delete tasks. Preserve the existing native ESM workspace. This first iteration needs no editing, bulk operations, filters or persistence.",
+  "runId": "RUN-20261013T065436004Z-J7o1f3ZU133SeL8tabQ-G",
+  "completedAt": "2026-10-13T07:00:07.693Z",
+  "workflowVersion": "0.0.4",
+  "workflowArchiveDigest": "e0290a2f4b025dacdfd503fbcd81171dcbf71d7eec234d415b6b9c35fc6659f2",
+  "storeDigest": "8024902bbe38031d3c06ae0ef4bf1d09ffa65a67d9d012282f5351cea0c6868e",
+  "artifactCount": 3,
+  "recordCount": 3
+}

@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { draftRevisionSchema } from "./draft.ts";
 import {
   runIdSchema,
   specificationArtifactSchema,
@@ -62,6 +63,7 @@ export const specificationStateSchema = z.strictObject({
   processedFeedbackCount: z.number().int().nonnegative().default(0),
   proposalCount: z.number().int().nonnegative().optional(),
   baseline: specificationBaselineSchema.optional(),
+  previousDraft: specificationArtifactSchema.optional(),
   confirmation: specificationConfirmationSchema.optional(),
 });
 
@@ -73,6 +75,23 @@ export const specificationProposalSchema = z.strictObject({
   ),
   processedFeedbackCount: z.number().int().nonnegative(),
 });
+
+export const specificationSubmissionResultSchema = z.discriminatedUnion(
+  "saved",
+  [
+    z.strictObject({ saved: z.literal(true) }),
+    z.strictObject({
+      saved: z.literal(false),
+      draftRevision: draftRevisionSchema.optional(),
+      feedback: z.strictObject({
+        rule: z.literal("SPECIFICATION_PROPOSAL_INVALID"),
+        issues: z.array(z.string()),
+        existingQuestionIds: z.array(questionIdSchema),
+        expectedFeedbackCount: z.number().int().nonnegative(),
+      }),
+    }),
+  ],
+);
 
 export type SpecificationState = z.infer<typeof specificationStateSchema>;
 export type SpecificationQuestion = z.infer<typeof specificationQuestionSchema>;

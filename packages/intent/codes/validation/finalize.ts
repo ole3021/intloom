@@ -16,6 +16,10 @@ const finalize = (async (_input, access) => {
     codeSnapshot: state.fileSnapshot,
     commandResults: state.commandResults,
     scope: state.scope,
+    scopeMode: state.scopeMode,
+    scopeContext: state.scopeContext,
+    scopeReasons: state.scopeReasons,
+    changedPaths: state.changedPaths,
     ...report,
     results: summarize(state),
   };

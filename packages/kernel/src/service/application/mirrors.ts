@@ -153,6 +153,7 @@ export async function restoreMirror(
     const preparation = createExecutionPreparation(
       project.config,
       initialized.registries.agents,
+      project.projectRoot,
     );
     const readiness = preparation.readiness(
       blueprint,

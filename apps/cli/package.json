@@ -1,6 +1,6 @@
 {
   "name": "@intloom/cli",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "IntLoom terminal clients for the project Kernel Service",
   "type": "module",
   "engines": {

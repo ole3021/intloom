@@ -433,7 +433,10 @@ test("startup failures are logged before readiness without configuration content
 
 test("a poisoned log stops waiting Runs, rejects new work, and keeps status and cleanup available", async (t) => {
   const root = await projectFixture(t);
-  const host = await startProjectHost({ projectRoot: root });
+  let writeExecutionLog: (() => void) | undefined;
+  const host = await startProjectHost({ projectRoot: root }, (_file, logs) => {
+    writeExecutionLog = () => logs.logger.debug("controlled_log_failure");
+  });
   t.after(() => host.close().catch(() => undefined));
   const client = await connectProject(root);
   t.after(() => client.close());
@@ -448,7 +451,9 @@ test("a poisoned log stops waiting Runs, rejects new work, and keeps status and 
   });
   syncBuiltinESMExports();
   try {
-    await client.getRun(waiting.runId);
+    // Pure queries no longer write logs; inject the I/O failure at a real log write.
+    assert.ok(writeExecutionLog);
+    writeExecutionLog();
   } finally {
     t.mock.restoreAll();
     syncBuiltinESMExports();

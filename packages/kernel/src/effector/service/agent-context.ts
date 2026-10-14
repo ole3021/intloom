@@ -4,6 +4,10 @@ import type { StateAccess } from "../state-access.ts";
 import type { AgentExecutionAccess } from "../execution.ts";
 
 import { agentExecutionContextKey } from "@intloom/workflow-sdk";
+export const agentToolControlKey = "intloom.toolControl";
+export interface AgentToolControl {
+  closed: boolean;
+}
 export {
   agentExecutionContextKey,
   getAgentExecutionAccess,
@@ -13,6 +17,7 @@ export {
 export function bindAgentContext(
   access: AgentExecutionAccess<JsonValue>,
   onFailure: (cause: unknown) => void,
+  toolControl?: AgentToolControl,
 ): RequestContext {
   function read<T>(operation: () => T): T {
     try {
@@ -60,5 +65,6 @@ export function bindAgentContext(
   });
   const context = new RequestContext();
   context.set(agentExecutionContextKey, binding);
+  if (toolControl) context.set(agentToolControlKey, toolControl);
   return context;
 }

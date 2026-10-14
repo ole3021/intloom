@@ -18,7 +18,7 @@ import type { ProjectHost } from "../host.ts";
 import type { ServiceStatus } from "../contracts.ts";
 import type { RunSource } from "./entry.ts";
 import { getArtifact, listArtifacts } from "./artifacts.ts";
-import { failure } from "../errors.ts";
+import { errorView, failure } from "../errors.ts";
 
 /** The host owns resources; protocol adapters borrow business operations without owning their lifecycle. */
 export interface ProjectApplication
@@ -49,8 +49,8 @@ export function createProjectApplication(
     host.assertOpen();
     if (runId) getLogger().debug("run_requested", { runId });
   }
-  function agentRuntime(runId: string) {
-    assertOpen(runId);
+  function agentRuntime(runId: string, requested = true) {
+    assertOpen(requested ? runId : undefined);
     if (source !== "agent_ide")
       throw failure(
         "INVALID_REQUEST",
@@ -58,16 +58,34 @@ export function createProjectApplication(
       );
     return host.execution.runtime;
   }
+  async function queryRun<T>(
+    runId: string,
+    query: () => T | Promise<T>,
+  ): Promise<T> {
+    try {
+      return await query();
+    } catch (error) {
+      getLogger().warn("run_query_failed", {
+        runId,
+        errorCode: errorView(error).code,
+      });
+      throw error;
+    }
+  }
   return Object.freeze({
     source,
     getAgentCall: (request) =>
-      agentRuntime(request.runId).getAgentCall(request),
+      queryRun(request.runId, () =>
+        agentRuntime(request.runId, false).getAgentCall(request),
+      ),
     claimAgentCall: (request) =>
       agentRuntime(request.runId).claimAgentCall(request),
     callAgentTool: (request) =>
       agentRuntime(request.runId).callAgentTool(request),
     readAgentAsset: (request) =>
-      agentRuntime(request.runId).readAgentAsset(request),
+      queryRun(request.runId, () =>
+        agentRuntime(request.runId, false).readAgentAsset(request),
+      ),
     completeAgentCall: (request) =>
       agentRuntime(request.runId).completeAgentCall(request),
     failAgentCall: (request) =>
@@ -77,8 +95,10 @@ export function createProjectApplication(
       return host.presentRun(await host.startFlow(flowName, intent, source));
     },
     async getRun(runId) {
-      assertOpen(runId);
-      return host.presentRun(await getRun(host.execution, runId));
+      return queryRun(runId, async () => {
+        assertOpen();
+        return host.presentRun(await getRun(host.execution, runId));
+      });
     },
     async listRuns(flowName) {
       assertOpen();

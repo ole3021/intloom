@@ -331,8 +331,12 @@ describe("Intent interaction and cancellation", () => {
     );
     assert.equal(f.reads.length, 3);
     assert.equal(f.reads[2]?.questions[0]?.skipped, true);
-    assert.equal(f.reads[2]?.feedbacks[0]?.source, "check");
-    assert.match(f.reads[2]?.feedbacks[0]?.content ?? "", /Deferred/);
+    assert.equal(f.reads[2]?.feedbacks.length, 0);
+    assert.equal(
+      f.agentTasks.length,
+      2,
+      "Correction stays in the second Agent invocation",
+    );
     assert.equal(
       (
         await answerAsk(f.execution, asking.runId, confirmation.id, {
@@ -354,7 +358,7 @@ describe("Intent interaction and cancellation", () => {
     assert.deepEqual((record.data as SpecificationRecord).questions, []);
     assert.deepEqual(
       f.codeCalls.map((call) => call.name),
-      ["init", "check", "clarify", "check", "check", "confirm", "finalize"],
+      ["init", "check", "clarify", "check", "confirm", "finalize"],
     );
   });
 

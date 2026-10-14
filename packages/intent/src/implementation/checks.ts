@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { ProjectAccess } from "@intloom/workflow-sdk";
 import { fail, objects } from "../flow/shared.ts";
 import type { ImplementationState } from "../../schemas/implementation-state.ts";
-export function validateChanges(
+export function changeDiagnostics(
   state: ImplementationState,
   snapshot: Readonly<Record<string, string>>,
 ) {
@@ -16,19 +16,45 @@ export function validateChanges(
       ...Object.keys(snapshot),
     ].filter((path) => state.initialSnapshot?.[path] !== snapshot[path]),
   );
-  for (const path of actual)
-    if (!declared.has(path)) fail(`Unrecorded project change: ${path}`);
-  for (const path of declared)
-    if (!actual.has(path)) fail(`Recorded path has no actual change: ${path}`);
   const ids = new Set([
     ...objects(state.specification?.data).keys(),
     ...objects(state.solution?.data).keys(),
   ]);
-  for (const change of state.changes)
-    for (const ref of change.origin_refs)
-      if (!ids.has(ref)) fail(`Unknown change origin: ${ref}`);
-  if (state.processedFeedbackCount !== state.feedbacks.length)
-    fail("Implementation feedback remains unprocessed.");
+  return {
+    changedPaths: [...actual].sort(),
+    missingPaths: [...actual].filter((path) => !declared.has(path)).sort(),
+    unchangedPaths: [...declared].filter((path) => !actual.has(path)).sort(),
+    validOriginRefs: [...ids].sort(),
+    unknownOriginRefs: [
+      ...new Set(
+        state.changes
+          .flatMap((change) => change.origin_refs)
+          .filter((ref) => !ids.has(ref)),
+      ),
+    ].sort(),
+    expectedFeedbackCount: state.feedbacks.length,
+    feedbackUnprocessed:
+      state.processedFeedbackCount !== state.feedbacks.length,
+  };
+}
+export function validateChanges(
+  state: ImplementationState,
+  snapshot: Readonly<Record<string, string>>,
+) {
+  const issues = changeDiagnostics(state, snapshot);
+  const messages = [
+    ...issues.missingPaths.map((path) => `Unrecorded project change: ${path}`),
+    ...issues.unchangedPaths.map(
+      (path) => `Recorded path has no actual change: ${path}`,
+    ),
+    ...issues.unknownOriginRefs.map((ref) => `Unknown change origin: ${ref}`),
+    ...(issues.feedbackUnprocessed
+      ? [
+          `Implementation feedback remains unprocessed. Use processedFeedbackCount=${issues.expectedFeedbackCount}.`,
+        ]
+      : []),
+  ];
+  if (messages.length) fail(messages.join("\n"));
 }
 export async function runChecks(
   project: ProjectAccess,
@@ -51,7 +77,9 @@ export async function runChecks(
     );
   const after = await project.snapshot();
   if (!isDeepStrictEqual(before, after))
-    fail("Checks changed source files. Inspect changes and run checks again.");
+    fail(
+      `Checks changed source files: ${JSON.stringify([...new Set([...Object.keys(before), ...Object.keys(after)])].filter((path) => before[path] !== after[path]))}. Checks must restore temporary runtime data before exiting. Use isolated fixtures with cleanup; do not delete the implementation or change the approved check plan.`,
+    );
   return { snapshot: after, results };
 }
 export const passed = (result: {

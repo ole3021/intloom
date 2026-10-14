@@ -4,8 +4,8 @@ import { Ticker } from "./ticker.tsx";
 import { PrincipleSection } from "./principle-section.tsx";
 import { WorkflowSection } from "./workflow/index.tsx";
 import { CliSection } from "./cli-section.tsx";
+import { TuiSection } from "./tui-section.tsx";
 import { StudioSection } from "./studio-section.tsx";
-import { ProjectStatus } from "./project-status.tsx";
 import { ClosingSection } from "./closing-section.tsx";
 
 export const frontmatter = {
@@ -24,8 +24,8 @@ export default function Home() {
       <PrincipleSection />
       <WorkflowSection />
       <CliSection />
+      <TuiSection />
       <StudioSection />
-      <ProjectStatus />
       <ClosingSection />
     </main>
   );

@@ -187,7 +187,7 @@ export function createToolServer(
     "get_artifact",
     {
       description:
-        "Read the current committed Artifact by artifactId or flowName and stageName. This is the latest value at query time, not a historical Run version. Missing values return null.",
+        "Read the current committed Artifact using exactly one selector: {artifactId} alone, or {flowName, stageName} together. Never combine the two selectors. This is the latest value at query time, not a historical Run version. Missing values return null.",
       inputSchema: artifactSelectorSchema,
       annotations: {
         readOnlyHint: true,

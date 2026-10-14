@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, symlink } from "node:fs/promises";
+import { mkdir, symlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -15,9 +15,14 @@ import { projectFixture } from "./project-fixture.ts";
 import { runtimeFixture } from "./runtime-fixture.ts";
 import { agentId, codeId } from "./workflow-fixture.ts";
 
-test("published Effector runs a Loader-assembled Agent with real Tool dispatch and a controlled model transport", async (t) => {
+test("published Effector uses project .env for a Loader-assembled Agent with real Tool dispatch and controlled model transport", async (t) => {
   credential(t);
+  delete process.env.INTLOOM_WORKFLOW_TEST_KEY;
   const project = await projectFixture(t);
+  await writeFile(
+    resolve(project.root, ".env"),
+    "INTLOOM_WORKFLOW_TEST_KEY=fixture-file-credential\n",
+  );
   await mkdir(resolve(project.installation, "node_modules/@intloom"));
   await symlink(
     fileURLToPath(new URL("../", import.meta.url)),
@@ -46,6 +51,10 @@ test("published Effector runs a Loader-assembled Agent with real Tool dispatch a
     "fetch",
     async (input: string | URL | Request, init?: RequestInit) => {
       assert.equal(String(input), "https://model.invalid/v1/chat/completions");
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "Bearer fixture-file-credential",
+      );
       const request = JSON.parse(String(init?.body));
       requests.push(request);
       const first = requests.length === 1;
@@ -100,6 +109,7 @@ test("published Effector runs a Loader-assembled Agent with real Tool dispatch a
   t.after(() => cancelAllRuns(execution));
   assert.equal((await flow(execution, "fixture", "input")).status, "completed");
   assert.equal(requests.length, 2);
+  assert.equal(process.env.INTLOOM_WORKFLOW_TEST_KEY, undefined);
   const result = requests[1]?.messages.find(
     (message) => message.role === "tool",
   );

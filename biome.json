@@ -11,8 +11,12 @@
       "**",
       "!!**/dist",
       "!!**/.turbo",
+      "!!**/.intloom-build-*",
+      "!!**/workflow.generated.ts",
       "!!**/node_modules",
-      "!!**/example"
+      "!!**/example",
+      "!!packages/intent/e2e/cases/*/workspace",
+      "!!packages/intent/e2e/cases/*/baseline"
     ]
   },
   "formatter": {

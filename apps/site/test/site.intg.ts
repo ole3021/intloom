@@ -40,7 +40,7 @@ test("docs and supporting pages retain their content inside the shared site fram
   assert.match(docs, /data-site-frame/);
   assert.match(docs, /rp-doc-layout__sidebar/);
   assert.match(docs, /rp-doc-layout__outline/);
-  assert.match(docs, /About IntLoom/);
+  assert.match(docs, /What is IntLoom/);
   assert.doesNotMatch(docs, /<canvas/);
   for (const name of ["workflows", "examples"]) {
     const html = page(`${name}.html`);

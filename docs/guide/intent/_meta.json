@@ -1,0 +1,13 @@
+[
+  "overview",
+  "walkthrough",
+  "stages",
+  "interaction",
+  "results",
+  {
+    "type": "dir",
+    "name": "agents",
+    "label": "Internal Agents",
+    "collapsed": false
+  }
+]

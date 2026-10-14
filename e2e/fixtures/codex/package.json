@@ -1,0 +1,21 @@
+{
+  "name": "intloom-e2e-codex-compatibility",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "intloom": {
+    "type": "workflow",
+    "version": "2026-10-08"
+  },
+  "exports": {
+    ".": {
+      "types": "./workflow.d.ts",
+      "default": "./workflow.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "workflow.mjs",
+    "workflow.d.ts"
+  ]
+}

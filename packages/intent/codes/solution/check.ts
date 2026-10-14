@@ -5,7 +5,7 @@ import {
   saveSolution,
   assertSolutionBasis,
 } from "../../src/solution/state.ts";
-import { digest } from "../../src/flow/shared.ts";
+import { digest, fail, repeatedCheckFailure } from "../../src/flow/shared.ts";
 const check = (async (_input, access) => {
   const state = readSolution(access);
   if (state.feedbacks.length >= 12)
@@ -21,12 +21,19 @@ const check = (async (_input, access) => {
   try {
     reviewSolution(state);
   } catch (error) {
+    const content =
+      error instanceof Error ? error.message : "Invalid Solution draft";
+    const stalled = repeatedCheckFailure(state.feedbacks, content);
     state.feedbacks.push({
       source: "check",
-      content:
-        error instanceof Error ? error.message : "Invalid Solution draft",
+      content,
     });
     await saveSolution(access, state);
+    if (stalled)
+      fail(
+        "Solution repair repeated the same Check failure. Inspect the saved feedback before another execution.",
+        "INTENT_REPAIR_STALLED",
+      );
     return { outcome: "repair_required" };
   }
   state.confirmation = { digest: digest(state), confirmed: false };

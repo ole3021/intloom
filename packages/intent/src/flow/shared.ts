@@ -19,6 +19,15 @@ export const json = (value: unknown): JsonValue =>
 export function fail(message: string, code = "INVALID_INTENT_STAGE"): never {
   throw new LoomError(code, message, { retryable: false });
 }
+export function repeatedCheckFailure(
+  feedbacks: readonly { source: string; content: string }[],
+  content: string,
+): boolean {
+  return (
+    feedbacks.findLast((feedback) => feedback.source === "check")?.content ===
+    content
+  );
+}
 export function digest(value: unknown): string {
   function canonical(v: unknown): unknown {
     if (Array.isArray(v)) return v.map(canonical);
@@ -33,6 +42,22 @@ export function digest(value: unknown): string {
   return createHash("sha256")
     .update(JSON.stringify(canonical(value)))
     .digest("hex");
+}
+/** New draft history is host-owned; nested objects without a history contract must not inherit it. */
+export function initializeProvenance(
+  value: unknown,
+  withHistory = false,
+): void {
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    for (const item of value) initializeProvenance(item);
+    return;
+  }
+  const item = value as Record<string, unknown>;
+  delete item.record_refs;
+  if (withHistory) item.record_refs = [];
+  for (const [key, child] of Object.entries(item))
+    if (key !== "record_refs") initializeProvenance(child);
 }
 // Specification keeps its established public Record ID; later Stages use separate storage identities.
 export const recordId = (runId: string, stage: string) =>
@@ -163,21 +188,36 @@ export function objects(value: unknown): Map<string, Record<string, unknown>> {
   visit(value);
   return result;
 }
-export function references(value: unknown): string[] {
+export function references(
+  value: unknown,
+  onReference?: (ref: string, path: string) => void,
+): string[] {
   const result: string[] = [];
-  function visit(v: unknown) {
+  function visit(v: unknown, path = "") {
     if (!v || typeof v !== "object") return;
     if (Array.isArray(v)) {
-      v.forEach(visit);
+      v.forEach((item, index) => {
+        visit(item, `${path}/${index}`);
+      });
       return;
     }
     for (const [key, item] of Object.entries(v)) {
       if (key === "record_refs") continue;
-      if ((key.endsWith("_ref") || key === "ref") && typeof item === "string")
+      const pointer = `${path}/${key.replaceAll("~", "~0").replaceAll("/", "~1")}`;
+      if ((key.endsWith("_ref") || key === "ref") && typeof item === "string") {
         result.push(item);
-      else if ((key.endsWith("_refs") || key === "refs") && Array.isArray(item))
-        result.push(...item.filter((x): x is string => typeof x === "string"));
-      else visit(item);
+        onReference?.(item, pointer);
+      } else if (
+        (key.endsWith("_refs") || key === "refs") &&
+        Array.isArray(item)
+      ) {
+        item.forEach((ref, index) => {
+          if (typeof ref === "string") {
+            result.push(ref);
+            onReference?.(ref, `${pointer}/${index}`);
+          }
+        });
+      } else visit(item, pointer);
     }
   }
   visit(value);

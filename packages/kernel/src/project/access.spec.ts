@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdtemp,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createProjectAccess, bindProjectAccess } from "./access.ts";
@@ -67,4 +74,55 @@ test("host command captures failed checks, timeout, cancellation and stale owner
   }, 30);
   await rejected;
   await assert.rejects(scoped.write("late", "no"), /lost owner/);
+});
+
+test("missing command or cwd is a nonzero result before execution, while capability boundaries remain fatal", async (t) => {
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), "project-command-input-")),
+  );
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const p = createProjectAccess(root);
+  const missing = await p.run({
+    command: join(root, "missing-executable"),
+    args: [],
+  });
+  assert.equal(missing.exitCode, 127);
+  assert.equal(missing.timedOut, false);
+  assert.equal(missing.stdout, "");
+  assert.match(missing.stderr, /executable.*command.*args/u);
+  const command = {
+    command: process.execPath,
+    args: ["-e", 'require("node:fs").writeFileSync("executed", "bad")'],
+  };
+  for (const cwd of ["missing-directory", "regular-file"]) {
+    await writeFile(join(root, "regular-file"), "file");
+    const result = await p.run({ ...command, cwd });
+    assert.equal(result.exitCode, 126);
+    assert.match(result.stderr, /working directory/u);
+    assert.equal((await p.snapshot()).executed, undefined);
+  }
+  await assert.rejects(
+    p.run({ ...command, cwd: "../outside" }),
+    /business file/u,
+  );
+  await symlink(root, join(root, "linked"));
+  await assert.rejects(p.run({ ...command, cwd: "linked" }), /symbolic/u);
+  const canceled = new AbortController();
+  canceled.abort(new Error("canceled before launch"));
+  await assert.rejects(
+    p.run({ command: "missing", args: [] }, canceled.signal),
+    /canceled before launch/u,
+  );
+  if (process.platform !== "win32") {
+    const denied = join(root, "denied-executable");
+    await writeFile(denied, "#!/bin/sh\nexit 0\n");
+    await chmod(denied, 0o600);
+    await assert.rejects(p.run({ command: denied, args: [] }), {
+      code: "EACCES",
+    });
+  }
+  await rm(root, { recursive: true, force: true });
+  await assert.rejects(p.run({ command: "missing", args: [] }), {
+    code: "ENOENT",
+  });
 });

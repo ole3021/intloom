@@ -1,0 +1,31 @@
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--site-spacing-03);
+  min-height: var(--site-notice-height);
+  padding: 6px 16px;
+  background: #facc15;
+  color: #181b12;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+}
+.notice p {
+  margin: 0;
+}
+.notice strong {
+  font-weight: var(--site-weight-strong);
+}
+.signal {
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .notice {
+    gap: var(--site-spacing-03);
+    padding: 5px 12px;
+    font-size: 11px;
+    line-height: 16px;
+  }
+}

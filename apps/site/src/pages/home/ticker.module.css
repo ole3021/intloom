@@ -1,5 +1,6 @@
 .field-ticker {
   position: relative;
+  min-height: var(--site-ticker-height);
   overflow: hidden;
   background: var(--site-color-accent);
   color: #071408;

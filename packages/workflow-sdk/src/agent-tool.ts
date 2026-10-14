@@ -12,6 +12,8 @@ export interface AgentTool<
   readonly description: string;
   readonly inputSchema: ZodType<Input>;
   readonly outputSchema: ZodType<Output, RawOutput>;
+  /** Close this invocation's Tools after a validated result; a final Agent outcome is still required. */
+  endsAgent?(output: NoInfer<Output>): boolean;
   execute(
     input: NoInfer<Input>,
     access: AgentExecutionAccess<JsonValue>,

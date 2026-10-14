@@ -6,6 +6,7 @@ import type { ExecutableAgent } from "../execution.ts";
 import { KERNEL_ERRORS } from "../../errors/kernel.ts";
 import { resolveModelConfig } from "./agent-model.ts";
 import type { createAgent } from "./create-agent.ts";
+import { createCredentialResolver } from "./credentials.ts";
 
 /** Owns only service model preparation; entry policy belongs to Core. */
 export function createServicePreparation(
@@ -13,7 +14,9 @@ export function createServicePreparation(
   resources: AgentRegistry,
   assemble: typeof createAgent = async (...args) =>
     (await import("./create-agent.ts")).createAgent(...args),
+  projectRoot?: string,
 ) {
+  const credentials = createCredentialResolver(projectRoot);
   const agents: Record<string, ExecutableAgent> = Object.create(null);
   const preparing = new Map<string, Promise<ExecutableAgent>>();
   function resourceFor(id: string) {
@@ -37,6 +40,7 @@ export function createServicePreparation(
         resource.spec.llm,
         config,
         `${resource.source.packageName}/${id}`,
+        credentials,
       );
     }
   }
@@ -56,6 +60,7 @@ export function createServicePreparation(
               agentId: id,
               source: resource.source,
               config,
+              credentials,
             })
               .then((result) => result.executable)
               .catch((cause) => {

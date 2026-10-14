@@ -1,72 +1,60 @@
 ---
 title: 配置参考
-description: intloom.yaml 字段、模型定义和受管理的包声明。
 ---
 
 # 配置参考
 
-项目使用 `intloom.yaml`。服务在启动时读取配置，修改后需要重启。顶层 Schema 是严格对象。
+`intloom.yaml` 使用严格顶层 Schema，未知字段会被拒绝。
 
-## 顶层字段
+## 项目字段
 
-| 字段 | 类型／默认值 | 含义 |
-| --- | --- | --- |
-| `localStorage` | `file` 或 `sqlite`；默认 `file` | 正式数据后端 |
-| `mirror` | 可选对象，默认关闭 | 本地安全边界完整镜像；`enabled` 默认 false，`files.include/exclude` 为 glob 数组 |
-| `useMcpAgent` | 布尔值，默认 `true` | 外部 MCP 为 true 时使用客户端 Agent 任务，为 false 时使用服务模型 |
-| `workflows` | 数组；默认 `[]` | CLI 管理的已安装包声明 |
-| `intent` | 必填对象 | 当前配置包含应用偏好；未使用时保留 `{ apps: [] }` |
-| `llms` | 可选对象 | 服务模型定义；该对象存在时必须包含 `default` |
-
-配置加载时，省略的 `localStorage` 默认为 `file`，`workflows` 默认为 `[]`。无论 `useMcpAgent` 如何设置，CLI 和 Studio 后端都使用服务模型。
-
-## Workflow 声明
-
-每条声明包含：
-
-| 字段 | 含义 |
+| 字段 | 契约 |
 | --- | --- |
-| `name` | 唯一 npm 包名 |
-| `version` | 解析后的精确语义版本 |
-| `sha256` | 原始分发归档的 64 字符小写 SHA-256 |
-| `source` | 可选的本地归档来源；安装器写入绝对路径 |
+| `workflows` | 可选唯一包声明数组：name、精确 semver、64 位小写 sha256、可选本地 source |
+| `localStorage` | 可选 `file` 或 `sqlite` |
+| `useMcpAgent` | 布尔，默认 true；外部 MCP 执行环境偏好 |
+| `intent.apps` | 必需应用偏好数组，可以为空 |
+| `mirror.enabled` | 布尔，默认 false |
+| `mirror.files.include/exclude` | 可选非空文件规则数组 |
+| `llms.default` | 配置 llms 时必需 |
+| `llms.reasoning/coding/review` | 可选完整角色模型定义 |
 
-使用 `workflow add/remove` 管理这些条目。项目归档校验和与包发布的完整性元数据不同，它不会锁定所有传递依赖。
+CLI 维护已安装 Workflow 声明，请使用包管理操作，不编造归档哈希。
 
 ## 模型定义
 
-服务执行准入要求 `llms.default`。可选的完整角色配置为 `reasoning`、`coding` 和 `review`。缺失角色时回退到 `default`。
+`provider` 为 `anthropic` 或 `openai-compatible`，`model` 为非空字符串。`secret` 为 `ENV.NAME` 或 `DENV.NAME`，NAME 满足大写环境标识符规则。可选 `baseURL` 是 URL。
 
-| 模型字段 | 要求 |
-| --- | --- |
-| `provider` | `anthropic` 或 `openai-compatible` |
-| `model` | 非空的提供商模型标识符 |
-| `secret` | `ENV.NAME` 或 `DENV.NAME`；环境变量名为大写 |
-| `baseURL` | 可选，自定义提供商端点的有效 URL |
-| `parameters.temperature` | 可选数值 |
-| `parameters.maxOutputTokens` | 可选正整数 |
-| `parameters.topP` | 可选数值 |
-| `providerOptions` | 可选，以提供商名称为键、包含 JSON 选项对象的对象 |
+`ENV.NAME`：已定义的 `process.env` 值优先，仅变量不存在时回退到目标项目的普通 `.env`；空值或加密值会导致准备失败。`DENV.NAME`：仅使用外部解密后的启动环境。修改 `.env` 后重启；不搜索其他目录、不加载 dotenv 变体、不展开变量、不内部解密、不修改全局环境。
 
-这些通用字段不能完整验证提供商专属参数。服务适配器验证选项对象的结构，选定提供商决定支持的参数值和行为。
+`parameters` 支持数字 temperature/topP 和正整数 maxOutputTokens。`providerOptions` 是提供方为键的 JSON 对象。角色回退到 default，不执行局部合并。
 
-两种凭据前缀都读取服务启动环境。CLI 不会自动加载或解密 dotenv 文件。相关 Agent 所需的空值或仍然加密的密文会被拒绝。
+## Intent 应用偏好
 
-## 应用偏好
+每个应用有 `name`、`type`，可选 `dependencies`/`patterns` 为 name/description 对数组。类型为 web、service、worker、mobile、desktop、mini-app。Service/worker 支持 runtime。Mobile/desktop/mini-app 要求非空支持平台列表：ios/android；macos/windows/linux；wechat/alipay/douyin/qq/baidu。
 
-当前框架配置要求 `intent.apps`，即应用描述符数组。本参考说明接受的字段，不定义特定包的业务 Workflow。
+## 宿主观察与限制
 
-| 字段 | 要求 |
-| --- | --- |
-| `name` | 必填，非空名称 |
-| `type` | `web`、`service`、`worker`、`mobile`、`desktop` 或 `mini-app` |
-| `dependencies` | 可选，`{ name, description }` 技术偏好数组 |
-| `patterns` | 可选，`{ name, description }` 架构偏好数组 |
-| `runtime` | `service` 或 `worker` 可使用的非空字符串 |
-| `platforms` | `mobile`、`desktop` 和 `mini-app` 必填的非空数组 |
+可选 `intloom/host.json`：
 
-移动端平台：`ios`、`android`。桌面平台：`macos`、`windows`、`linux`。小程序平台：`wechat`、`alipay`、`douyin`、`qq`、`baidu`。
+```json
+{
+  "maxAgentSteps": 64,
+  "run": {
+    "maxModelCalls": 100,
+    "maxDurationMs": 600000,
+    "maxKnownInputTokens": 100000,
+    "maxKnownOutputTokens": 20000
+  },
+  "prices": [{
+    "modelId": "example",
+    "inputPerMillion": 1,
+    "outputPerMillion": 2,
+    "pricingId": "local-estimate"
+  }]
+}
+```
 
-应用偏好不会安装业务依赖，也不会替代项目包管理器的锁文件。只使用框架时保留 `apps: []`。
+限制为正整数。人工等待不消耗执行时长。费率按已知用量估算美元费用，不设置金额上限，也不是供应商账单。
 
-启动和执行选择见[配置指南](../usage/configuration.md)。
+变更在 Service 启动时生效，参见[配置指南](../usage/configuration.md)。

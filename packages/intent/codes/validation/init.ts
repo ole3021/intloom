@@ -11,14 +11,16 @@ import {
   fail,
 } from "../../src/flow/shared.ts";
 import { runChecks } from "../../src/implementation/checks.ts";
-import { targets } from "../../src/validation/review.ts";
+import { runScope } from "../../src/validation/scope.ts";
+import { specificationRecordSchema } from "../../schemas/specification-record.ts";
+import { solutionRecordSchema } from "../../schemas/solution-state.ts";
 const init = (async (_input, access) => {
   const state = validationStateSchema.parse(access.state.value);
   if (state.scope) return { outcome: "complete" };
-  state.specification = (
-    await outputOf(access, "specification", state.id)
-  ).artifact;
-  state.solution = (await outputOf(access, "solution", state.id)).artifact;
+  const spec = await outputOf(access, "specification", state.id);
+  const sol = await outputOf(access, "solution", state.id);
+  state.specification = spec.artifact;
+  state.solution = sol.artifact;
   state.implementationRecordId = recordId(state.id, "implementation");
   const stored = await access.storage.getRecordById(
     state.implementationRecordId,
@@ -45,12 +47,21 @@ const init = (async (_input, access) => {
   );
   state.commandResults = checked.results;
   state.fileSnapshot = { ...checked.snapshot };
-  state.scope = {
-    specification: targets(state.specification.data),
-    solution: targets(state.solution.data),
-  };
   const prior = await access.storage.getArtifact("intent", "validation");
   state.baseline = prior ? basis(prior) : null;
+  Object.assign(
+    state,
+    runScope(
+      state.specification.data,
+      state.solution.data,
+      [
+        ...specificationRecordSchema.parse(spec.record.data).changes,
+        ...solutionRecordSchema.parse(sol.record.data).changes,
+      ],
+      implementation,
+      !prior,
+    ),
+  );
   await access.state.update(json(state));
   return { outcome: "complete" };
 }) satisfies ExecutableCode;

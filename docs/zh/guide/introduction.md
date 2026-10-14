@@ -1,49 +1,27 @@
 ---
-title: 了解 IntLoom
-description: 了解框架、公开包，以及从意图到留存结果的执行过程。
+title: 什么是 IntLoom？
 ---
 
-# 了解 IntLoom
+# 什么是 IntLoom？
 
-IntLoom 是一个本地工作流框架，用于协调 Agent、代码和人的决策。项目服务加载已安装的 Workflow 包，执行其中的步骤，处理问题与确认，并保存 Workflow 明确提交的结果。
+IntLoom 是一个本地 Workflow 框架，用于协调 Agent、可执行 Code 和人的决策。项目 Service 加载已安装的 Workflow 包，执行其中声明的阶段和步骤，呈现问题与确认，并保存 Workflow Code 提交的正式结果。
 
-当任务需要明确的流程，例如推理、确定性检查、人工审核和结果留存时，可以使用 IntLoom。Workflow 定义流程，框架负责执行；框架不要求每个包都包含固定的业务阶段。
+Workflow 定义流程，Run 针对一个意图执行一次流程。Code 执行确定性操作，Agent 使用声明的 Tools 和 Skills 推理，人通过明确的交互节点作出决策。你可以通过 CMD、TUI 或 MCP 查看执行过程和结果。
 
-## 主要对象
+## 从你的目标开始
 
-- **项目（Project）**：保存配置、已安装 Workflow 的声明、源文件和结果。
-- **工作流（Workflow）**：描述可执行的阶段和步骤。安装包后，其中注册的工作流可供服务加载。
-- **运行（Run）**：针对一个原始意图执行一次 Workflow。回答问题和补充反馈会继续同一个 Run。
-- **产物与记录（Artifacts、Records）**：Workflow Code 保存的正式结果，其业务含义由创建它们的包定义。
-
-执行和数据边界见[核心概念](./workflow.md)。
-
-## 选择使用方式
-
-| 目标 | 从这里开始 |
+| 目标 | 下一步 |
 | --- | --- |
-| 使用已连接 IDE 的推理环境 | [通过 MCP 运行](./quickstart/mcp.md) |
-| 在终端中使用项目配置的模型 | [通过 CLI 运行](./quickstart/cli.md) |
+| 第一次运行 IntLoom | [安装](./start/installation.md) |
+| 从意图开始开发软件 | [Intent Workflow](./intent/overview.md) |
+| 连接外部 Agent | [MCP 快速开始](./start/mcp.md) |
 | 定义自己的流程 | [创建 Workflow](./development/create.md) |
-| 构建可信的 Node.js 客户端 | [ProjectClient 参考](./reference/project-client.md) |
+| 理解执行与数据 | [架构](./concepts/architecture.md) |
 
-两种执行方式使用同一个本地服务和业务 Tools。执行器在 Run 创建时固定；修改项目配置不会把已有 Run 切换到另一种模型环境。
+## 框架与 Workflow 包
 
-## 公开包的职责
+CLI 提供项目 Service 和使用入口，业务 Workflow 需要单独安装。`@intloom/workflow-intent` 提供 Specification → Solution → Implementation → Validation 四个阶段；这属于该包的业务流程，并非所有 IntLoom Workflow 的固定结构。
 
-| 包 | 用途 |
-| --- | --- |
-| `intloom` | 轻量命令入口，依赖版本匹配的 CLI |
-| `@intloom/cli` | CLI、项目服务、MCP 端点及 Node.js ProjectClient |
-| `@intloom/workflow-sdk` | 公开的 Workflow 契约和 Agent Tool 辅助函数 |
-| `@intloom/compiler` | 构建阶段使用的 Workflow 编译器 |
-| `@intloom/utils` | 共享日志、错误和标识符工具 |
+Workflow 作者在运行时使用 `@intloom/workflow-sdk`，在构建时使用 `@intloom/compiler`。私有 Kernel 随 CLI 一起提供。
 
-`@intloom/kernel` 是私有包，随 CLI 一起提供。Workflow 作者在运行时依赖 SDK，在开发时使用 Compiler，无需安装公开的 Kernel 包。Workflow 包与 CLI 分开安装。
-
-## 文档范围
-
-这些文档介绍框架的配置、操作、扩展和接口参考，不包含特定业务包的手册或完整应用示例集。支持某个接口，并不能证明某个模型、客户端或部署环境已经通过验证；请先查看[当前能力](./status.md)。
-
-接下来阅读[开始使用](./getting-started.md)。
-
+继续阅读[为什么需要 IntLoom](./about/why.md)，或[选择使用方式](./about/choose.md)。

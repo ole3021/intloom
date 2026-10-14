@@ -44,7 +44,7 @@ export const removeProject = defineAgentTool({
 export const runProject = defineAgentTool({
   id: "run_project_command",
   description:
-    "Execute a bounded project command without an implicit shell. Use command plus args, set cwd only to a project subdirectory. A returned nonzero exit is a failed command.",
+    "Execute a bounded command without a shell. Example: command=node, args=[--test]. Never put a full shell command in command. Omit cwd for the project root; otherwise use an existing subdirectory. Nonzero exit is a failed command, including 126/127 when the process cannot start. Correct that command in this Agent without replaying successful writes or claiming a test passed.",
   inputSchema: commandSchema,
   outputSchema: z.json(),
   execute: async (input, access) =>

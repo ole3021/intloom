@@ -13,6 +13,65 @@ import {
 import { deferred } from "../../test/runtime-fixture.ts";
 import { createRuntime } from "./create-runtime.ts";
 
+test("terminal client Tools keep receipts replayable but reject new effects before explicit completion", async () => {
+  const f = clientAgentFixture();
+  let submits = 0;
+  f.tools.push(
+    defineAgentTool({
+      id: "submit",
+      description: "Finish",
+      inputSchema: z.strictObject({}),
+      outputSchema: z.strictObject({ saved: z.boolean() }),
+      endsAgent: (output) => output.saved,
+      execute: async () => ({ saved: ++submits === 2 }),
+    }),
+  );
+  const runtime = f.create();
+  const ref = agentRef(
+    await runtime.flow(f.blueprint, "terminal", "agent_ide"),
+  );
+  const { ownerToken } = await runtime.claimAgentCall({
+    ...ref,
+    claimId: "owner",
+  });
+  const owner = { ...ref, ownerToken };
+  const request = {
+    ...owner,
+    toolId: "submit",
+    toolCallId: "first",
+    input: {},
+  };
+  assert.deepEqual(await runtime.callAgentTool(request), { saved: false });
+  const saved = { ...request, toolCallId: "second" };
+  assert.deepEqual(await runtime.callAgentTool(saved), { saved: true });
+  assert.deepEqual(await runtime.callAgentTool(saved), { saved: true });
+  await assert.rejects(
+    runtime.callAgentTool({ ...request, toolCallId: "third" }),
+    { code: "INVALID_REQUEST" },
+  );
+  await assert.rejects(
+    runtime.callAgentTool({
+      ...owner,
+      toolId: "add",
+      toolCallId: "edit",
+      input: { amount: 1 },
+    }),
+    { code: "INVALID_REQUEST" },
+  );
+  assert.equal(submits, 2);
+  assert.equal(f.writes, 0);
+  assert.equal((await runtime.getAgentCall(ref)).pending.phase, "claimed");
+  assert.equal(
+    (
+      await runtime.completeAgentCall({
+        ...owner,
+        result: { outcome: "complete" },
+      })
+    ).status,
+    "completed",
+  );
+});
+
 test("client Agent calls continue through human confirmation and multiple Stages without replay", async () => {
   const f = clientAgentFixture();
   let confirmations = 0;

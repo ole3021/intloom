@@ -1,80 +1,60 @@
 ---
-title: MCP reference
-description: Host endpoints, business tools, Agent task ownership, human actions, and retry rules.
+title: MCP tools and Agent task protocol
 ---
 
-# MCP reference
+# MCP tools and Agent task protocol
 
-The local host provides authenticated Streamable HTTP endpoints on loopback. `/mcp` is the generic external Agent IDE entry; `/mcp/codex` adds the Codex presentation profile. Both use the same business handlers and Agent task protocol.
+External Service endpoints are `/mcp` and `/mcp/codex` on authenticated loopback. The installed stdio proxy handles discovery and credentials. Internal CLI/Studio entries select different source policies; do not use external endpoints as a substitute.
 
-Internal `/internal/mcp` and `/internal/mcp/studio` bind CLI and Studio backend source policies. Do not use an external endpoint as a fallback for a missing internal endpoint: source selects execution policy.
+## Workflow and result Tools
 
-Use generated connection metadata and the supported client helpers. Keep Bearer credentials and task ownership tokens private. Sessions stay bound to their original endpoint.
-
-## Workflow and result tools
-
-| Tool | Input | Result field |
+| Tool | Input | Result |
 | --- | --- | --- |
-| `flow` | `flowName`, `intent` | `run` |
+| `flow` | `flowName, intent` | `run` |
 | `list_workflows` | Empty object | `workflows` |
 | `get_run` | `runId` | `run` |
 | `list_runs` | Optional `flowName` | `runs` |
-| `interact` | `runId`, `actionId` | Native interaction or current/continued Run |
-| `answer_ask` | `runId`, `actionId`, `answer` | `run` |
+| `answer_ask` | `runId, actionId, answer` | `run` |
+| `interact` | `runId, actionId` | Native interaction or action/Run |
 | `cancel_run` | `runId` | `run` |
 | `status` | Empty object | `service` |
+| `get_artifact` | `artifactId` or `flowName, stageName` | `artifact` |
+| `list_artifacts` | Optional `flowName, stageName, limit, cursor` | `artifacts` page |
 | `get_record` | `recordId` | `record` |
-| `get_artifact` | `artifactId`, or both `flowName` and `stageName` | `artifact` |
-| `list_artifacts` | Optional `flowName`, `stageName`, `limit`, `cursor` | `artifacts` page |
 
-Artifact lists contain metadata; details contain business data. Missing Record/Artifact details return `null`. Business errors return `isError: true` with a classified error payload. Clients should handle structured content or JSON text content, and native interaction responses where applicable.
+Missing Artifact/Record details return `null`. Lists contain Artifact metadata; detail contains business data. Business errors set `isError: true`. Clients should handle structured content or JSON text and negotiated native interaction.
 
-## Agent task tools
+## External Agent Tools
 
-External entries expose six additional tools. A task reference is `{ runId, callId }`; an owned reference adds `ownerToken`.
+| Tool | Additional fields |
+| --- | --- |
+| `get_agent_call` | `runId, callId` |
+| `claim_agent_call` | Task reference plus `claimId` |
+| `call_agent_tool` | Owned reference plus `toolCallId, toolId, input` |
+| `read_agent_asset` | Owned reference plus `assetId` |
+| `complete_agent_call` | Owned reference plus `result` |
+| `fail_agent_call` | Owned reference plus `message` |
 
-| Tool | Additional input | Result |
-| --- | --- | --- |
-| `get_agent_call` | Task reference | `agentCall` |
-| `claim_agent_call` | Task reference plus `claimId` | `task`, `ownerToken` |
-| `call_agent_tool` | Owned reference plus `toolCallId`, `toolId`, `input` | `output` |
-| `read_agent_asset` | Owned reference plus `assetId` | Declared asset content and encoding |
-| `complete_agent_call` | Owned reference plus `result` | Continued `run` |
-| `fail_agent_call` | Owned reference plus `message` | Failed `run` |
+An owned reference is `{ runId, callId, ownerToken }`. Use `pendingAgentCall.id` as callId. Generate a stable unique claimId; the claim returns task instructions, Skills, Tools, output Schema and private ownerToken.
 
-Use the current `pendingAgentCall.id` as `callId`. Generate and retain a stable unique `claimId`. Another claimant conflicts; reconnecting with the same identity recovers the live claim. The returned task contains instructions, Skills, declared Tools, and final output Schema.
+Execute declared Tools serially. Retain each toolCallId; retrying it with identical input returns its receipt, while changed input conflicts. Each task retains at most 256 receipts. Declared asset reads are limited to 1 MiB.
 
-Tools are serial. Retrying the same `toolCallId` with the same input returns the retained receipt; changing its input conflicts. Each task retains at most 256 receipts. Finish in-flight Tools before completion. Assets accept declared IDs rather than arbitrary paths and are limited to 1 MiB per read.
+After all Tools finish, submit raw final JSON matching the task output Schema's input shape. Follow the returned Run rather than creating another flow. Claim/Tool receipts are live-process guarantees, not durable replay across restart.
 
-Submit raw final JSON matching the task's advertised input shape for its output parser. The host parses it and resumes the original Step. Follow the returned Run; do not call `flow` to advance to the next task.
+## Human actions
 
-## Human answers
+Questions use a complete array of `{ questionId, isSkipped, answer? }`. Confirmation uses `{ isConfirmed, feedback? }`. `interact` attempts native presentation; fallback collects actual user answers and calls `answer_ask`. Dismissal preserves waiting.
 
-For a `user_ask_questions` action, the `answer` is the complete answer array:
+## Mirror Tools
 
-```json
-[
-  { "questionId": "destination", "isSkipped": false, "answer": "Local project" },
-  { "questionId": "notes", "isSkipped": true }
-]
-```
+| Tool | Input |
+| --- | --- |
+| `mirror_list` | Empty object |
+| `mirror_inspect` | `mirrorId` |
+| `mirror_restore` | `mirrorId, targetProject, scope`; optional `dryRun` |
+| `mirror_export` | `traceId, targetProject` |
+| `resume_run` | `runId, operationId, expectedRevision, serviceInstanceId`; optional `scope, abandonMirror` |
 
-Use the actual question IDs and allow skips only where permitted. For confirmation:
+Mirror/trace IDs are UUIDs. Resume binds the current instance and observed revision; retain its exact identity after an uncertain response.
 
-```json
-{ "isConfirmed": false, "feedback": "Please revise the proposed scope." }
-```
-
-`interact` attempts the negotiated native interaction. If unavailable, present the returned action yourself and submit the user's exact answer through `answer_ask`. Client form cancellation preserves waiting; it is not cancellation of the Run. Agent execution cannot authorize a human confirmation.
-
-## Retry and restart rules
-
-Creating a Run is not idempotent. Query an uncertain result instead of replaying `flow`. Claims and Agent Tool operations have explicit identities for live-process retries. Completion retries are bounded by the current call's retained result; they are not durable replay across subsequent tasks or restarts.
-
-Cancellation invalidates ownership and rejects late results. Host restart does not restore active Agent tasks, their original Promise, or receipts; interrupted work becomes `RUN_INTERRUPTED`. There is no lease stealing, automatic model fallback, or connection-triggered client wakeup.
-
-See [MCP quick start](../quickstart/mcp.md) for user setup and [Recovery](../usage/recovery.md) for process boundaries.
-
-## Local mirror tools
-
-`mirror_list`, `mirror_inspect`, `mirror_restore`, `mirror_export` and `resume_run` share the CLI application rules. Inspect/export do not load Workflow Code. Restore takes mirrorId, targetProject, scope and optional dryRun; the authenticated connection supplies the source project. Prepare an independent stopped target with empty business data. Resume takes runId, operationId, expectedRevision, serviceInstanceId and optional scope. The first resume uses the saved scope; a completed scope requires a new explicit scope. See [mirror recovery](../usage/recovery.md).
+Cancellation invalidates Agent ownership. Restart cannot restore an in-flight external task. See [MCP usage](../usage/mcp.md), [human answers](../usage/runs.md) and [mirrors](../usage/mirrors.md).

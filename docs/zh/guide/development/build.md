@@ -1,61 +1,38 @@
 ---
-title: 构建、测试与分发
-description: 编译包资源，验证安装后的产物，并分发 Workflow 归档文件。
+title: 构建、测试、安装与分发
 ---
 
-# 构建、测试与分发
+# 构建、测试、安装与分发
 
-将 `@intloom/compiler` 用作开发依赖，将 `@intloom/workflow-sdk` 用作运行时依赖。服务加载编译后的资源，不会在执行 Workflow 时运行 Compiler。
-
-## 构建输出
-
-[创建 Workflow](./create.md)中的构建脚本调用 `compileWorkflow({ packageRoot })`。编译过程读取 `workflow.yaml`，跟踪资源引用，验证拓扑和声明，生成 JavaScript 与类型声明，包含 Skill 资源，并在替换 `dist` 前验证包边界。
-
-生成的入口准确导出 `blueprint`、`codes` 和 `agentSpecs`。生成的标识符应保持为内部细节，它们可能在重新构建时变化。Compiler 不会执行业务模块来发现导出，也不会在构建时运行初始化器。已安装模块在运行时导入，因此应避免顶层业务副作用。
-
-默认构建配置为 `tsconfig.build.json`。通过 `tsconfigFile` 可以选择包根目录内的其他配置。运行时导入必须是内置模块或已声明的包依赖。Compiler 会从生产输出中排除源码旁的 `.spec.ts`、`.intg.ts` 和 `test/`。
-
-## 验证你的 Workflow
-
-验证编写的 Code、Schema 和 Tool，再将编译归档安装到干净项目中，通过目标服务检查其实际行为。在无法访问编写源码的环境中验证公开导出、声明和 Skill 资源。生产输出应排除测试文件。
-
-受控模型响应可以使执行检查可重复，真实模型质量和目标 MCP 客户端仍需单独验收。编译成功本身不能证明这两项。
-
-## 生成归档文件
-
-对于编写指南中的根目录布局包，先构建，再从包目录执行打包：
+在 Workflow 源码包中编译，再打包生成产物：
 
 ```sh
+bun install
 bun run build
 npm pack --ignore-scripts
 ```
 
-这会创建本地归档，不会发布。归档应包含生成的 `dist`、包元数据、README 和许可证。编写的 manifest 必须将 `exports["."].types` 和 `default` 指向生成文件。测试文件不能进入归档。
+Compiler 生成 ESM、声明、source map 和声明的 Skill 附件。作者清单需要导出生成入口及 `./package.json`，并在 `files` 包含 `dist`。SDK 和其他运行时导入放在 dependencies 或 peers，Compiler 放在开发依赖。
 
-Compiler 本身不会生成发布根目录 manifest，也不会发布到 npm。如果选择不同的分发根目录，应作为独立打包步骤编写并验证对应 manifest。不要直接复制内置包的私有构建脚本而不检查它对布局的假设。
+## 验证包
 
-## 安装到干净项目
+测试 Schema、Code 和 Tools，再把归档安装到干净项目。确认不访问作者源文件也能加载导出定义和 Skill 附件，执行预期路由、人工交互、持久化与恢复边界。
 
-在另一个目录中，使用真实归档路径：
+对于 [capture](./create.md)，使用真实归档路径：
 
 ```sh
-intloom init capture-project --workflow /absolute/path/to/capture-workflow-0.1.0.tgz
+intloom init capture-project --workflow /absolute/path/capture-workflow-0.1.0.tgz
 cd capture-project
 intloom start
 intloom flows
 ```
 
-确保 SDK 和其他运行时依赖可以解析。对于 `capture` 包，通过 [MCP 方式](../quickstart/mcp.md)运行 `capture`，或先配置 [CLI 服务模型方式](../quickstart/cli.md)。预期结果是 Run 完成，并产生一个以该包 Run ID 为 ID 的 Record：
+先准备 CMD 模型配置或外部 MCP 客户端，再携带意图运行 `capture`。预期产生 completed Run 和一个以 Run ID 为 ID 的 Record。Service 重启后读取该 Record，检查持久化。
 
-```sh
-intloom record <runId>
-```
+## 分发与升级
 
-重启服务后读取 Record，以验证持久化。检查编译、安装和执行能否在无法访问编写源码目录的情况下工作。
+`npm pack` 创建本地归档，发布属于单独明确操作。发布前核验运行时依赖对消费者可用，并测试真实归档布局。
 
-## 发布与升级
+当前产物协议为 `2026-10-08`，与 npm 包版本独立。为未完成 Run 保留兼容资源；替换包前停止 Service，重启后加载新代码。
 
-包版本和 Workflow 协议版本不同。当前协议是 `2026-10-08`。先发布兼容依赖，再发布需要这些依赖的 Workflow；使用仓库链接完成本地安装，不能证明公共注册源中已存在相关包。
-
-未完成的 Run 需要精确的原始资源。它们等待恢复时重新构建或升级包，可能使检查点失效。见[包管理](../usage/packages.md)。
-
+编译和受控测试不能证明真实模型质量或客户端接受。参见 [Compiler 参考](../reference/compiler.md)和[兼容性](../reference/compatibility.md)。

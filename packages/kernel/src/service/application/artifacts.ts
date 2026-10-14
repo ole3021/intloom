@@ -40,10 +40,12 @@ export const artifactSelectorSchema = z
     flowName: name.optional(),
     stageName: name.optional(),
   })
-  .refine((value) =>
-    value.artifactId !== undefined
-      ? value.flowName === undefined && value.stageName === undefined
-      : value.flowName !== undefined && value.stageName !== undefined,
+  .refine(
+    (value) =>
+      value.artifactId !== undefined
+        ? value.flowName === undefined && value.stageName === undefined
+        : value.flowName !== undefined && value.stageName !== undefined,
+    "Choose exactly one Artifact selector: artifactId alone, or flowName and stageName together.",
   );
 export const artifactQuerySchema = z.strictObject({
   flowName: name.optional(),

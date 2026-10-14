@@ -26,6 +26,25 @@ export const implementationProposalSchema = z.strictObject({
   changes: z.array(implementationChangeSchema),
   processedFeedbackCount: z.number().int().nonnegative(),
 });
+export const implementationSubmissionResultSchema = z.discriminatedUnion(
+  "saved",
+  [
+    z.strictObject({ saved: z.literal(true) }),
+    z.strictObject({
+      saved: z.literal(false),
+      feedback: z.strictObject({
+        rule: z.literal("IMPLEMENTATION_CHANGE_LIST_INVALID"),
+        changedPaths: z.array(z.string()),
+        missingPaths: z.array(z.string()),
+        unchangedPaths: z.array(z.string()),
+        validOriginRefs: z.array(z.string()),
+        unknownOriginRefs: z.array(z.string()),
+        expectedFeedbackCount: z.number().int().nonnegative(),
+        feedbackUnprocessed: z.boolean(),
+      }),
+    }),
+  ],
+);
 export const implementationRecordSchema = z.strictObject({
   id: z.string(),
   intent: z.string(),

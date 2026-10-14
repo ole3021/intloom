@@ -12,6 +12,7 @@ import {
   agentJsonSchema,
   executeAgentTool,
   assertToolActive,
+  agentToolEndsCall,
 } from "../effector/agent-tool.ts";
 import { KERNEL_ERRORS } from "../errors/kernel.ts";
 import { RUNTIME_ERRORS } from "../errors/runtime.ts";
@@ -55,6 +56,7 @@ export interface AgentCallControl {
   readonly reject: (cause: unknown) => void;
   claim?: { readonly id: string; readonly token: string };
   busy: boolean;
+  toolsClosed?: boolean;
 }
 export interface AgentCompletionReceipt {
   readonly callId: string;
@@ -232,6 +234,11 @@ export async function callAgentTool(
   const tool = control.resource.spec.tools.find(
     (tool) => tool.id === request.toolId,
   );
+  if (control.toolsClosed)
+    throw KERNEL_ERRORS.create("INVALID_REQUEST", {
+      message:
+        "This Agent has saved its final submission. Complete the call with the required outcome without more Tools.",
+    });
   if (!tool)
     throw KERNEL_ERRORS.create("INVALID_REQUEST", {
       message: "The Agent has not declared this Tool.",
@@ -267,6 +274,12 @@ export async function callAgentTool(
   try {
     const value = await result;
     owned(entry, request);
+    if (agentToolEndsCall(tool, value)) {
+      control.toolsClosed = true;
+      (entry.activeLog ?? entry.logger).debug("agent_tools_closed", {
+        toolName: tool.id,
+      });
+    }
     receipt.status = "completed";
     return structuredClone(value);
   } catch (cause) {

@@ -23,6 +23,8 @@ coverage/
 backup/
 
 # Prepared npm delivery and verified release archives
+/apps/cli/.publish/
+/apps/cli/.publish-intloom/
 .release/
 
 # Local-only first npm publication entry

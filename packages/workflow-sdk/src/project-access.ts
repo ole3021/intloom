@@ -8,6 +8,7 @@ export interface ProjectCommand {
 
 export interface ProjectCommandResult {
   readonly command: ProjectCommand;
+  /** Includes 126 for an unavailable cwd and 127 for ENOENT before a child starts. */
   readonly exitCode: number | null;
   readonly stdout: string;
   readonly stderr: string;

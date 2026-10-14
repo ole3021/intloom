@@ -22,6 +22,7 @@ const prefixes: Record<string, string> = {
   SACC: "acceptance",
   SCON: "constraint",
   SREL: "relation",
+  SDEF: "deferred",
   OAPP: "app",
   OPKG: "package",
   OMOD: "module",
@@ -30,8 +31,10 @@ const prefixes: Record<string, string> = {
   OSCN: "scenario",
   OCON: "concept",
   ODEC: "decision",
+  ORISK: "risk",
+  ODIAG: "diagram",
 };
-export function targets(data: unknown) {
+export function targets(data: unknown, includeRetired = false) {
   const selected: ReturnType<typeof validationTargetSchema.parse>[] = [];
   function visit(value: unknown) {
     if (!value || typeof value !== "object") return;
@@ -40,7 +43,7 @@ export function targets(data: unknown) {
       return;
     }
     const item = value as Record<string, unknown>;
-    if (item.status === "retired") return;
+    if (!includeRetired && item.status === "retired") return;
     const ref = item.id;
     if (
       typeof ref === "string" &&

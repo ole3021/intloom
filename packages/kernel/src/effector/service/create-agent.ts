@@ -21,6 +21,7 @@ export async function createAgent(
       spec.llm,
       options.config,
       label,
+      options.credentials,
     );
     const tools: Record<string, Tool> = Object.create(null);
     for (const tool of spec.tools) {
@@ -73,6 +74,9 @@ export async function createAgent(
       executable: {
         agent,
         outputSchema: spec.outputSchema,
+        ...(config.baseURL && new URL(config.baseURL).hostname === "opencode.ai"
+          ? { zen: true }
+          : {}),
         execute(input, access, maxSteps, observer) {
           return executeServiceAgent(this, input, access, maxSteps, observer);
         },

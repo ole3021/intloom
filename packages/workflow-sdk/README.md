@@ -47,7 +47,7 @@ export const readDraft = defineAgentTool({
   description: "Read the current draft.",
   inputSchema: z.strictObject({}),
   outputSchema: z.json(),
-  execute: (_input, access) => access.state.value ?? null,
+  execute: (_input, access) => z.json().parse(access.state.value ?? null),
 });
 ```
 
@@ -67,7 +67,7 @@ See [Create a Workflow](../../docs/guide/development/create.md) for source setup
 | `StorageReadAccess` | Read and list formal Artifacts and Records; missing entries return `undefined`, and lists return `{ data, nextCursor? }`. |
 | `StorageAccess` | Add atomic `commit` for Code. Atomicity covers the supplied Artifact/Record operations, separately from State updates and project effects. |
 | `InteractionAccess` | Ask a flat list of questions or request confirmation from Code. Schemas validate shape; the host checks ownership, unique IDs, complete answers, and skip permissions. Workflow Code owns business rules such as required feedback. |
-| `ProjectAccess` | Optional host-bound snapshots, text reads/writes/removal, and command execution. The host selects the root, limits, and lifetime. Commands use argument arrays; results record the command, exit code, output, timeout, and truncation. |
+| `ProjectAccess` | Optional host-bound snapshots, text reads/writes/removal, and command execution. The host selects the root, limits, and lifetime. Commands use argument arrays; results record the command, exit code, output, timeout, and truncation. A host may return 126 for unavailable requested cwd or 127 for ENOENT before a process starts; these are failed commands, never passed checks. Capability and ownership failures still throw. |
 
 Project operations provide trusted local access; they do not create an OS sandbox. TypeScript read-only views describe access at compile time; the host enforces runtime ownership and data boundaries.
 
@@ -76,6 +76,8 @@ Project operations provide trusted local access; they do not create an OS sandbo
 `defineAgentTool` infers the parsed input and raw output from the Schemas. `AgentTool<Input, Output, RawOutput = Output>` preserves the first two generic meanings: `execute` receives `Input` and returns `RawOutput`, which the host parses into `Output`. The helper constructs no Agent and runs no parsers. For example, an output Schema of `z.string().transform(Number)` requires `execute` to return a string; the host produces the final number. Ordinary Tools whose input/output shapes do not change can continue using `AgentTool<Input, Output>`.
 
 The host parses input before calling `execute`, parses its result afterward, and enforces the JSON boundary. Transport descriptions use input shape for final Agent tasks and parsed output shape for Tool results. Opaque output transforms need an explicit output Schema, such as `.pipe(z.number())`, to advertise a concrete result shape.
+
+An optional `endsAgent(output)` predicate receives the validated, parsed JSON Tool result. Returning `true` closes Tools for that invocation: service execution requests the next model round with no Tools, and client execution rejects new Tool calls while retaining existing receipt readback. For a draft submission, use `endsAgent: (output) => output.saved`; a rejected draft with `saved:false` remains correctable. The predicate must be synchronous and side-effect free. It does not select an outcome, complete a Stage, infer business success or bypass final output validation. The Agent still returns its required outcome and Workflow Code still checks and commits. Omitting the predicate retains unrestricted serial Tool execution.
 
 `getAgentExecutionAccess(context)` reads the shared `intloom.execution` binding for adapter integration and retains no Run in module state. It checks the State value member and all State/Storage methods, the cancellation signal, and optional Project methods without reading business State or calling capabilities. Missing, incomplete, or overprivileged bindings fail with `STEP_EXECUTION_FAILED`; lookup/inspection failures retain their cause. Ordinary SDK Tools receive access explicitly. The host enforces capability lifetimes; this helper does not create or revoke access.
 

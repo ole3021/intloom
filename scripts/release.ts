@@ -1,5 +1,7 @@
 import { resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import {
+  type PackageManifest,
   type PublicationName,
   publications,
   readManifest,
@@ -8,6 +10,65 @@ import {
 import { compareVersions, releaseChannel, validateVersion } from "./version.ts";
 
 export type PublicationVersions = Record<PublicationName, string>;
+
+const deliveryFields = [
+  "engines",
+  "exports",
+  "dependencies",
+  "peerDependencies",
+  "optionalDependencies",
+] as const;
+
+/** An unchanged source version cannot describe changed consumer delivery metadata. */
+export function assertDeliveryVersion(
+  current: PackageManifest,
+  previous: PackageManifest,
+  currentVersions: Readonly<Record<string, string>> = {},
+  previousVersions: Readonly<Record<string, string>> = {},
+): void {
+  if (current.version !== previous.version) {
+    if (compareVersions(current.version, previous.version) <= 0)
+      throw new Error(
+        `Release versions must increase: ${current.name} ${previous.version} -> ${current.version}`,
+      );
+    return;
+  }
+  function field(
+    manifest: PackageManifest,
+    name: (typeof deliveryFields)[number],
+    versions: Readonly<Record<string, string>>,
+  ): unknown {
+    const value = manifest[name];
+    if (name === "engines" || name === "exports" || !value) return value;
+    return Object.fromEntries(
+      Object.entries(value).map(([dependency, range]) => {
+        const version = versions[dependency];
+        if (typeof range !== "string" || !version) return [dependency, range];
+        const prefix = range.match(/^workspace:([*^~])$/)?.[1];
+        return [
+          dependency,
+          prefix ? `${prefix === "*" ? "" : prefix}${version}` : range,
+        ];
+      }),
+    );
+  }
+  const changed = deliveryFields.filter(
+    (name) =>
+      !isDeepStrictEqual(
+        field(current, name, currentVersions),
+        field(previous, name, previousVersions),
+      ),
+  );
+  if (!changed.length) return;
+  const packages =
+    current.name === "@intloom/kernel"
+      ? "@intloom/kernel and @intloom/cli together"
+      : current.name;
+  throw new Error(
+    `Release metadata changed without a version increase: ${current.name}@${current.version} (${changed.join(", ")}). Increase ${packages} before preparing this release.`,
+  );
+}
+
 export interface ReleasePlan {
   commit: string;
   versions: PublicationVersions;

@@ -73,7 +73,8 @@ const tool = z.custom<AgentTool>((value) =>
       "inputSchema" in value &&
       schema.safeParse(value.inputSchema).success &&
       "outputSchema" in value &&
-      schema.safeParse(value.outputSchema).success,
+      schema.safeParse(value.outputSchema).success &&
+      (!("endsAgent" in value) || typeof value.endsAgent === "function"),
   ),
 );
 

@@ -1,4 +1,5 @@
 import { useHead } from "@rspress/core/runtime";
+import { Arrow } from "../src/components/brand.tsx";
 import styles from "../src/pages/coming-soon.module.css";
 
 export function NotFoundLayout() {
@@ -14,7 +15,7 @@ export function NotFoundLayout() {
           The page may have moved. Start from the homepage or search the docs.
         </p>
         <a href="/">
-          Back to IntLoom <span aria-hidden="true">↗</span>
+          Back to IntLoom <Arrow direction="right" />
         </a>
       </section>
     </main>

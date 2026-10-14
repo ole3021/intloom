@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { answerAsk, flow } from "@intloom/kernel";
 import { fullFlowFixture, sourcePath } from "./full-flow-fixture.ts";
 import { implementationRecordSchema } from "../schemas/implementation-state.ts";
-import { validationStateSchema } from "../schemas/validation-state.ts";
+import { validationContextSchema } from "../schemas/validation-state.ts";
 import { recordId } from "../src/flow/shared.ts";
 
 for (const scenario of [
@@ -81,7 +81,7 @@ for (const scenario of [
       ),
       [sourcePath],
     );
-    const validation = validationStateSchema.parse(
+    const validation = validationContextSchema.parse(
       f.reads.find((read) => read.tool === "read_validation")?.state,
     );
     assert.equal(

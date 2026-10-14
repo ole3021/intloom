@@ -1,0 +1,199 @@
+.field-tui {
+  composes: section from "../../components/section.module.css";
+}
+.eyebrow {
+  composes: eyebrow from "../../components/primitives.module.css";
+}
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 5vw;
+  align-items: center;
+}
+.badge {
+  display: inline-flex;
+  padding: var(--site-spacing-02) var(--site-spacing-03);
+  border: 1px solid var(--site-color-accent);
+  background: color-mix(in srgb, var(--site-color-accent) 8%, transparent);
+  color: var(--site-color-accent-light);
+  font: var(--site-type-label);
+  font-size: var(--site-text-caption);
+  letter-spacing: 0.04em;
+}
+.introduction h2 {
+  margin: var(--site-spacing-06) 0;
+  font-size: var(--site-text-section);
+  line-height: 1.07;
+  text-transform: uppercase;
+  letter-spacing: -0.05em;
+}
+.heading-accent {
+  color: var(--site-color-accent);
+}
+.introduction p {
+  max-width: 440px;
+  color: var(--site-color-muted);
+  font-size: var(--site-text-body);
+  line-height: var(--site-leading-body);
+}
+.introduction a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--site-spacing-05);
+  margin-top: var(--site-spacing-06);
+  min-height: 44px;
+  color: var(--site-color-accent-light);
+  font: var(--site-type-label);
+}
+.introduction a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.preview {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid #394632;
+  background: var(--site-color-surface);
+  font-family: var(--site-font-mono);
+}
+.preview-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--site-spacing-05);
+  padding: var(--site-spacing-05) var(--site-spacing-06);
+  border-bottom: 1px solid var(--site-color-border);
+  color: var(--site-color-muted);
+  font: var(--site-type-label);
+  letter-spacing: 0.06em;
+}
+.preview-beta {
+  color: var(--site-color-accent-light);
+}
+.workspace {
+  padding: 24px;
+}
+.workspace > .eyebrow {
+  font-size: var(--site-text-caption);
+}
+.workspace-tabs {
+  display: flex;
+  gap: 24px;
+  margin: var(--site-spacing-05) 0 var(--site-spacing-06);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--site-color-border);
+  color: var(--site-color-muted);
+  font-size: var(--site-text-note);
+}
+.workspace-tabs > span:first-child {
+  color: var(--site-color-accent-light);
+}
+.workflow-row {
+  display: flex;
+  align-items: center;
+  gap: var(--site-spacing-05);
+  padding: var(--site-spacing-05);
+  border-left: 2px solid var(--site-color-accent);
+  background: var(--site-color-surface-raised);
+}
+.workflow-row > svg {
+  flex-shrink: 0;
+  color: var(--site-color-accent-light);
+}
+.workflow-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.workflow-row strong {
+  font-size: var(--site-text-note);
+  font-weight: var(--site-weight-emphasis);
+}
+.workflow-row div > span {
+  color: var(--site-color-muted);
+  font-size: var(--site-text-caption);
+}
+.activity {
+  margin-top: var(--site-spacing-07);
+}
+.activity-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--site-spacing-05);
+  color: var(--site-color-accent-light);
+  font: var(--site-type-label);
+  font-size: var(--site-text-caption);
+  letter-spacing: 0.05em;
+}
+.stage-progress {
+  margin: var(--site-spacing-06) 0;
+}
+.progress-track,
+.progress-labels {
+  display: grid;
+  gap: 4px;
+}
+.progress-segment {
+  display: block;
+  width: 100%;
+  height: 14px;
+  fill: #394632;
+}
+.complete {
+  fill: var(--site-color-accent);
+}
+.progress-signal {
+  fill: var(--site-color-accent);
+  opacity: 1;
+  animation: progress-pulse 300ms ease-in-out infinite;
+}
+.progress-labels {
+  margin-top: 12px;
+  text-align: center;
+  color: var(--site-color-muted);
+  font-size: var(--site-text-caption);
+}
+.running-label {
+  color: var(--site-color-accent-light);
+}
+@keyframes progress-pulse {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+}
+.preview-note {
+  color: var(--site-color-muted);
+  font-size: var(--site-text-caption);
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    gap: var(--site-spacing-07);
+  }
+}
+@media (max-width: 960px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .introduction p {
+    max-width: 560px;
+  }
+}
+@media (max-width: 480px) {
+  .preview-title {
+    padding: var(--site-spacing-04);
+  }
+  .workspace {
+    padding: var(--site-spacing-05) var(--site-spacing-04);
+  }
+  .workspace-tabs {
+    gap: var(--site-spacing-05);
+  }
+}

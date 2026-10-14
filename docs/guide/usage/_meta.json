@@ -1,1 +1,19 @@
-["configuration", "packages", "runs", "results", "diagnostics", "recovery"]
+[
+  "configuration",
+  "service",
+  "packages",
+  "runs",
+  "results",
+  "diagnostics",
+  "recovery",
+  "mirrors",
+  "cmd",
+  "tui",
+  "mcp",
+  {
+    "type": "dir",
+    "name": "clients",
+    "label": "Agent clients",
+    "collapsed": false
+  }
+]

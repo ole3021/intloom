@@ -32,24 +32,11 @@ export function Command({
           $
         </span>
         <code>{command}</code>
-        <svg
-          viewBox="0 0 20 20"
-          width="16"
-          height="16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.3"
-          aria-hidden="true"
-        >
-          {status === "Copied" ? (
-            <path d="m4 10 4 4 8-9" />
-          ) : (
-            <>
-              <rect x="7" y="7" width="10" height="10" />
-              <path d="M13 4V2H2v11h2" />
-            </>
-          )}
-        </svg>
+        {status === "Copied" ? (
+          <Checkmark size={16} aria-hidden="true" />
+        ) : (
+          <Copy size={16} aria-hidden="true" />
+        )}
       </button>
       <span className={styles["command-feedback"]} role="status">
         {status}
@@ -57,3 +44,4 @@ export function Command({
     </div>
   );
 }
+import { Checkmark, Copy } from "@carbon/icons-react";

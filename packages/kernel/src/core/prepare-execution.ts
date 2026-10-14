@@ -13,8 +13,14 @@ import type { ExecutionReadiness } from "./contracts.ts";
 export function createExecutionPreparation(
   config: LoomConfig,
   resources: AgentRegistry,
+  projectRoot?: string,
 ) {
-  const service = createServicePreparation(config, resources);
+  const service = createServicePreparation(
+    config,
+    resources,
+    undefined,
+    projectRoot,
+  );
   function inspect(blueprint: Blueprint, source: RunSource) {
     const execution = resolveRunExecution(source, config.useMcpAgent);
     if (execution.agentExecutor === "service") service.check(blueprint);

@@ -4,6 +4,7 @@ import {
   serviceStatusSchema,
   serviceUrl,
   type ServiceConnection,
+  type ServiceStatus,
 } from "./contracts.ts";
 async function connectionFor(directory: string) {
   const root = await projectRoot(directory);
@@ -22,6 +23,7 @@ export async function controlRequest(
   instanceId?: string,
 ) {
   const url = new URL(path, serviceUrl(connection));
+  const signal = AbortSignal.timeout(5_000);
   try {
     return await fetch(url, {
       method: path === "/_stop" ? "POST" : "GET",
@@ -32,13 +34,16 @@ export async function controlRequest(
       ...(instanceId === undefined
         ? {}
         : { body: JSON.stringify({ instanceId }) }),
-      signal: AbortSignal.timeout(5_000),
+      signal,
       redirect: "error",
     });
   } catch (cause) {
+    const timedOut = path === "/_status" && signal.aborted;
     throw failure(
-      "CLI_SERVICE_OFFLINE",
-      "The local service is unavailable. Check intloom status before starting another Run.",
+      timedOut ? "CLI_SERVICE_TIMEOUT" : "CLI_SERVICE_OFFLINE",
+      timedOut
+        ? "The local Service request timed out. Check intloom status before starting another Run."
+        : "The local service is unavailable. Check intloom status before starting another Run.",
       cause,
     );
   }
@@ -72,7 +77,28 @@ export async function serviceStatus(directory: string) {
       "CLI_SERVICE_UNAVAILABLE",
       `The local service rejected status (${response.status}).`,
     );
-  const status = serviceStatusSchema.parse(await response.json());
+  const text = await response.text().catch((cause: unknown) => {
+    // Control requests have only an internal timeout signal; they cannot be cancelled by a caller.
+    const timedOut =
+      cause instanceof Error &&
+      (cause.name === "TimeoutError" || cause.name === "AbortError");
+    throw failure(
+      timedOut ? "CLI_SERVICE_TIMEOUT" : "CLI_SERVICE_OFFLINE",
+      timedOut
+        ? "The Service status response timed out."
+        : "The connection ended before a Service status response was received.",
+      cause,
+    );
+  });
+  let status: ServiceStatus;
+  try {
+    status = serviceStatusSchema.parse(JSON.parse(text));
+  } catch {
+    throw failure(
+      "CLI_RESULT_INVALID",
+      "The Service status response is not valid status JSON.",
+    );
+  }
   if (
     status.instanceId !== info.instanceId ||
     status.projectRoot !== connection.projectRoot ||

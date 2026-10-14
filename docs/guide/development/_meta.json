@@ -1,1 +1,10 @@
-["create", "stages", "execution", "state-storage", "interaction", "build"]
+[
+  "create",
+  "stages",
+  "execution",
+  "tools-skills",
+  "state-storage",
+  "interaction",
+  "project",
+  "build"
+]

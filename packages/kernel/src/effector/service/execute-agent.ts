@@ -1,12 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { ServiceAgent } from "./types.ts";
 import { getLogger } from "@intloom/utils";
-import type { PublicSchema } from "@mastra/core/schema";
-import { agentJsonSchema } from "../agent-tool.ts";
+import { toStandardSchema, type PublicSchema } from "@mastra/core/schema";
+import { createTool } from "@mastra/core/tools";
+import { agentJsonSchema, isAgentToolInputError } from "../agent-tool.ts";
 import type { JsonValue, ReadonlyJsonValue } from "../../shared/json.ts";
 import { RUNTIME_ERRORS } from "../../errors/runtime.ts";
 import { bindAgentContext } from "./agent-context.ts";
 import { toolError } from "../errors.ts";
+import { safeFinishReason, timeModelRequest } from "./model-timing.ts";
+import { parseFinalAgentOutput } from "./final-output.ts";
 import {
   agentError,
   incompleteAgentError,
@@ -16,22 +19,6 @@ import type {
   ServiceModelObserver,
   AgentExecutionAccess,
 } from "../execution.ts";
-
-const finishReasons = new Set([
-  "stop",
-  "length",
-  "tool-calls",
-  "content-filter",
-  "error",
-  "other",
-  "unknown",
-]);
-
-function safeFinishReason(reason: unknown): string {
-  return typeof reason === "string" && finishReasons.has(reason)
-    ? reason
-    : "unknown";
-}
 
 function safeUsageNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
@@ -52,29 +39,7 @@ function contentTextBytes(content: unknown): number {
 }
 
 const instruction =
-  "Execute the current Workflow step according to your instructions. Read current business State using your assigned Tools and save business changes through those Tools. After the required submissions succeed, your final response must contain only the required JSON outcome object. Do not return drafts, Tool arguments, Tool results or a summary as the final response. User interaction belongs to Workflow Code steps.";
-
-function finalObjectText(text: string): string {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/^```json\s*\n?([\s\S]*?)\n?\s*```\s*$/);
-  return fenced?.[1]?.trim() ?? trimmed;
-}
-
-function parseFinalAgentOutput(text: string | undefined): unknown {
-  if (!text?.trim())
-    throw RUNTIME_ERRORS.create("AGENT_OUTPUT_INVALID", {
-      message:
-        "The final model response is empty. Return the required JSON result.",
-    });
-  try {
-    return JSON.parse(finalObjectText(text)) as unknown;
-  } catch {
-    throw RUNTIME_ERRORS.create("AGENT_OUTPUT_INVALID", {
-      message:
-        "The final model response is not complete JSON. Return the required JSON result.",
-    });
-  }
-}
+  "Execute the current Workflow step according to your instructions. Read current business State using your assigned Tools and save business changes through those Tools. After the required submissions succeed, supply only the declared outcome through the host completion Tool. Do not use drafts, business Tool arguments/results or a summary as the outcome. User interaction belongs to Workflow Code steps.";
 
 export async function executeServiceAgent(
   executable: ServiceAgent,
@@ -102,12 +67,26 @@ export async function executeServiceAgent(
     access.signal.throwIfAborted();
     if (failure) throw failure.cause;
   };
-  const context = bindAgentContext({ ...access, signal }, fail);
+  const toolControl = { closed: false };
+  const context = bindAgentContext({ ...access, signal }, fail, toolControl);
+  const sessionId = executable.zen ? randomUUID() : undefined;
+  let completion: { value: unknown } | undefined;
   const log = getLogger();
   const started = performance.now();
-  let toolStarted = started;
+  let activeTool:
+    | {
+        started: number;
+        name: string;
+        id: string;
+        call: number;
+        requestId: string;
+        modelStep: number;
+      }
+    | undefined;
   let toolCall = 0;
   let modelStep = 0;
+  let stepStarted = started;
+  let modelTiming: ReturnType<typeof timeModelRequest> | undefined;
   let requestId = randomUUID();
   let toolCallId = randomUUID();
   let lastFinishReason: string | undefined;
@@ -117,86 +96,224 @@ export async function executeServiceAgent(
   try {
     log.assertHealthy();
     access.signal.throwIfAborted();
-    const stream = await executable.agent.stream(instruction, {
+    const declaredTools = await executable.agent.listTools({
       requestContext: context,
-      abortSignal: signal,
-      maxSteps,
-      toolCallConcurrency: 1,
-      requireToolApproval: false,
-      autoResumeSuspendedTools: false,
-      modelSettings: { maxRetries: 0 },
-      maxProcessorRetries: 0,
-      structuredOutput: {
-        schema,
-        errorStrategy: "warn",
-        jsonPromptInjection: true,
-      },
-      onError({ error }) {
-        callbackError ??= error;
-      },
-      async prepareStep() {
+    });
+    let completionName = "intloom_complete_step";
+    for (let index = 1; Object.hasOwn(declaredTools, completionName); index++)
+      completionName = `intloom_complete_step_${index}`;
+    const complete = createTool({
+      id: completionName,
+      description:
+        "Complete this Agent invocation with its actual declared outcome after required business submissions. This does not save business data. Call once; omit JSON Schema metadata.",
+      inputSchema: toStandardSchema(schema),
+      strict: false,
+      execute: async (value) => {
         check();
-        requestId = randomUUID();
-        await observer?.beforeStep({ requestId });
-        check();
-      },
-      async onStepFinish(step) {
-        lastFinishReason = safeFinishReason(step.finishReason);
-        const reasoningTokens = safeUsageNumber(step.usage?.reasoningTokens);
-        const cachedInputTokens = safeUsageNumber(
-          step.usage?.cachedInputTokens,
-        );
-        const inputTokens = safeUsageNumber(step.usage?.inputTokens);
-        const outputTokens = safeUsageNumber(step.usage?.outputTokens);
-        await observer?.afterStep({
-          requestId,
-          ...(step.model?.modelId === undefined
-            ? {}
-            : { modelId: step.model.modelId }),
-          ...(inputTokens === undefined ? {} : { inputTokens }),
-          ...(outputTokens === undefined ? {} : { outputTokens }),
-        });
-        log.debug("model_step_completed", {
-          modelStep: ++modelStep,
-          model: step.model?.modelId,
-          finishReason: lastFinishReason,
-          inputTokens: step.usage?.inputTokens,
-          outputTokens: step.usage?.outputTokens,
-          textBytes: textBytes(step.text),
-          contentTextBytes: contentTextBytes(step.content),
-          ...(reasoningTokens === undefined ? {} : { reasoningTokens }),
-          ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
-        });
-      },
-      hooks: {
-        async beforeToolCall({ toolName, input }) {
-          access.signal.throwIfAborted();
-          toolStarted = performance.now();
-          toolCall++;
-          toolCallId = `${requestId}:${toolCall}`;
-          await observer?.beforeTool?.({ toolCallId });
-          log.debug("tool_started", {
-            toolName,
-            toolCall,
-            argumentCount:
-              input && typeof input === "object"
-                ? Object.keys(input).length
-                : 0,
+        if (completion)
+          throw RUNTIME_ERRORS.create("AGENT_OUTPUT_INVALID", {
+            message: "The Agent submitted its final outcome more than once.",
           });
-          log.assertHealthy();
-          access.signal.throwIfAborted();
-        },
-        async afterToolCall({ error, toolName }) {
-          await observer?.afterTool?.({ toolCallId });
-          log.debug(error === undefined ? "tool_completed" : "tool_failed", {
-            toolName,
-            toolCall,
-            durationMs: Math.round(performance.now() - toolStarted),
-          });
-          if (error !== undefined) fail(error, toolName);
-        },
+        completion = { value: structuredClone(value) };
+        toolControl.closed = true;
+        return { received: true };
       },
     });
+    const stream = await executable.agent.stream(
+      `${instruction}\nComplete by calling ${completionName} once with the declared outcome. This host completion Tool remains available after business Tools close; returning an outcome in Workflow instructions means supplying its arguments. Do not infer success from a saved draft.`,
+      {
+        requestContext: context,
+        abortSignal: signal,
+        maxSteps,
+        toolCallConcurrency: 1,
+        requireToolApproval: false,
+        autoResumeSuspendedTools: false,
+        modelSettings: { maxRetries: 0 },
+        maxProcessorRetries: 0,
+        toolsets: { intloomCompletion: { [completionName]: complete } },
+        stopWhen: () => completion !== undefined,
+        structuredOutput: {
+          schema,
+          errorStrategy: "warn",
+          jsonPromptInjection: true,
+        },
+        onError({ error }) {
+          callbackError ??= error;
+        },
+        async prepareStep({ model }) {
+          check();
+          requestId = randomUUID();
+          await observer?.beforeStep({ requestId });
+          check();
+          stepStarted = performance.now();
+          modelTiming = timeModelRequest(
+            model,
+            signal,
+            log,
+            { modelRequestId: requestId, modelStep: modelStep + 1 },
+            sessionId ? { "x-opencode-session": sessionId } : undefined,
+          );
+          return {
+            model: modelTiming.model,
+            ...(toolControl.closed
+              ? {
+                  activeTools: [completionName],
+                  toolChoice: {
+                    type: "tool" as const,
+                    toolName: completionName,
+                  },
+                }
+              : {}),
+          };
+        },
+        async onStepFinish(step) {
+          if (
+            safeFinishReason(step.finishReason) !== "error" &&
+            ["unknown", "other"].includes(
+              modelTiming?.providerFinishReason ?? "",
+            )
+          ) {
+            const error =
+              callbackError === undefined
+                ? RUNTIME_ERRORS.create("LLM_RESPONSE_INVALID", {
+                    message:
+                      "The opened provider stream ended without an explicit completion reason. No continuation or retry was attempted.",
+                  })
+                : agentError(callbackError, "error");
+            fail(error);
+            modelTiming?.report({}, error.code);
+            check();
+          }
+          lastFinishReason = safeFinishReason(step.finishReason);
+          const reasoningTokens = safeUsageNumber(step.usage?.reasoningTokens);
+          const cachedInputTokens = safeUsageNumber(
+            step.usage?.cachedInputTokens,
+          );
+          const inputTokens = safeUsageNumber(step.usage?.inputTokens);
+          const outputTokens = safeUsageNumber(step.usage?.outputTokens);
+          await observer?.afterStep({
+            requestId,
+            ...(step.model?.modelId === undefined
+              ? {}
+              : { modelId: step.model.modelId }),
+            ...(inputTokens === undefined ? {} : { inputTokens }),
+            ...(outputTokens === undefined ? {} : { outputTokens }),
+          });
+          modelStep++;
+          modelTiming?.report(
+            {
+              model: step.model?.modelId,
+              finishReason: lastFinishReason,
+              ...(inputTokens === undefined ? {} : { inputTokens }),
+              ...(outputTokens === undefined ? {} : { outputTokens }),
+              textBytes: textBytes(step.text),
+              contentTextBytes: contentTextBytes(step.content),
+              stepDurationMs: Math.round(performance.now() - stepStarted),
+              ...(reasoningTokens === undefined ? {} : { reasoningTokens }),
+              ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
+              ...(lastFinishReason === "error"
+                ? modelErrorDiagnostics(callbackError)
+                : {}),
+            },
+            lastFinishReason === "error" && callbackError !== undefined
+              ? agentError(callbackError, lastFinishReason).code
+              : undefined,
+          );
+          if (
+            !completion &&
+            step.toolCalls.some(
+              (call) => call.payload.toolName === completionName,
+            )
+          ) {
+            // SDK schema rejection happens before Tool hooks; it must not start another output attempt.
+            fail(
+              RUNTIME_ERRORS.create("AGENT_OUTPUT_INVALID", {
+                message:
+                  "The Agent completion does not match its declared output schema.",
+              }),
+            );
+            check();
+          }
+        },
+        hooks: {
+          async beforeToolCall({ toolName, input }) {
+            access.signal.throwIfAborted();
+            toolCall++;
+            toolCallId = `${requestId}:${toolCall}`;
+            await observer?.beforeTool?.({ toolCallId });
+            check();
+            activeTool = {
+              started: performance.now(),
+              name: toolName,
+              id: toolCallId,
+              call: toolCall,
+              requestId,
+              modelStep: modelStep + 1,
+            };
+            log.debug("tool_started", {
+              toolName,
+              toolCall,
+              toolCallId,
+              modelRequestId: requestId,
+              modelStep: modelStep + 1,
+              argumentCount:
+                input && typeof input === "object"
+                  ? Object.keys(input).length
+                  : 0,
+            });
+            log.assertHealthy();
+            access.signal.throwIfAborted();
+          },
+          async afterToolCall({ error, toolName }) {
+            const inputRejected =
+              error !== undefined && isAgentToolInputError(error);
+            const tool = activeTool;
+            const durationMs =
+              tool && Math.round(performance.now() - tool.started);
+            activeTool = undefined;
+            try {
+              await observer?.afterTool?.({ toolCallId });
+            } finally {
+              if (tool)
+                log.debug(
+                  access.signal.aborted
+                    ? "tool_stopped"
+                    : inputRejected
+                      ? "tool_input_rejected"
+                      : error === undefined
+                        ? "tool_completed"
+                        : "tool_failed",
+                  {
+                    toolName,
+                    toolCall: tool.call,
+                    toolCallId: tool.id,
+                    modelRequestId: tool.requestId,
+                    modelStep: tool.modelStep,
+                    durationMs,
+                    ...(error === undefined
+                      ? {}
+                      : {
+                          errorCode: inputRejected
+                            ? "INVALID_REQUEST"
+                            : "TOOL_EXECUTION_FAILED",
+                        }),
+                  },
+                );
+            }
+            if (error !== undefined && !inputRejected)
+              fail(
+                toolName === completionName
+                  ? RUNTIME_ERRORS.create("AGENT_OUTPUT_INVALID", {
+                      message:
+                        "The Agent completion does not match its declared output schema.",
+                    })
+                  : error,
+                toolName,
+              );
+          },
+        },
+      },
+    );
     streamError = () => stream.error;
     const response = await stream.getFullOutput();
     check();
@@ -208,8 +325,16 @@ export async function executeServiceAgent(
       finalTextBytes: textBytes(finalStep?.text),
       finalContentTextBytes: contentTextBytes(finalStep?.content),
       structuredObjectPresent: response.object !== undefined,
+      completionSubmitted: completion !== undefined,
     });
-    if (response.finishReason !== "stop" || finalStep?.finishReason !== "stop")
+    if (
+      !(completion
+        ? ["stop", "tool-calls"].includes(response.finishReason ?? "")
+        : response.finishReason === "stop") ||
+      !(completion
+        ? ["stop", "tool-calls"].includes(finalStep?.finishReason ?? "")
+        : finalStep?.finishReason === "stop")
+    )
       throw incompleteAgentError(
         response.finishReason !== "stop"
           ? response.finishReason
@@ -218,30 +343,49 @@ export async function executeServiceAgent(
         modelStep >= maxSteps,
       );
     // Mastra 1.67 can cache an object from a Tool round; only the final stop round may authorize an outcome.
-    const output = parseFinalAgentOutput(finalStep.text);
+    const output = completion
+      ? completion.value
+      : parseFinalAgentOutput(finalStep?.text);
     log.debug("agent_completed", {
       durationMs: Math.round(performance.now() - started),
       modelSteps: modelStep,
       toolCalls: toolCall,
+      ...(modelTiming ? { modelRequestId: requestId } : {}),
     });
     return output;
   } catch (cause) {
-    access.signal.throwIfAborted();
-    const error = failure?.cause ?? agentError(cause, lastFinishReason);
+    const stopped = access.signal.aborted;
+    const error = stopped
+      ? access.signal.reason
+      : (failure?.cause ?? agentError(cause, lastFinishReason));
+    if (activeTool) {
+      log.debug(stopped ? "tool_stopped" : "tool_failed", {
+        toolName: activeTool.name,
+        toolCall: activeTool.call,
+        toolCallId: activeTool.id,
+        modelRequestId: activeTool.requestId,
+        modelStep: activeTool.modelStep,
+        durationMs: Math.round(performance.now() - activeTool.started),
+        ...(stopped ? {} : { errorCode: "TOOL_EXECUTION_FAILED" }),
+      });
+      activeTool = undefined;
+    }
+    modelTiming?.report({}, RUNTIME_ERRORS.is(error) ? error.code : undefined);
     const streamObserved =
       failure || callbackError !== undefined ? undefined : streamError?.();
     const observed = callbackError ?? streamObserved;
-    log.debug("agent_failed", {
+    log.debug(stopped ? "agent_stopped" : "agent_failed", {
       errorCode: RUNTIME_ERRORS.is(error) ? error.code : undefined,
       finishReason: lastFinishReason,
       durationMs: Math.round(performance.now() - started),
       modelSteps: modelStep,
       toolCalls: toolCall,
-      ...(failure || observed === undefined
+      ...(modelTiming ? { modelRequestId: requestId } : {}),
+      ...(stopped || failure || observed === undefined
         ? {}
         : modelErrorDiagnostics(observed)),
-      ...(failure ? {} : modelErrorDiagnostics(cause)),
-      ...(failure || observed === undefined
+      ...(stopped || failure ? {} : modelErrorDiagnostics(cause)),
+      ...(stopped || failure || observed === undefined
         ? {}
         : {
             observedErrorSource:

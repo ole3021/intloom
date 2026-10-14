@@ -11,6 +11,35 @@ import clarify from "./clarify.ts";
 import { question, proposal, ready } from "../../test/specification-fixture.ts";
 
 describe("check", () => {
+  test("an unchanged deterministic failure is preserved and stops after one repair attempt", async () => {
+    const r = runtime();
+    await init(null, r.access);
+    const bad = {
+      ...proposal,
+      changes: [
+        {
+          target_ref: "SCON-missing",
+          reason: "Revise missing target",
+          patch: [
+            { op: "replace" as const, path: "/description", value: "changed" },
+          ],
+        },
+      ],
+    };
+    await submitProposal(bad, r.access);
+    assert.deepEqual(await check(null, r.access), {
+      outcome: "repair_required",
+    });
+    const first = r.state?.feedbacks[0]?.content;
+    assert.ok(first);
+    await submitProposal({ ...bad, processedFeedbackCount: 1 }, r.access);
+    await assert.rejects(check(null, r.access), {
+      code: "INTENT_REPAIR_STALLED",
+    });
+    assert.equal(r.state?.feedbacks.length, 2);
+    assert.equal(r.state?.feedbacks[1]?.content, first);
+    assert.equal(r.state?.confirmation, undefined);
+  });
   test("an answered blocking question is ready without clearing its skip policy", async () => {
     const r = runtime();
     await init(null, r.access);
@@ -90,6 +119,49 @@ describe("check", () => {
       r.state?.feedbacks[0]?.content ?? "",
       /private business value/,
     );
+    assert.equal(r.state?.confirmation, undefined);
+  });
+  test("question-only first proposals clarify before expansion and later cumulative deltas diagnose a missing creation", async () => {
+    const r = runtime();
+    await init(null, r.access);
+    await submitProposal(
+      { changes: [], questions: [question], processedFeedbackCount: 0 },
+      r.access,
+    );
+    assert.deepEqual(await check(null, r.access), {
+      outcome: "clarification_required",
+    });
+    r.access.interaction.askQuestions = async () => [
+      { questionId: question.id, isSkipped: false, answer: "CSV required" },
+    ];
+    await clarify(null, r.access);
+    await submitProposal({ ...proposal, questions: [question] }, r.access);
+    assert.deepEqual(await check(null, r.access), { outcome: "ready" });
+    await submitProposal(
+      {
+        changes: [
+          {
+            target_ref: "SCON-lost",
+            reason: "Update a draft",
+            patch: [
+              { op: "test", path: "/description", value: "previous draft" },
+              { op: "replace", path: "/description", value: "updated" },
+            ],
+          },
+        ],
+        questions: [question],
+        processedFeedbackCount: 0,
+      },
+      r.access,
+    );
+    assert.deepEqual(await check(null, r.access), {
+      outcome: "repair_required",
+    });
+    assert.match(
+      r.state?.feedbacks.at(-1)?.content ?? "",
+      /Change\[0\] target_ref SCON-lost, patch\[0\] path "\/description": rule TARGET_NOT_FOUND:.*retain the root add/,
+    );
+    assert.equal(r.state?.baseline, null);
     assert.equal(r.state?.confirmation, undefined);
   });
   test("check refreshes a changed baseline and requires another analysis", async () => {

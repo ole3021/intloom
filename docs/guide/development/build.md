@@ -1,60 +1,38 @@
 ---
-title: Build, test, and distribute
-description: Compile package resources, validate installed artifacts, and distribute a Workflow archive.
+title: Build, test, install, and distribute
 ---
 
-# Build, test, and distribute
+# Build, test, install, and distribute
 
-Use `@intloom/compiler` as a development dependency and `@intloom/workflow-sdk` as a runtime dependency. The host loads compiled resources; it does not run the Compiler when executing a Workflow.
-
-## Build outputs
-
-The build script in [Create a Workflow](./create.md) calls `compileWorkflow({ packageRoot })`. Compilation reads `workflow.yaml`, follows resource references, validates topology and declarations, emits JavaScript/declarations, includes Skill assets, and verifies package boundaries before replacing `dist`.
-
-The generated entry exports exactly `blueprint`, `codes`, and `agentSpecs`. Keep generated identifiers internal; they may change on rebuild. The Compiler does not execute business modules to discover their exports or run initializers at build time. Installed modules are imported at runtime, so avoid top-level business effects.
-
-Default build configuration is `tsconfig.build.json`. `tsconfigFile` can select another configuration inside the package root. Referenced runtime imports must be built-in modules or declared package dependencies. Compiler excludes source-adjacent `.spec.ts`, `.intg.ts`, and `test/` from production output.
-
-## Validate your Workflow
-
-Test the authored Code, Schemas and Tools, then install the compiled archive into a clean project and verify its behavior through the intended host. Check public exports, declarations and Skill assets without access to the authoring source. Keep tests out of production output.
-
-Controlled model responses make execution checks repeatable. Validate real model quality and the intended MCP client separately. Compilation success alone does not establish either.
-
-## Produce an archive
-
-For the root-layout package in the authoring guide, build first, then package from that package directory:
+Compile from the Workflow source package, then package its generated output:
 
 ```sh
+bun install
 bun run build
 npm pack --ignore-scripts
 ```
 
-This creates a local archive without publishing it. Include the generated `dist`, package metadata, README, and license. The authored manifest must point `exports["."].types` and `default` to the generated files. Test files must not enter the archive.
+Compiler generates ESM, declarations, source maps and declared Skill assets. The authored manifest must export the generated entry and `./package.json` and include `dist` in `files`. SDK and other runtime imports belong in dependencies or peers; Compiler belongs in development dependencies.
 
-The Compiler itself does not generate a publish-root manifest or publish to npm. If you choose a different distribution root, write and verify the manifest for that layout as a separate packaging step. Do not copy the built-in package's private build scripts without checking its layout assumptions.
+## Verify the package
 
-## Install into a clean project
+Test your Schemas, Code and Tools, then install the archive into a clean project. Confirm exported definitions and Skill assets load without access to authoring source. Execute intended routes, human interaction, persistence and recovery boundaries.
 
-From another directory, use the actual archive path:
+For [capture](./create.md), use the actual archive path:
 
 ```sh
-intloom init capture-project --workflow /absolute/path/to/capture-workflow-0.1.0.tgz
+intloom init capture-project --workflow /absolute/path/capture-workflow-0.1.0.tgz
 cd capture-project
 intloom start
 intloom flows
 ```
 
-Ensure SDK and other runtime dependencies are resolvable. For the `capture` package, run `capture` through the [MCP path](../quickstart/mcp.md), or configure the [CLI service model path](../quickstart/cli.md) first. The expected outcome is a completed Run and a Record whose ID is that package's Run ID:
+Prepare CMD model configuration or an external MCP client first, then run `capture` with an intent. Its expected result is a completed Run and one Record whose ID is the Run ID. Read that Record after Service restart to check persistence.
 
-```sh
-intloom record <runId>
-```
+## Distribute and upgrade
 
-Read the Record after a host restart as a persistence check. Check that compilation, installation, and execution work without access to the authoring source directory.
+`npm pack` creates a local archive. Publishing is a separate explicit operation. Verify runtime dependencies are available to consumers and test the actual archive layout before publishing.
 
-## Release and upgrade
+The current artifact protocol is `2026-10-08`, independently of npm package versions. Keep compatible resources available for unfinished Runs. Stop the Service before package replacement and restart to adopt rebuilt code.
 
-Package version and Workflow protocol version are separate. The current protocol is `2026-10-08`. Publish compatible dependencies before a Workflow that needs them; local installation using repository links is not evidence of public registry availability.
-
-Keep exact resources available for unfinished Runs. Rebuilding or upgrading a package while they await recovery can invalidate their checkpoints. See [Package management](../usage/packages.md).
+Compilation/controlled tests do not prove real model quality or client acceptance. See [Compiler reference](../reference/compiler.md) and [compatibility](../reference/compatibility.md).

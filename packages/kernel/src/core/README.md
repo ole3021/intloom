@@ -58,7 +58,7 @@ intent:
   apps: []
 ```
 
-secret accepts only ENV.NAME / DENV.NAME references. The host prepares/decrypts the environment; the service implementation reads required credentials before Run creation. llms is optional at startup; supplied configuration is still structurally validated. Configuration loading and resource registration do not resolve credentials. Hosts interpret localStorage and create the selected backend; Kernel still receives borrowed StorageAccess and does not construct a backend. workflows entries contain name, exact version, archive sha256 and optional local source. Only the CLI maintains that list.
+secret accepts only ENV.NAME / DENV.NAME references. Service preparation resolves ENV.NAME from process.env first, then the canonical project's plain .env only when the variable is undefined. DENV.NAME requires an externally decrypted startup environment value. File credentials remain project-local and are not written into process.env. llms is optional at startup; supplied configuration is still structurally validated. Configuration loading and resource registration do not resolve credentials. Hosts interpret localStorage and create the selected backend; Kernel still receives borrowed StorageAccess and does not construct a backend. workflows entries contain name, exact version, archive sha256 and optional local source. Only the CLI maintains that list.
 
 Use one YAML 1.2 document; reject duplicate keys, aliases, parsing warnings, and Schema mismatches. See the [yaml Document API](https://eemeli.org/yaml/#documents). Missing configuration yields NOT_FOUND, read failures KERNEL_UNAVAILABLE, and invalid content INVALID_REQUEST. Retain internal cause without echoing configuration contents.
 

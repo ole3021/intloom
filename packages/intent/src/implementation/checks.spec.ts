@@ -52,3 +52,35 @@ test("host checks reject source mutation and preserve real failure results", asy
   assert.equal(passed(executed), false);
   assert.equal(executed.stderr, "fail");
 });
+
+test("host checks accept isolated runtime data cleaned up before exit", async () => {
+  let files = { "source.mjs": "fixed" };
+  const project: ProjectAccess = {
+    snapshot: async () => ({ ...files }),
+    read: async () => "",
+    write: async () => {},
+    remove: async () => {},
+    run: async (command) => {
+      files = { ...files, ...{ "data/fixture.json": "temporary" } };
+      files = { "source.mjs": "fixed" };
+      return {
+        command,
+        exitCode: 0,
+        stdout: "passed",
+        stderr: "",
+        timedOut: false,
+        truncated: false,
+      };
+    },
+  };
+  const checked = await runChecks(project, [
+    {
+      id: "tests",
+      purpose: "behavior",
+      command: "node",
+      args: ["--test"],
+    },
+  ]);
+  assert.ok(checked.results[0]);
+  assert.equal(passed(checked.results[0]), true);
+});

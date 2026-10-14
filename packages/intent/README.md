@@ -4,7 +4,7 @@ The software-development Workflow for IntLoom. It carries one intent through Spe
 
 ## Usage
 
-Requires Node.js 26.4.0+, the IntLoom CLI, and an initialized project. Repository development uses Node.js 26.4.0+ and Bun. See [installation and project setup](https://github.com/ole3021/intloom/blob/main/docs/guide/quickstart/installation.md) for source builds and published-release prerequisites.
+Requires Node.js 26.4.0+, the IntLoom CLI, and an initialized project. Repository development uses Node.js 26.4.0+ and Bun. See [installation and project setup](https://github.com/ole3021/intloom/blob/main/docs/guide/start/installation.md) for source builds and published-release prerequisites.
 
 From the project directory, with its service stopped, install a compiled Intent archive and start the host:
 
@@ -16,7 +16,7 @@ intloom flow intent --intent "Build a Todo app with local persistence"
 
 Replace the archive path with the package you obtained. Its runtime dependencies must be resolvable. When the package and dependencies are available from your registry, `intloom workflow add @intloom/workflow-intent` also works.
 
-CLI execution uses the project's configured `llms`. For a connected Agent IDE, MCP with `useMcpAgent: true` uses the client's Agent execution environment. See the [CLI guide](https://github.com/ole3021/intloom/blob/main/docs/guide/quickstart/cli.md) or [MCP guide](https://github.com/ole3021/intloom/blob/main/docs/guide/quickstart/mcp.md) for model setup and connection instructions.
+CLI execution uses the project's configured `llms`. For a connected Agent IDE, MCP with `useMcpAgent: true` uses the client's Agent execution environment. See the [CLI guide](https://github.com/ole3021/intloom/blob/main/docs/guide/start/cmd.md) or [MCP guide](https://github.com/ole3021/intloom/blob/main/docs/guide/start/mcp.md) for model setup and connection instructions.
 
 Answer questions and review confirmations to continue the same Run. Feedback revises the current draft. Inspect execution and saved results with:
 
@@ -34,7 +34,7 @@ intloom artifacts
 | Implementation | Change project files, record their origins, pass host-executed checks | Implementation Record with file hashes and command results |
 | Validation | Repeat the checks independently, assess coverage, save evidence and findings | Validation Artifact |
 
-Agents submit proposals; Code owns real user answers, confirmation, host check results, and persistence. `completed` means the Validation report was saved; read its findings and per-target results to assess the delivered work.
+Agents edit changed objects through typed Tools, then submit questions or finish their draft. Tools maintain cumulative patches and provenance. Validation assesses this Run’s changes and related scope; initial or broad changes use full coverage. Historical targets outside the scope are not newly verified. Code owns real user answers, confirmation, host check results, and persistence. `completed` means the Validation report was saved; read its findings and per-target results to assess the delivered work.
 
 Intent is exclusive within one host while active, including waits. Earlier commits and project edits remain after failure or cancellation. Specification question/confirmation waits support restart recovery; Solution waits currently require the live host. Inspect saved results before starting another Run after failure.
 
@@ -52,3 +52,7 @@ Intent is exclusive within one host while active, including waits. Earlier commi
 | [test/](https://github.com/ole3021/intloom/blob/main/packages/intent/test/README.md) | Built-package integration tests and fixtures |
 
 The compiled package exports `blueprint`, `codes`, and `agentSpecs`. Source navigation links point to the repository because source files and development READMEs are not included in the distribution.
+
+## AI-driven E2E
+
+[Intent E2E inputs and configuration](e2e/README.md) own ordered S01/M01/L01 cases, knowledge, model roles, optional limits and acceptance scripts. The private root E2E workspace exercises real CMD/MCP entries and is outside `test:intg`.

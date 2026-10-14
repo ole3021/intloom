@@ -22,6 +22,10 @@ import type {
   SpecificationState,
 } from "../schemas/specification-state.ts";
 
+import { applyChanges, emptyArtifact } from "../src/specification/changes.ts";
+import { authoring } from "../src/flow/draft.ts";
+import { objects } from "../src/flow/shared.ts";
+
 export type Backend = "file" | "sqlite";
 export interface Decision {
   readonly proposal: SpecificationProposal;
@@ -141,6 +145,7 @@ llms:
   const accesses: CodeExecutionAccess<JsonValue>[] = [];
   const agentTasks: Promise<StepResult>[] = [];
   const requests: { messages: Message[] }[] = [];
+  const agentStates = new Map<string, SpecificationState>();
   let sequence = 0;
   t.mock.method(
     globalThis,
@@ -166,9 +171,16 @@ llms:
           .find((item) => item.id === last.tool_call_id);
         assert.ok(call);
         if (call.function.name === "read_specification") {
-          const state = JSON.parse(
-            last.content ?? "null",
-          ) as SpecificationState;
+          const view = JSON.parse(last.content ?? "null");
+          const seed = agentStates.get(view.id);
+          assert.ok(seed);
+          const state = {
+            ...seed,
+            id: view.id,
+            intent: view.intent,
+            questions: view.questions,
+            feedbacks: view.feedbacks,
+          };
           assert.ok(state.id?.startsWith("RUN-"));
           reads.push(structuredClone(state));
           const iteration = (iterations.get(state.id) ?? 0) + 1;
@@ -176,17 +188,113 @@ llms:
           const decision = await options.decide(state, iteration);
           const id = `submit-${++sequence}`;
           decisions.set(id, decision);
-          message = toolCall("submit_specification", decision.proposal, id);
-        } else {
-          assert.equal(call.function.name, "submit_specification");
-          assert.deepEqual(JSON.parse(last.content ?? "null"), { saved: true });
+          const desired = applyChanges(
+            state.baseline?.data ?? emptyArtifact(),
+            decision.proposal.changes,
+            state.id,
+          ).artifact;
+          const changed = new Set(
+            decision.proposal.changes.map((c) => c.target_ref),
+          );
+          message = toolCall(
+            "edit_specification",
+            {
+              draftRevision: view.draftRevision,
+              edits: [...objects(desired)]
+                .filter(([id]) => changed.has(id as never))
+                .map(([_id, value]) => ({
+                  value: authoring(value),
+                  reason: "Apply controlled fixture decision",
+                })),
+            },
+            id,
+          );
+        } else if (call.function.name === "edit_specification") {
+          const saved = JSON.parse(last.content ?? "null");
+          assert.equal(saved.saved, true, JSON.stringify(saved));
           const decision = decisions.get(call.id);
           assert.ok(decision);
+          const id = `submit-${++sequence}`;
+          decisions.set(id, decision);
           decisions.delete(call.id);
-          message = {
-            role: "assistant",
-            content: JSON.stringify({ outcome: decision.outcome }),
-          };
+          message = toolCall(
+            "submit_specification",
+            {
+              draftRevision: saved.draftRevision,
+              questions: decision.proposal.questions,
+            },
+            id,
+          );
+        } else {
+          assert.equal(call.function.name, "submit_specification");
+          const result = JSON.parse(last.content ?? "null");
+          if (!result.saved) {
+            const priorRead = [...request.messages]
+              .reverse()
+              .find(
+                (m) =>
+                  m.role === "tool" &&
+                  m.content?.includes('"draftRevision"') &&
+                  m.content?.includes('"intent"'),
+              );
+            const view = JSON.parse(priorRead?.content ?? "null");
+            const seed = agentStates.get(view.id);
+            assert.ok(seed);
+            const state = {
+              ...seed,
+              id: view.id,
+              intent: view.intent,
+              questions: view.questions,
+              feedbacks: view.feedbacks,
+            };
+            const iteration = (iterations.get(state.id) ?? 0) + 1;
+            iterations.set(state.id, iteration);
+            reads.push(structuredClone(state));
+            const corrected = await options.decide(state, iteration);
+            const desired = applyChanges(
+              state.baseline?.data ?? emptyArtifact(),
+              corrected.proposal.changes,
+              state.id,
+            ).artifact;
+            const changed = new Set(
+              corrected.proposal.changes.map((c) => c.target_ref),
+            );
+            const id = `correct-${++sequence}`;
+            decisions.delete(call.id);
+            decisions.set(id, corrected);
+            const latestEdit = [...request.messages]
+              .reverse()
+              .find(
+                (m) =>
+                  m.role === "tool" &&
+                  m.content?.includes('"draftRevision"') &&
+                  !m.content?.includes('"intent"'),
+              );
+            const revision = JSON.parse(
+              latestEdit?.content ?? "null",
+            ).draftRevision;
+            message = toolCall(
+              "edit_specification",
+              {
+                draftRevision: revision,
+                edits: [...objects(desired)]
+                  .filter(([id]) => changed.has(id as never))
+                  .map(([_id, value]) => ({
+                    value: authoring(value),
+                    reason: "Correct controlled fixture decision",
+                  })),
+              },
+              id,
+            );
+          } else {
+            const decision = decisions.get(call.id);
+            assert.ok(decision);
+            decisions.delete(call.id);
+            message = {
+              role: "assistant",
+              content: JSON.stringify({ outcome: decision.outcome }),
+            };
+          }
         }
       }
       const id = `chatcmpl-${++sequence}`;
@@ -240,6 +348,8 @@ llms:
     storage: options.storage?.(handle.access) ?? handle.access,
     effector: {
       executeAgent(...args) {
+        const current = args[2].state.value as SpecificationState;
+        agentStates.set(current.id, structuredClone(current));
         const task = standard.executeAgent(...args);
         agentTasks.push(task);
         return task;

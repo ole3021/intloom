@@ -6,15 +6,15 @@ export function StudioSection() {
   return (
     <section id="studio" className={styles["field-studio"]} data-reveal>
       <div>
-        <SectionLabel number="04">INTLOOM STUDIO</SectionLabel>
+        <SectionLabel number="05">INTLOOM STUDIO</SectionLabel>
         <h2>
           A new way
           <br />
           <span>into the loom.</span>
         </h2>
         <p>
-          A visual companion to IntLoom. Studio is planned, with design and
-          implementation still to come.
+          A visual companion to IntLoom. Studio is in development. A new view
+          into your workflows is on the horizon.
         </p>
         <span className={styles["studio-status"]}>
           <span className={styles["status-dot"]} /> COMING SOON / STAY TUNED

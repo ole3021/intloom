@@ -44,7 +44,11 @@ test("a lost mutation response is recovered from its receipt without submitting 
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.equal(result.error.code, "REQUEST_OUTCOME_UNKNOWN");
+    assert.match(result.error.message, /CLI_SERVICE_OFFLINE/u);
     assert.equal(result.outcome, "unknown");
+    assert.equal(result.meta.operationId, operationId);
+    assert.equal(result.meta.projectRoot, projectPath);
+    assert.equal(result.meta.serviceInstanceId, serviceInstanceId);
   }
   const receipt = await core.getOperation({
     projectPath,

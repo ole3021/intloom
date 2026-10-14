@@ -10,6 +10,10 @@ on:
         required: true
         default: all
         type: string
+      base:
+        description: 'Previous reviewed release baseline (full 40-character commit SHA). Required for delivery metadata and version comparison.'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -27,7 +31,7 @@ jobs:
       has-release: ${{ steps.plan.outputs.has-release }}
     env:
       RELEASE_REF: ${{ github.ref }}
-      RELEASE_BASE: ${{ github.event.before }}
+      RELEASE_BASE: ${{ github.event.before || inputs.base }}
       RELEASE_PACKAGES: ${{ inputs.packages }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -2,7 +2,7 @@
 
 `intloom-site` is the private Rspress workspace for the IntLoom website and user documentation. It builds a static site for Cloudflare Workers Static Assets, with no server runtime entry, and is not published to npm.
 
-The homepage is `/`. `/workflows` and `/examples` currently contain placeholder pages. English documentation lives under `/guide/`, and Chinese documentation under `/zh/guide/`. Document pages share the site's navigation, theme, search, and footer, with a link to the same document in the other language.
+The homepage is `/`. `/workflows` and `/examples` currently contain placeholder pages. English documentation lives under `/guide/`, and Chinese documentation under `/zh/guide/`. The documentation follows eight groups: introduction, getting started, usage, Intent Workflow, concepts/architecture, Workflow development, reference, and help. Each external Agent adapter and each Intent Agent role has its own page. Document pages share the site's navigation, theme, search, and footer, with a link to the same document in the other language.
 
 ## Code organization
 
@@ -28,6 +28,14 @@ Run commands from the repository root after installing dependencies. Tool versio
 | `bun run --cwd apps/site ci:check` | Validate an existing build with a Wrangler dry run |
 
 Automated tests do not cover styling or browser interaction. After visual changes, inspect the affected pages, keyboard navigation, reduced motion, and narrow layouts. Do not edit generated `dist/` files.
+
+## Visual conventions
+
+The site adapts [Carbon spacing](https://www.carbondesignsystem.com/building-blocks/foundations/spacing/overview) and [control specifications](https://www.carbondesignsystem.com/building-blocks/core/components/button/specifications) through its existing components. The IntLoom palette, fonts, page content, and motion remain owned by this workspace; Carbon's default theme and component stylesheet are not imported. Shared spacing and UI type roles live in [tokens.css](./src/styles/tokens.css).
+
+Use named imports from `@carbon/icons-react` for UI icons at 16 or 20 pixels, following [Carbon icon guidance](https://www.carbondesignsystem.com/building-blocks/foundations/icons/guidelines). Label the enclosing control and hide decorative icons from assistive technology. Use a right arrow for internal destinations and an up-right arrow for external destinations. Logos, Canvas effects, Workflow illustrations, and the staged TUI progress animation remain custom artwork.
+
+Controls use 40 or 48 pixel heights, with at least 44 pixel touch targets on narrow screens. Preserve visible keyboard focus and distinguish hover, pressed, and selected states with the site's existing colors. [SiteSearch](./src/components/site-search.tsx) supplies an accessible Carbon search trigger while Rspress owns indexing, results, and shortcuts; [theme/index.tsx](./theme/index.tsx) maps shared document icons to Carbon.
 
 ## Deployment
 

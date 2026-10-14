@@ -1,37 +1,21 @@
 ---
-title: 创建 Workflow
-description: 构建最小的纯 Code 包，包含 Stage Schema、初始化器和持久化结果。
+title: 创建第一个 Workflow
 ---
 
-# 创建 Workflow
+# 创建第一个 Workflow
 
-Workflow 包包含源定义和编译后的 ESM 入口。本指南构建一个小型 `capture` 工作流：将原始意图保存为一个 Record，然后结束。该示例无需 Agent 即可展示包与执行契约。
+创建一个只含 Code 的 `capture` Workflow，将原始意图保存为 Record。在新的 `capture-workflow` 目录中创建以下文件。示例使用当前产物协议，请选择兼容 SDK/Compiler 版本。
 
-这是框架文档中的编写指南；特定业务 Workflow 的手册和完整应用示例属于其他内容。
+清单起初不包含依赖，后面的安装命令会添加真实依赖并锁定解析版本。TypeScript include 只包含生产资源目录，构建脚本属于开发文件。
 
-## 准备包
-
-在新的包目录中创建以下布局：
-
-```text
-capture-workflow/
-├── package.json
-├── tsconfig.build.json
-├── build.ts
-├── workflow.yaml
-├── stages/capture.yaml
-├── schemas/state.ts
-├── initializers/state.ts
-└── codes/capture.ts
-```
-
-使用以下 `package.json`：
+## `package.json`
 
 ```json
 {
   "name": "capture-workflow",
   "version": "0.1.0",
   "type": "module",
+  "scripts": {"build": "node build.ts"},
   "exports": {
     ".": {
       "types": "./dist/workflow.generated.d.ts",
@@ -40,28 +24,11 @@ capture-workflow/
     "./package.json": "./package.json"
   },
   "files": ["dist"],
-  "scripts": {
-    "build": "node build.ts"
-  },
-  "dependencies": {
-    "@intloom/workflow-sdk": "0.0.2",
-    "zod": "^4.6.5"
-  },
-  "devDependencies": {
-    "@intloom/compiler": "0.0.2",
-    "@types/node": "^26",
-    "typescript": "7.0.2"
-  },
-  "intloom": {
-    "type": "workflow",
-    "version": "2026-10-08"
-  }
+  "intloom": {"type": "workflow", "version": "2026-10-08"}
 }
 ```
 
-以上 IntLoom 版本与当前开发版本一致，要求对应版本已经在使用的注册源中可用。发布前请提供经过验证的本地包或本地注册源。IntLoom monorepo 中，工作区依赖使用 `workspace:*`，并使用根目录的 Bun/Turbo 命令。
-
-这个独立包使用以下 `tsconfig.build.json`：
+## `tsconfig.build.json`
 
 ```json
 {
@@ -76,15 +43,11 @@ capture-workflow/
     "skipLibCheck": true
   },
   "include": ["codes/**/*.ts", "schemas/**/*.ts", "initializers/**/*.ts"],
-  "exclude": ["dist", "node_modules", "**/*.spec.ts", "**/*.intg.ts", "test"]
+  "exclude": ["dist", "node_modules", "**/*.spec.ts", "test"]
 }
 ```
 
-Compiler 在临时构建配置中覆盖输出设置。将 `include` 限定为生产资源目录；包含 `build.ts` 会输出构建脚本，并错误地将 Compiler 变为运行时依赖。引入 Tools 时添加 `tools/**/*.ts`。仓库工作区则继承共享的根 TypeScript 配置。
-
-## 定义路由
-
-`workflow.yaml`：
+## `workflow.yaml`
 
 ```yaml
 workflow:
@@ -98,7 +61,7 @@ workflow:
           end: true
 ```
 
-`stages/capture.yaml`：
+## `stages/capture.yaml`
 
 ```yaml
 stage:
@@ -116,11 +79,7 @@ stage:
           end: true
 ```
 
-Step 结束时，其 Stage 也结束。Stage 的 outcome 再由 `workflow.yaml` 路由到 Workflow 结束位置。
-
-## 初始化业务 State
-
-`schemas/state.ts`：
+## `schemas/state.ts`
 
 ```ts
 import * as z from "zod";
@@ -131,7 +90,7 @@ export default z.strictObject({
 });
 ```
 
-`initializers/state.ts`：
+## `initializers/state.ts`
 
 ```ts
 import type { StageStateInitializer } from "@intloom/workflow-sdk";
@@ -144,11 +103,7 @@ const initialize: StageStateInitializer = ({ runId, intent }) => ({
 export default initialize;
 ```
 
-进入 Stage 时运行初始化器。它接收当前 Run 的上下文，并返回 Schema 的输入。编译过程不会执行它。
-
-## 实现 Step
-
-`codes/capture.ts`：
+## `codes/capture.ts`
 
 ```ts
 import type { ExecutableCode } from "@intloom/workflow-sdk";
@@ -157,28 +112,22 @@ import stateSchema from "../schemas/state.ts";
 const capture: ExecutableCode = async (_input, access) => {
   access.signal.throwIfAborted();
   const state = stateSchema.parse(access.state.value);
-  await access.storage.commit([
-    {
-      type: "append_record",
-      id: state.runId,
-      payload: {
-        flowName: "capture",
-        stageName: "capture",
-        data: { intent: state.intent },
-      },
+  await access.storage.commit([{
+    type: "append_record",
+    id: state.runId,
+    payload: {
+      flowName: "capture",
+      stageName: "capture",
+      data: { intent: state.intent },
     },
-  ]);
+  }]);
   return { outcome: "complete" };
 };
 
 export default capture;
 ```
 
-这个包选择 Run ID 作为 Record ID，这是包的约定，不是框架要求。Step 读取 Stage State；Runtime 当前传入 `null` 作为执行输入。只返回路由 outcome。
-
-## 编译
-
-`build.ts`：
+## `build.ts`
 
 ```ts
 import { fileURLToPath } from "node:url";
@@ -189,13 +138,16 @@ await compileWorkflow({
 });
 ```
 
-解析并安装包依赖后：
+## 安装并编译
+
+在包目录执行：
 
 ```sh
-bun install
+bun add @intloom/workflow-sdk zod
+bun add --dev @intloom/compiler @types/node typescript
 bun run build
 ```
 
-预期输出包括 `dist/workflow.generated.js`、类型声明、编译后的业务模块和 source maps。生成模块导出 `blueprint`、`codes` 和 `agentSpecs`；该纯 Code 包没有 Agent 资源。
+Compiler 在 `dist` 生成命名导出 `blueprint`、`codes`、`agentSpecs`。初始化器在 Stage 进入时提供 Schema 输入；Code 读取 State，提交 Record，最后只返回路由 outcome。以 Run ID 作为 Record ID 是本示例的约定。
 
-接着阅读[构建、测试与分发](./build.md)，完成打包与安装。如果希望无需模型执行这个纯 Code 工作流，使用 `useMcpAgent: true` 的外部 MCP 入口。当前 CLI 的服务执行准入策略仍要求 `llms.default`。
+下一步：[打包并安装 Workflow](./build.md)。即使本示例只有 Code，CMD 服务接收策略仍要求模型配置；外部 MCP 配合 `useMcpAgent: true` 可以无需项目模型执行。

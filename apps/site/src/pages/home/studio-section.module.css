@@ -19,7 +19,7 @@
   text-transform: uppercase;
   font-weight: var(--site-weight-heading);
   letter-spacing: -0.05em;
-  margin: 16px 0 28px;
+  margin: var(--site-spacing-05) 0 var(--site-spacing-07);
 }
 .field-studio h2 > span {
   color: var(--site-color-accent);
@@ -32,9 +32,9 @@
 }
 .studio-status {
   display: inline-flex;
-  gap: 10px;
+  gap: var(--site-spacing-03);
   align-items: center;
-  margin-top: 28px;
+  margin-top: var(--site-spacing-07);
   color: #99ad8d;
   font: var(--site-type-label);
 }
@@ -44,7 +44,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 34px;
+  gap: var(--site-spacing-07);
   min-height: 290px;
   padding: 24px 16px;
   text-align: center;
@@ -91,7 +91,7 @@
 
 @media (max-width: 1100px) {
   .field-studio {
-    gap: 30px;
+    gap: var(--site-spacing-07);
   }
 }
 

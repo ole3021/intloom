@@ -6,6 +6,7 @@ Use direct Zod definitions and `z.infer`. Default Stage State exports enforce th
 
 | File | Responsibility |
 | --- | --- |
+| [draft.ts](./draft.ts) | Editable Specification/Solution object schemas and draft revision preconditions |
 | [specification-state.ts](./specification-state.ts) | Specification State, baseline, question history, confirmation context, and restricted proposal |
 | [specification-artifact.ts](./specification-artifact.ts) | Committed requirements objects and their IDs |
 | [specification-record.ts](./specification-record.ts) | JSON Patch, changes, feedback, actual question answers, and Specification Record |
@@ -25,8 +26,8 @@ State defaults initialize draft collections and counters, without inventing busi
 
 | Proposal | Agent-owned fields |
 | --- | --- |
-| Specification | Cumulative changes, questions without answers/skips, `processedFeedbackCount` |
-| Solution | Cumulative changes, questions without answers/skips, `processedFeedbackCount`, command plan |
+| Specification | Object edits and current draft revision; submission supplies new questions |
+| Solution | Object edits and current draft revision; submission supplies new questions and command plan |
 | Implementation | Declared file changes and `processedFeedbackCount` |
 | Validation | Per-target checks/evidence, test claims, code issues, and findings |
 
@@ -38,4 +39,6 @@ Business objects reject extra fields. Preserve the serialized `target_ref`, `ori
 
 Schemas check structure and JSON compatibility. Business modules check old patch values, mutation permissions, unique IDs, references, acceptance ownership, skipped uncertainty, upstream versions, confirmation matching, actual file changes, and evidence consistency. See [business rules](../src/README.md) for these Stage-specific requirements and their current limits.
 
-A root `add` patch requires an object as its `value`; serialized JSON strings and arrays are rejected at Tool input validation. Field patches still accept JSON values. This shared patch contract applies to Specification and Solution.
+Patch schemas describe Code-generated cumulative changes in State and Records. Agents edit typed business objects through `draft.ts`; those schemas omit provenance. Tools generate old-value tests and mutations, preserve accepted edits, and run structural/reference checks before updating State.
+
+Validation State stores scope mode, selected object context (including removals), selection reasons and changed paths. Its compact context schema excludes historical baseline reports, full file snapshots and command stdout/stderr; details are fetched on demand. Missing or duplicated required targets still reject a report.

@@ -1,39 +1,25 @@
 ---
 title: Workflow YAML reference
-description: Source fields, resource references, routes, metadata, and compiled exports.
 ---
 
 # Workflow YAML reference
 
-The Compiler reads `workflow.yaml` from the package root. Workflow and Stage source objects are strict; unknown fields and duplicate YAML keys are rejected.
+Compiler reads `workflow.yaml` and referenced Stage files. Unknown fields and duplicate YAML keys are rejected.
 
-## Workflow document
+## Workflow fields
 
-| Field | Meaning |
-| --- | --- |
-| `workflow.name` | Registered execution name (`flowName`) |
-| `workflow.exclusive` | Optional boolean; true excludes competing active Runs in the same host |
-| `workflow.entry` | Entry Stage key |
-| `workflow.stages.<key>.stage` | Stage resource reference |
-| `workflow.stages.<key>.on.<outcome>` | `{ target: <stage-key> }` or `{ end: true }` |
+`workflow.name` is the registered flowName. `exclusive` is optional. `entry` selects a Stage key. Each `stages.KEY` contains `stage` resource and `on` outcome routes.
 
-## Stage document
+## Stage and Step fields
 
-| Field | Meaning |
-| --- | --- |
-| `stage.name` | Stage name matching its Workflow declaration |
-| `stage.state.schema` | Zod Schema resource reference |
-| `stage.state.initialize` | State initializer resource reference |
-| `stage.entry` | Entry Step key |
-| `stage.steps.<key>` | Code or Agent Step |
+`stage.name` matches its declaration. `state` requires Schema and initializer references. `entry` selects a Step key; `steps` contains:
 
-A Code Step contains `type: code`, `code: <reference>`, and `on` routes.
+| Step type | Required fields | Optional fields |
+| --- | --- | --- |
+| Code | `type: code`, `code`, `on` | None |
+| Agent | `type: agent`, `agent`, `llm`, `outputSchema`, `on` | `skills` and `tools` arrays, default empty |
 
-An Agent Step contains `type: agent`, `agent: <reference>`, `llm`, `outputSchema: <reference>`, and `on` routes. Optional `skills` and `tools` arrays default to empty. Runtime model roles are `reasoning`, `coding`, and `review`.
-
-For either Step type, each `on.<outcome>` is `{ target: <step-key> }` or `{ end: true }`. A Stage end forwards that outcome to its Workflow-level route. Do not put both `target` and `end` in one route.
-
-Names must be nonempty, have no surrounding whitespace, and avoid reserved object keys `__proto__`, `prototype`, and `constructor`. Entries and targets must resolve within their respective topology.
+Routes are exactly `{ target: KEY }` or `{ end: true }`. Names are nonempty, have no surrounding whitespace, and cannot be reserved object keys. Entries/targets must exist; outcomes are matched exactly.
 
 ## Resource references
 
@@ -42,38 +28,21 @@ Names must be nonempty, have no surrounding whitespace, and avoid reserved objec
 | `@stages/review` | `stages/review.yaml` |
 | `@agents/reviewer` | `agents/reviewer.md` |
 | `@skills/review` | `skills/review/SKILL.md` |
-| `@codes/check` | Default export from `codes/check.ts` |
-| `@schemas/state` | Default export from `schemas/state.ts` |
-| `@initializers/state` | Default export from `initializers/state.ts` |
-| `@tools/review:readDraft` | Named export `readDraft` from `tools/review.ts` |
+| `@codes/check` | Default export in `codes/check.ts` |
+| `@schemas/state` | Default export in `schemas/state.ts` |
+| `@initializers/state` | Default export in `initializers/state.ts` |
+| `@tools/draft:readDraft` | Named export in `tools/draft.ts` |
 
-TypeScript resources accept a `:exportName` selector; without it they use the default export. Stage, Agent, and Skill references have no export selector. Nested resource directories are supported. References must stay within their resource directory and cannot use traversal, backslashes, or `.d.ts` source files.
+Nested directories are supported. TypeScript references allow `:exportName`; Stage/Agent/Skill references do not. References stay inside resource directories, without traversal/backslashes or declaration source files. These are Compiler references, not TypeScript import aliases.
 
-These `@...` values are Compiler source references, not TypeScript import aliases. Relative TypeScript source imports use `.ts`; output imports are rewritten to `.js`.
+Agent/Skill Markdown frontmatter requires name and description. Relative TypeScript source imports use .ts; compilation rewrites output imports to .js.
 
-## Markdown metadata
-
-Agent and Skill Markdown starts with YAML frontmatter containing `name` and `description`; the body contains instructions. Step YAML binds the Agent to its model role, Tools, Skills, and final output Schema.
-
-## Package metadata and exports
+## Artifact metadata
 
 ```json
 {
-  "type": "module",
-  "intloom": {
-    "type": "workflow",
-    "version": "2026-10-08"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/workflow.generated.d.ts",
-      "default": "./dist/workflow.generated.js"
-    }
-  },
-  "files": ["dist"]
+  "intloom": {"type": "workflow", "version": "2026-10-08"}
 }
 ```
 
-This fragment supplements a full package manifest, including name, version, and runtime dependencies. Compiler validates the source package's generated-entry layout. It emits named `blueprint`, `codes`, and `agentSpecs` exports; it does not publish an internal wrapper or instantiate Agents at build time.
-
-See [Create a Workflow](../development/create.md) for a complete package and [Compiler](./compiler.md) for build behavior.
+The full ESM manifest exports generated JS/declarations and `./package.json`. Named generated exports are `blueprint`, `codes` and `agentSpecs`. See [complete authoring example](../development/create.md).

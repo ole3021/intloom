@@ -1,10 +1,12 @@
 [
   "cli",
+  "tui",
+  "mcp",
   "configuration",
   "workflow-yaml",
   "sdk",
   "compiler",
-  "mcp",
   "project-client",
-  "errors"
+  "errors",
+  "compatibility"
 ]

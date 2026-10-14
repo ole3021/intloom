@@ -135,10 +135,20 @@ async function execute(
   signal?: AbortSignal,
 ): Promise<ProjectCommandResult> {
   signal?.throwIfAborted();
+  const notStarted = (
+    exitCode: number,
+    stderr: string,
+  ): ProjectCommandResult => ({
+    command,
+    exitCode,
+    stdout: "",
+    stderr,
+    timedOut: false,
+    truncated: false,
+  });
   const cwd =
     command.cwd && command.cwd !== "." ? await checked(command.cwd) : root;
-  if ((await realpath(cwd)) !== cwd)
-    throw new Error("Command directory must be canonical.");
+  signal?.throwIfAborted();
   const timeoutMs = command.timeoutMs ?? 60000;
   if (
     !command.command.trim() ||
@@ -147,6 +157,34 @@ async function execute(
     timeoutMs > 300000
   )
     throw new Error("Invalid project command or timeout.");
+  try {
+    if ((await realpath(cwd)) !== cwd)
+      throw new Error("Command directory must be canonical.");
+    const info = await lstat(cwd);
+    signal?.throwIfAborted();
+    if (!info.isDirectory() && cwd === root)
+      throw new Error("Project root is no longer a directory.");
+    if (!info.isDirectory())
+      return notStarted(
+        126,
+        "The command working directory is not a directory. Omit cwd for the project root.",
+      );
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (
+      cwd !== root &&
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      ["ENOENT", "ENOTDIR"].includes(String(error.code))
+    )
+      return notStarted(
+        126,
+        "The command working directory does not exist. Use an existing project subdirectory or omit cwd for the project root.",
+      );
+    throw error;
+  }
+  signal?.throwIfAborted();
   return new Promise((resolveResult, reject) => {
     const child = spawn(command.command, [...command.args], {
       cwd,
@@ -158,6 +196,7 @@ async function execute(
       stderr = "",
       timedOut = false,
       truncated = false;
+    let errorObserved = false;
     const append = (value: string, chunk: Buffer) => {
       const text = value + chunk.toString("utf8");
       if (Buffer.byteLength(text) > limit) truncated = true;
@@ -182,14 +221,39 @@ async function execute(
     }, timeoutMs);
     signal?.addEventListener("abort", kill, { once: true });
     if (signal?.aborted) kill();
-    child.once("error", (error) => {
+    child.once("error", async (error) => {
+      errorObserved = true;
       clearTimeout(timer);
       signal?.removeEventListener("abort", kill);
+      if (signal?.aborted) {
+        reject(signal.reason);
+        return;
+      }
+      if (!child.pid && "code" in error && error.code === "ENOENT") {
+        try {
+          if (
+            (await realpath(root)) !== root ||
+            !(await lstat(root)).isDirectory()
+          )
+            throw new Error("Project root is no longer a canonical directory.");
+          signal?.throwIfAborted();
+          resolveResult(
+            notStarted(
+              127,
+              "The command did not start: its executable or working directory was not found. Put the executable in command and arguments in args; omit cwd for the project root.",
+            ),
+          );
+        } catch (cause) {
+          reject(cause);
+        }
+        return;
+      }
       reject(error);
     });
     child.once("close", (exitCode) => {
       clearTimeout(timer);
       signal?.removeEventListener("abort", kill);
+      if (errorObserved) return;
       resolveResult({ command, exitCode, stdout, stderr, timedOut, truncated });
     });
   });

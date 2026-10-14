@@ -19,6 +19,9 @@ stage:
       skills: []
       tools:
         - "@tools/validation:readValidationContext"
+        - "@tools/validation:readValidationFile"
+        - "@tools/validation:readValidationDetails"
+        - "@tools/validation:expandValidationScope"
         - "@tools/validation:submitValidation"
         - "@tools/engineering:listProject"
         - "@tools/engineering:readProject"

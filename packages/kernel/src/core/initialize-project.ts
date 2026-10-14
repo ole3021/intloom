@@ -47,6 +47,7 @@ export async function initializeProject(
   const preparation = createExecutionPreparation(
     project.config,
     registries.agents,
+    project.projectRoot,
   );
   const access = createProjectAccess(project.projectRoot);
   if (

@@ -5,3 +5,13 @@
   height: auto;
   flex-shrink: 0;
 }
+.arrow {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  vertical-align: middle;
+  line-height: 0;
+}
+.arrow svg {
+  display: block;
+}

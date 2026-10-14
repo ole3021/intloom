@@ -19,6 +19,7 @@ stage:
       skills: []
       tools:
         - "@tools/solution:readSolutionContext"
+        - "@tools/solution:editSolution"
         - "@tools/solution:submitSolution"
         - "@tools/engineering:listProject"
         - "@tools/engineering:readProject"

@@ -34,6 +34,75 @@ function baseline(): SpecificationArtifact {
     ],
   };
 }
+test("boxed root instances get an exact correction path without weakening identity checks", () => {
+  const value = {
+    id: "SDOM-a",
+    responsibility: "Domain",
+    status: "active" as const,
+  };
+  assert.throws(
+    () =>
+      applyChanges(
+        emptyArtifact(),
+        [
+          {
+            target_ref: "SDOM-a",
+            reason: "Create a domain",
+            patch: [{ op: "add", path: "", value: { item: value } }],
+          },
+        ],
+        "RUN-new",
+      ),
+    /OBJECT_VALUE_WRAPPED.*patch.value.item/u,
+  );
+  assert.equal(
+    applyChanges(
+      emptyArtifact(),
+      [
+        {
+          target_ref: "SDOM-a",
+          reason: "Create a domain",
+          patch: [{ op: "add", path: "", value }],
+        },
+      ],
+      "RUN-new",
+    ).artifact.domains[0]?.id,
+    "SDOM-a",
+  );
+});
+test("grouped new objects identify the repeated root Patch and require separate Changes", () => {
+  const values = ["a", "b"].map((suffix) => ({
+    id: `SDOM-${suffix}` as const,
+    responsibility: "Domain",
+    status: "active",
+  }));
+  const patch = values.map((value) => ({
+    op: "add" as const,
+    path: "" as const,
+    value,
+  }));
+  assert.throws(
+    () =>
+      applyChanges(
+        emptyArtifact(),
+        [{ target_ref: "SDOM-a", reason: "Create domains", patch }],
+        "RUN-new",
+      ),
+    /Change\[0\] target_ref SDOM-a, patch\[1\].*ROOT_ADD_TARGET_EXISTS.*split multiple new objects/u,
+  );
+  assert.equal(
+    applyChanges(
+      emptyArtifact(),
+      values.map((value) => ({
+        target_ref: value.id,
+        reason: "Create a domain",
+        patch: [{ op: "add", path: "", value }],
+      })),
+      "RUN-new",
+    ).artifact.domains.length,
+    2,
+  );
+});
 test("patches preserve baseline, update parent provenance and collect existing origins", () => {
   const source = baseline();
   const original = structuredClone(source);
@@ -66,7 +135,7 @@ test("patches preserve baseline, update parent provenance and collect existing o
   ]);
   assert.deepEqual(result.originRefs, ["SACC-a", "SREQ-a"]);
 });
-test("new objects start with empty record_refs and Finalize adds the run", () => {
+test("Code owns new provenance even when the proposal copies an upstream Run", () => {
   const result = applyChanges(
     emptyArtifact(),
     [
@@ -81,7 +150,7 @@ test("new objects start with empty record_refs and Finalize adds the run", () =>
               id: "SCON-a",
               description: "Response limit",
               status: "active",
-              record_refs: [],
+              record_refs: ["RUN-upstream"],
             },
           },
         ],
@@ -216,7 +285,7 @@ test("removed acceptance IDs cannot be reused in the same change set", () => {
         ],
         "RUN-new",
       ),
-    /already used/,
+    /ROOT_ADD_TARGET_EXISTS/,
   );
 });
 test("duplicate IDs, dangling references and wrong acceptance ownership are rejected", () => {

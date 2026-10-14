@@ -36,6 +36,10 @@ import {
 } from "./mcp-config.ts";
 import { readLogs, watchLogs } from "./logs.ts";
 import {
+  readServiceResponse,
+  requestTransportFailure,
+} from "./service-response.ts";
+import {
   addWorkflow,
   removeWorkflow,
   listInstalledWorkflows,
@@ -184,37 +188,31 @@ export function createCliCore() {
     let sent = false;
     try {
       const trusted = await connection(input, meta);
+      const signal = AbortSignal.timeout(10000);
+      const payload = body === undefined ? {} : { body: JSON.stringify(body) };
       sent = true;
       const response = await fetch(new URL(path, trusted.url), {
         method: body === undefined ? "GET" : "POST",
         headers: { ...trusted.headers, "content-type": "application/json" },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        ...payload,
         redirect: "error",
-        signal: AbortSignal.timeout(10000),
+        signal,
+      }).catch((cause: unknown) => {
+        throw requestTransportFailure(signal, cause);
       });
-      const result = coreResultSchema(schema).parse(await response.json());
-      if (
-        result.meta.serviceInstanceId !== meta.serviceInstanceId ||
-        result.meta.projectRoot !== meta.projectRoot ||
-        result.meta.requestId !== meta.requestId
-      )
-        throw failure(
-          "CLI_RESULT_INVALID",
-          "The response does not match the requested project and instance.",
-        );
-      return result as CoreResult<T>;
+      return await readServiceResponse(response, schema, meta, signal);
     } catch (error) {
       const unknown = body !== undefined && sent;
+      const safe = errorView(error);
       return {
         ok: false,
         error: unknown
           ? {
               code: "REQUEST_OUTCOME_UNKNOWN",
-              message:
-                "No valid operation result was received. Query the original operation before another submission.",
+              message: `No valid operation result was received (${safe.code}). ${safe.message} Query the original operation before another submission.`,
               retryable: false,
             }
-          : errorView(error),
+          : safe,
         outcome: unknown ? "unknown" : "not_applied",
         meta,
       };

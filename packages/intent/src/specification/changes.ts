@@ -7,6 +7,7 @@ import {
 } from "../../schemas/specification-artifact.ts";
 import type { SpecificationChange } from "../../schemas/specification-record.ts";
 import { fail } from "./errors.ts";
+import { initializeProvenance } from "../flow/shared.ts";
 
 type Value = z.infer<ReturnType<typeof z.json>>;
 type ObjectValue = { [key: string]: Value };
@@ -141,11 +142,17 @@ export function applyChanges(
       return list(root[key]);
     }
     for (const [position, patch] of change.patch.entries()) {
+      function rejectPatch(rule: string, message: string): never {
+        return fail(
+          `Change[${changeIndex}] target_ref ${change.target_ref}, patch[${position}] path ${JSON.stringify(patch.path)}: rule ${rule}: ${message}`,
+        );
+      }
       const path = tokens(patch.path);
       if (patch.op === "replace" || patch.op === "remove") {
         const previous = change.patch[position - 1];
         if (previous?.op !== "test" || previous.path !== patch.path)
-          fail(
+          rejectPatch(
+            "OLD_VALUE_TEST_REQUIRED",
             "replace/remove requires an immediately preceding test of the same path",
           );
       }
@@ -155,8 +162,16 @@ export function applyChanges(
             fail(`Root test failed: ${change.target_ref}`);
         } else if (patch.op === "add") {
           if (target || used.has(change.target_ref))
-            fail(`Object ID already used: ${change.target_ref}`);
+            rejectPatch(
+              "ROOT_ADD_TARGET_EXISTS",
+              "root add cannot recreate target_ref. Each new object requires its own Change with one root add and value.id equal to that Change's target_ref; split multiple new objects into separate Changes instead of renaming an ID",
+            );
           const item = object(structuredClone(patch.value));
+          if ("item" in item)
+            rejectPatch(
+              "OBJECT_VALUE_WRAPPED",
+              "patch.value.item is an invalid wrapper. Put the complete object directly in patch.value, with patch.value.id equal to target_ref; do not submit {item: object}.",
+            );
           if (item.id !== change.target_ref) {
             const objectId =
               typeof item.id === "string"
@@ -166,11 +181,10 @@ export function applyChanges(
               `Change[${changeIndex}] target_ref ${change.target_ref}, patch[${position}] path ${JSON.stringify(patch.path)}: New object ID ${objectId} must match target_ref; set object.id to target_ref`,
             );
           }
-          if (
-            item.record_refs !== undefined &&
-            list(item.record_refs).length !== 0
-          )
-            fail("New record_refs must be empty");
+          initializeProvenance(
+            item,
+            /^S(REQ|CON|REL|DEF)-/u.test(change.target_ref),
+          );
           const nested = Array.isArray(item.acceptances)
             ? item.acceptances.map((a) => String(object(a).id))
             : [];
@@ -189,7 +203,11 @@ export function applyChanges(
             "Existing root objects cannot be replaced or removed; only Acceptance can be removed",
           );
       } else {
-        if (!target) fail(`Unknown target: ${change.target_ref}`);
+        if (!target)
+          rejectPatch(
+            "TARGET_NOT_FOUND",
+            `Unknown target: ${change.target_ref}. Each submission replaces cumulative Changes against the committed baseline; retain the root add for every uncommitted new object before its field patches.`,
+          );
         const first = path[0];
         if (
           patch.op !== "test" &&
@@ -198,7 +216,10 @@ export function applyChanges(
             first === "acceptances" ||
             (acceptance && first === "requirement_ref"))
         )
-          fail(`Field is managed by Code or requires its own target: ${first}`);
+          rejectPatch(
+            "MANAGED_FIELD",
+            `Field is managed by Code or requires its own target: ${first}`,
+          );
         // Mutable arrays are replaced at field level; identified objects always use target_ref.
         let parent = target;
         for (const token of path.slice(0, -1)) parent = object(parent[token]);
@@ -207,12 +228,20 @@ export function applyChanges(
         const exists = Object.hasOwn(parent, key);
         if (patch.op === "test") {
           if (!exists || !isDeepStrictEqual(parent[key], patch.value))
-            fail(`Patch test failed: ${change.target_ref}${patch.path}`);
+            rejectPatch(
+              "OLD_VALUE_TEST_FAILED",
+              `Patch test failed: ${change.target_ref}${patch.path}. Test the value produced by baseline plus earlier cumulative patches, not a previous submission's final draft.`,
+            );
         } else if (patch.op === "add") {
-          if (exists) fail("add cannot overwrite an existing field");
+          if (exists)
+            rejectPatch(
+              "FIELD_ALREADY_EXISTS",
+              "add cannot overwrite an existing field",
+            );
           parent[key] = structuredClone(patch.value);
         } else {
-          if (!exists) fail("Patch field does not exist");
+          if (!exists)
+            rejectPatch("FIELD_NOT_FOUND", "Patch field does not exist");
           if (patch.op === "remove") delete parent[key];
           else parent[key] = structuredClone(patch.value);
         }

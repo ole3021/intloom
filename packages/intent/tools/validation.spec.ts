@@ -9,11 +9,14 @@ import type {
 import {
   validationStateSchema,
   validationProposalSchema,
-  type ValidationState,
 } from "../schemas/validation-state.ts";
 import { json } from "../src/flow/shared.ts";
 import check from "../codes/validation/check.ts";
-import { readValidationContext, submitValidation } from "./validation.ts";
+import {
+  readValidationContext,
+  readValidationFile,
+  submitValidation,
+} from "./validation.ts";
 
 function fixture() {
   let state = validationStateSchema.parse({
@@ -118,6 +121,27 @@ async function submit(...args: Parameters<typeof submitValidation.execute>) {
 
 const rejection = { code: "INVALID_INTENT_STAGE", retryable: false };
 
+test("Validation reads only the requested file with exact line bounds without changing State", async () => {
+  const f = fixture();
+  const paths: string[] = [];
+  f.project.read = async (path) => {
+    paths.push(path);
+    return "first\nsecond\n";
+  };
+  const before = structuredClone(f.state);
+  await readValidationContext.execute({}, f.access);
+  assert.deepEqual(paths, []);
+  assert.deepEqual(
+    await readValidationFile.execute({ path: "test.ts" }, f.access),
+    {
+      content: "1: first\n2: second\n3: ",
+      lineCount: 3,
+    },
+  );
+  assert.deepEqual(paths, ["test.ts"]);
+  assert.deepEqual(f.state, before);
+});
+
 test("one report mistake returns safe feedback and one corrected proposal saves", async () => {
   const f = fixture();
   f.location.lines = [200];
@@ -132,10 +156,7 @@ test("one report mistake returns safe feedback and one corrected proposal saves"
   assert.equal(rejected.feedback.maxLine, 1);
   assert.equal(f.state.proposal, undefined);
   assert.equal(f.state.submissionCount, 1);
-  const read = (await readValidationContext.execute(
-    {},
-    f.access,
-  )) as ValidationState;
+  const read = await readValidationContext.execute({}, f.access);
   assert.deepEqual(read.submissionFeedback, rejected.feedback);
   f.location.lines = [1];
   assert.deepEqual(await submit(f.input, f.access), { saved: true });
@@ -301,4 +322,97 @@ test("final Code check remains authoritative after successful submission", async
   f.project.snapshot = async () => ({ "test.ts": "1".repeat(64) });
   await assert.rejects(check(null, codeAccess), { code: "STALE_INTENT_BASIS" });
   assert.equal(f.state.submissionCount, 1);
+});
+
+test("default validation view excludes historical baseline and full command output", async () => {
+  const f = fixture();
+  f.state.baseline = {
+    id: "old-validation",
+    revision: 1,
+    data: { hugePriorReport: "old-private-history" },
+  };
+  const result = await readValidationContext.execute({}, f.access);
+  const serialized = JSON.stringify(result);
+  assert.doesNotMatch(serialized, /old-private-history|baseline|fileSnapshot/);
+  assert.match(serialized, /SACC-a/);
+});
+
+test("scope expansion is additive, rejects unknown targets atomically and is frozen after submission", async () => {
+  const { expandValidationScope } = await import("./validation.ts");
+  const f = fixture();
+  f.state.specification = {
+    id: "spec",
+    revision: 1,
+    data: {
+      constraints: [
+        { id: "SCON-extra", status: "active", description: "Regression" },
+      ],
+    },
+  };
+  const before = structuredClone(f.state);
+  await assert.rejects(
+    Promise.resolve().then(() =>
+      expandValidationScope.execute(
+        {
+          targetRefs: ["SCON-extra", "SCON-missing"],
+          reason: "Shared implementation",
+        },
+        f.access,
+      ),
+    ),
+    /Unknown validation target/,
+  );
+  assert.deepEqual(f.state, before);
+  await expandValidationScope.execute(
+    { targetRefs: ["SCON-extra"], reason: "Shared implementation" },
+    f.access,
+  );
+  assert.deepEqual(
+    f.state.scope?.specification.map((t) => t.ref),
+    ["SACC-a", "SCON-extra"],
+  );
+  f.state.submissionCount = 1;
+  await assert.rejects(
+    Promise.resolve().then(() =>
+      expandValidationScope.execute(
+        { targetRefs: ["SCON-extra"], reason: "Too late" },
+        f.access,
+      ),
+    ),
+    /Scope is fixed/,
+  );
+});
+
+test("submission cannot omit a mandatory current-run target", async () => {
+  const f = fixture();
+  f.input.specification_checks = [];
+  const result = await submitValidation.execute(f.input, f.access);
+  assert.equal(result.saved, false);
+  if (!result.saved) assert.equal(result.feedback.rule, "SCOPE_CHECK_COUNT");
+  assert.equal(f.state.proposal, undefined);
+});
+
+test("regression discovery lists unselected targets without sending full history", async () => {
+  const { readValidationDetails } = await import("./validation.ts");
+  const f = fixture();
+  f.state.solution = {
+    id: "sol",
+    revision: 1,
+    data: {
+      concepts: [
+        {
+          id: "OCON-regression",
+          name: "Existing behavior",
+          status: "active",
+          record_refs: ["RUN-old"],
+        },
+      ],
+    },
+  };
+  const view = await readValidationDetails.execute(
+    { targetRefs: [], checkIds: [] },
+    f.access,
+  );
+  assert.match(JSON.stringify(view), /OCON-regression/);
+  assert.doesNotMatch(JSON.stringify(view), /record_refs|RUN-old/);
 });

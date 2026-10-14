@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import * as z from "zod";
 import { randomUUID } from "node:crypto";
 import {
   mkdir,
@@ -24,9 +25,9 @@ import {
 import { openFileStorage } from "@intloom/kernel/storage/file";
 import { openSqliteStorage } from "@intloom/kernel/storage/sqlite";
 import { specificationStateSchema } from "../schemas/specification-state.ts";
-import { solutionStateSchema } from "../schemas/solution-state.ts";
 import { implementationStateSchema } from "../schemas/implementation-state.ts";
-import { validationStateSchema } from "../schemas/validation-state.ts";
+import { authoring } from "../src/flow/draft.ts";
+import { validationContextSchema } from "../schemas/validation-state.ts";
 
 interface ToolCall {
   id: string;
@@ -127,7 +128,10 @@ llms:
     reads.push({ tool, state: structuredClone(value) });
     switch (tool) {
       case "read_specification": {
-        const state = specificationStateSchema.parse(value);
+        const { artifactSchema: _schema, ...data } = z
+          .record(z.string(), z.json())
+          .parse(value);
+        const state = specificationStateSchema.loose().parse(data);
         return [
           {
             id: "submit_specification",
@@ -158,7 +162,7 @@ llms:
         ];
       }
       case "read_solution": {
-        const state = solutionStateSchema.loose().parse(value);
+        const state = z.object({ feedbacks: z.array(z.json()) }).parse(value);
         return [
           {
             id: "submit_solution",
@@ -202,7 +206,10 @@ llms:
         ];
       }
       case "read_implementation": {
-        const state = implementationStateSchema.parse(value);
+        const { submissionContext: _context, ...businessState } = z
+          .record(z.string(), z.unknown())
+          .parse(value);
+        const state = implementationStateSchema.parse(businessState);
         return [
           { id: "read_project_file", input: { path: sourcePath } },
           {
@@ -231,7 +238,7 @@ llms:
         ];
       }
       case "read_validation": {
-        const state = validationStateSchema.parse(value);
+        const state = validationContextSchema.parse(value);
         assert.ok(state.scope);
         assert.equal(state.commandResults[0]?.exitCode, 0);
         const checks = (targets: typeof state.scope.specification) =>
@@ -277,6 +284,46 @@ llms:
       default:
         throw new Error(`Unexpected full-flow read Tool: ${tool}`);
     }
+  }
+  function calls(tool: string, value: JsonValue) {
+    const view = z.record(z.string(), z.json()).parse(value);
+    return plan(tool, value).flatMap((call) => {
+      if (!["submit_specification", "submit_solution"].includes(call.id))
+        return [call];
+      const input = z.record(z.string(), z.json()).parse(call.input);
+      const changes = z
+        .array(
+          z.object({
+            reason: z.string(),
+            patch: z.array(z.object({ value: z.json() })),
+          }),
+        )
+        .parse(input.changes);
+      const {
+        changes: _changes,
+        processedFeedbackCount: _count,
+        ...rest
+      } = input;
+      return [
+        {
+          id: call.id.replace("submit_", "edit_"),
+          input: {
+            draftRevision: z.string().parse(view.draftRevision),
+            edits: changes.map((c) => ({
+              reason: c.reason,
+              value: z.json().parse(authoring(c.patch[0]?.value)),
+            })),
+          },
+        },
+        {
+          id: call.id,
+          input: {
+            ...rest,
+            draftRevision: z.string().parse(view.draftRevision),
+          },
+        },
+      ];
+    });
   }
   let sequence = 0;
   const queues = new Map<string, ToolCall[]>();
@@ -326,11 +373,22 @@ llms:
         assert.ok(call);
         const result = JSON.parse(last.content ?? "null") as JsonValue;
         const next = readTools.includes(call.function.name)
-          ? plan(call.function.name, result)
+          ? calls(call.function.name, result)
           : queues.get(call.id);
         assert.ok(next);
         queues.delete(call.id);
         const first = next[0];
+        if (
+          call.function.name.startsWith("edit_") &&
+          first &&
+          typeof result === "object" &&
+          result &&
+          "draftRevision" in result
+        )
+          first.input = {
+            ...z.record(z.string(), z.json()).parse(first.input),
+            draftRevision: result.draftRevision as string,
+          };
         if (first) message = toolMessage(first, next.slice(1));
         else {
           assert.deepEqual(result, { saved: true });
@@ -426,7 +484,20 @@ llms:
         input: tool.input,
       });
     const context = await call({ id: read.id, input: {} });
-    for (const tool of plan(read.id, context)) await call(tool);
+    let revision = z.record(z.string(), z.json()).parse(context).draftRevision;
+    for (const tool of calls(read.id, context)) {
+      if (
+        tool.id.startsWith("submit_") &&
+        ["submit_specification", "submit_solution"].includes(tool.id)
+      )
+        tool.input = {
+          ...z.record(z.string(), z.json()).parse(tool.input),
+          draftRevision: z.string().parse(revision),
+        };
+      const result = await call(tool);
+      if (tool.id.startsWith("edit_"))
+        revision = z.record(z.string(), z.json()).parse(result).draftRevision;
+    }
     await runtime.completeAgentCall({
       ...owner,
       result: { outcome: "ready" },

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  artifactSelectorSchema,
   parseArtifactQuery,
   parseArtifactSelector,
   getArtifact,
@@ -29,6 +30,15 @@ test("Artifact selectors accept exactly one identity and reject incomplete or un
     assert.throws(() => parseArtifactSelector(input), {
       code: "INVALID_REQUEST",
     });
+  const mixed = artifactSelectorSchema.safeParse({
+    artifactId: "ART-todo",
+    flowName: "fixture",
+  });
+  assert.equal(mixed.success, false);
+  assert.match(
+    mixed.error?.message ?? "",
+    /artifactId alone.*flowName and stageName/,
+  );
 });
 
 test("Artifact pagination validates bounds without retaining explicit undefined", () => {
