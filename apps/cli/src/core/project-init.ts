@@ -8,18 +8,18 @@ import {
 import { errorView } from "../errors.ts";
 import { failure } from "../errors.ts";
 import { initProject } from "./init.ts";
-import { addWorkflow } from "./workflow-packages.ts";
+import { addLoom } from "./loom-packages.ts";
 import { planMcpConfig, applyMcpConfig } from "./mcp-config.ts";
 export interface InitInput {
   readonly projectPath: string;
-  readonly workflows?: readonly string[];
+  readonly looms?: readonly string[];
   readonly mcp?: "codex";
   readonly start?: boolean;
 }
 export interface InitProgress {
   readonly projectRoot: string;
   readonly steps: readonly {
-    name: "scaffold" | "workflows" | "mcp" | "service";
+    name: "scaffold" | "looms" | "mcp" | "service";
     status: "completed" | "failed" | "skipped";
     message?: string;
   }[];
@@ -36,17 +36,17 @@ export async function scaffoldProject(
     meta.projectRoot = result.projectRoot;
     applied = true;
     steps.push({ name: "scaffold", status: "completed" });
-    current = "workflows";
-    if (new Set(input.workflows ?? []).size !== (input.workflows?.length ?? 0))
+    current = "looms";
+    if (new Set(input.looms ?? []).size !== (input.looms?.length ?? 0))
       throw failure(
-        "CLI_WORKFLOW_DUPLICATE",
-        "Duplicate Workflow sources were supplied; the scaffold is retained.",
+        "CLI_LOOM_DUPLICATE",
+        "Duplicate Loom sources were supplied; the scaffold is retained.",
       );
-    for (const source of input.workflows ?? [])
-      await addWorkflow(result.projectRoot, source);
+    for (const source of input.looms ?? [])
+      await addLoom(result.projectRoot, source);
     steps.push({
       name: current,
-      status: input.workflows?.length ? "completed" : "skipped",
+      status: input.looms?.length ? "completed" : "skipped",
     });
     current = "mcp";
     if (input.mcp) {
@@ -74,7 +74,7 @@ export async function scaffoldProject(
   } catch (error) {
     const safe = errorView(error);
     steps.push({ name: current, status: "failed", message: safe.message });
-    for (const name of ["scaffold", "workflows", "mcp", "service"] as const)
+    for (const name of ["scaffold", "looms", "mcp", "service"] as const)
       if (!steps.some((step) => step.name === name))
         steps.push({ name, status: "skipped" });
     return {

@@ -1,27 +1,21 @@
 # Compiler source
 
-`index.ts` exports `compileWorkflow`. Other modules are internal to the package.
+`compileLoom` is the single public operation. It owns build locking, phase coordination, logging and the build receipt. Other modules are ordinary internal functions, not extensibility interfaces.
 
-| Path | Responsibility |
+| Directory | Responsibility |
 | --- | --- |
-| `compile-workflow.ts` | Coordinate load → analyze → build and log progress or failure |
-| `types.ts` | Caller-supplied compile options |
-| `errors.ts` | Compiler error codes and source-located failures |
-| `source/types.ts` | Raw resources, parsed documents, and locations |
-| `source/references.ts` | Resolve resource references and check path boundaries |
-| `source/locations.ts` | Find the nearest document location for a diagnostic |
-| `load/load-sources.ts` | Discover and read referenced files without executing modules |
-| `load/parse-document.ts` | Parse YAML and retain document-node locations |
-| `analyze/schemas.ts`, `validate-document.ts` | Validate source definitions and report located errors |
-| `analyze/analyze-workflow.ts`, `model.ts` | Link resources, validate routing, and construct the internal model |
-| `analyze/collect-skill-assets.ts` | Collect deliverable Skill files and reject private files or symlinks |
-| `analyze/assign-resource-ids.ts` | Allocate Code and Agent IDs for a build |
-| `build/build-export-files.ts` | Coordinate entry locking, compilation, assets, verification, and cleanup |
-| `build/generate-entry.ts` | Generate imports and the three Workflow exports |
-| `build/compile-typescript.ts` | Generate build configuration and invoke TypeScript |
-| `build/cleanup-build.ts` | Attempt build cleanup and retain original and cleanup failures |
-| `build/inspect-module.ts`, `verify-artifacts.ts` | Inspect emitted ESM and verify exports, imports, and package boundaries |
-| `build/output-files.ts` | Inspect output files and relocate source maps |
-| `build/publish-output.ts` | Replace `dist` and attempt restoration if replacement fails |
+| `source/` | Source schemas, typed documents, reference resolution and source locations |
+| `load/` | Read and validate documents before extracting their explicit references; collect Skill assets without executing modules |
+| `analyze/` | Link the loaded snapshot, validate routing, warn about unreachable nodes and assign stable logical IDs; no filesystem access |
+| `emit/` | Generate SDK contract assertions and exports, invoke TypeScript, map diagnostics to source declarations and relocate the staged entry |
+| `package/` | Prepare the distribution manifest, resolve publishable dependency ranges, inspect emitted ESM, follow re-exports and verify declarations/assets |
+| `build/` | Lock ownership, temporary output, output replacement/rollback and cleanup |
+| `types.ts`, `diagnostics.ts`, `errors.ts` | Public build options/result and consistent located diagnostics |
 
-Adjacent `.spec.ts` files test their owning modules. See [package usage](../README.md) and the [Compiler reference](../../../docs/guide/reference/compiler.md) for the public build contract.
+Source references are resolved once while loading. Locations retain JSON/YAML fields and Stage/Step context. Analysis consumes validated documents and the reference index. Agent identity includes the role source, model purpose, output Schema, Skills and Tools; Code identity includes its relative source path and export. IDs retain the host’s 21-character suffix and include the package name and Loom name as a namespace. Neither logical identity includes absolute checkout paths or random build IDs.
+
+The generated entry checks `Blueprint`, `ExecutableCode`, `StageStateInitializer`, JSON-valued State Schemas, `StepResult` Agent output Schemas and `AgentSpec` against SDK. TypeScript emits only the entry dependency graph. Internal type inspection uses the scanner from the pinned TypeScript version; generated JavaScript is inspected with Acorn. Neither imports business resources.
+
+Local export resolution supports named exports, aliases, star exports and cycles with an actual defining binding. It rejects missing or ambiguous bindings; `export *` never forwards a default export. Third-party packages remain dependency/type contracts, not code executed during verification.
+
+Tests beside each module cover ownership rules and failure boundaries. `test/*.intg.ts` covers the public built package using independent minimal Looms, including SDK contract failures, declaration consumption, repeatable output, warnings, re-exports and preservation of old output. Archive consumers live in `test/package/`.

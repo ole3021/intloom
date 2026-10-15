@@ -1,5 +1,6 @@
+import type { LoomInput } from "@intloom/loom-sdk";
 import type { RunExecution } from "./execution-policy.ts";
-import type { Cursor } from "../workflow/blueprint.ts";
+import type { Cursor } from "./cursor.ts";
 import type { PendingUserAction, RunStatus } from "./run-view.ts";
 import type { RuntimeError } from "../errors/runtime.ts";
 import type { PendingAgentCall } from "./agent-call-types.ts";
@@ -9,9 +10,9 @@ export interface RunState {
   control?: import("../mirror/contracts.ts").MirrorControl;
   observation?: import("./run-observation.ts").RunObservationState;
   id: string;
-  flowName: string;
+  loomName: string;
   readonly execution: RunExecution;
-  intent: string;
+  input: LoomInput;
   /** Terminal states retain the last cursor; status determines executability without an artificial final Step. */
   cursor: Cursor;
   status: RunStatus;

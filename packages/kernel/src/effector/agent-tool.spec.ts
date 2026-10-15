@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as z from "zod";
-import { defineAgentTool } from "@intloom/workflow-sdk";
+import { defineAgentTool } from "@intloom/loom-sdk";
 import { executionAccess } from "../../test/effector-fixture.ts";
 import { executeAgentTool, isAgentToolInputError } from "./agent-tool.ts";
 

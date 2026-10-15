@@ -1,3 +1,4 @@
+import { parseLoomDraft, loomInputHint } from "./loom-input.ts";
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import {
@@ -15,7 +16,7 @@ import {
   useTerminalDimensions,
 } from "@opentui/solid";
 import type { ScrollBoxRenderable } from "@opentui/core";
-import type { ReadonlyJsonValue, WorkflowView } from "@intloom/kernel";
+import type { ReadonlyJsonValue, LoomView } from "@intloom/kernel";
 import {
   createCliCore,
   type CliCore,
@@ -31,20 +32,20 @@ import { useActivity, useTransitionAccent } from "./motion.ts";
 import { primaryColor } from "./theme.ts";
 
 type Admission = Extract<
-  Awaited<ReturnType<CliCore["flow"]>>,
+  Awaited<ReturnType<CliCore["run"]>>,
   { ok: true }
 >["data"];
 
-type Dialog = "workflows" | "runs" | "commands" | "cancel" | "resume";
+type Dialog = "looms" | "runs" | "commands" | "cancel" | "resume";
 interface PendingWrite {
-  kind: "flow" | "answer" | "resume" | "cancel";
+  kind: "run" | "answer" | "resume" | "cancel";
   instanceId: string;
   operationId?: string;
   runId?: string;
 }
-const runnable = (workflow: WorkflowView) =>
-  workflow.isAvailable &&
-  (!workflow.readiness || workflow.readiness.status === "available");
+const runnable = (loom: LoomView) =>
+  loom.isAvailable &&
+  (!loom.readiness || loom.readiness.status === "available");
 const unfinished = (run: ServiceRunView) =>
   ["running", "waiting", "paused"].includes(run.status);
 const newest = (runs: readonly ServiceRunView[]) =>
@@ -62,7 +63,7 @@ export function App(props: { projectPath: string; core?: CliCore }) {
     projectPath: resolve(props.projectPath),
     connection: "loading",
     ready: false,
-    workflows: [],
+    looms: [],
     runs: [],
     message: "Loading project…",
   });
@@ -75,8 +76,8 @@ export function App(props: { projectPath: string; core?: CliCore }) {
   });
   const [dialog, setDialog] = createSignal<Dialog>();
   const [selectedRun, setSelectedRun] = createSignal<string>();
-  const [flow, setFlow] = createSignal("");
-  const [intent, setIntent] = createSignal("");
+  const [loom, setLoom] = createSignal("");
+  const [draft, setDraft] = createSignal("");
   const [command, setCommand] = createSignal("");
   const [commandQuery, setCommandQuery] = createSignal("/");
   const [busy, setBusy] = createSignal(false);
@@ -115,9 +116,9 @@ export function App(props: { projectPath: string; core?: CliCore }) {
   createEffect(() => {
     const state = snapshot();
     if (!state.ready || !state.instanceId) return;
-    if (!flow()) {
-      const first = state.workflows.find(runnable);
-      if (first?.flowName) setFlow(first.flowName);
+    if (!loom()) {
+      const first = state.looms.find(runnable);
+      if (first?.loomName) setLoom(first.loomName);
     }
     if (enteredInstance === state.instanceId) return;
     enteredInstance = state.instanceId;
@@ -133,12 +134,12 @@ export function App(props: { projectPath: string; core?: CliCore }) {
     session.dispose();
   });
 
-  function newRun(flowName?: string) {
-    if (flowName) setFlow(flowName);
+  function newRun(loomName?: string) {
+    if (loomName) setLoom(loomName);
     setSelectedRun(undefined);
     setView("workbench");
     setDialog(undefined);
-    if (!flow()) setDialog("workflows");
+    if (!loom()) setDialog("looms");
   }
   function selectRun(runId: string) {
     setSelectedRun(runId);
@@ -168,7 +169,7 @@ export function App(props: { projectPath: string; core?: CliCore }) {
       if (admission.run) session.observeRun(admission.run);
       selectRun(receipt.runId);
       setView("workbench");
-      if (write.kind === "flow") setIntent("");
+      if (write.kind === "run") setDraft("");
       session.message(`Operation accepted · Run ${receipt.runId}`);
       if (!admission.run) void inspectRun(receipt.runId, write.instanceId);
     }
@@ -231,35 +232,43 @@ export function App(props: { projectPath: string; core?: CliCore }) {
       if (!disposed) setBusy(false);
     }
   }
-  function submitIntent(text: string) {
+  function submitDraft(text: string) {
     if (text.trim().startsWith("/") && !text.includes("\n")) {
       executeCommand(text.trim());
-      setIntent("");
+      setDraft("");
       return;
     }
     const instanceId = snapshot().instanceId;
     if (!instanceId || !canWrite() || !text.trim()) return;
-    if (
-      !snapshot().workflows.some(
-        (item) => item.flowName === flow() && runnable(item),
-      )
-    ) {
-      session.message("Choose an available Workflow before submitting.");
-      setDialog("workflows");
+    const selected = snapshot().looms.find(
+      (item) => item.loomName === loom() && runnable(item),
+    );
+    if (!selected?.isAvailable) {
+      session.message("Choose an available Loom before submitting.");
+      setDialog("looms");
+      return;
+    }
+    let loomInput: ReturnType<typeof parseLoomDraft>;
+    try {
+      loomInput = parseLoomDraft(selected.inputs, text);
+    } catch (error) {
+      session.message(
+        error instanceof Error ? error.message : "Invalid Loom inputs.",
+      );
       return;
     }
     const write: PendingWrite = {
-      kind: "flow",
+      kind: "run",
       instanceId,
       operationId: randomUUID(),
     };
     void admit(write, () =>
-      core.flow({
+      core.run({
         ...input(instanceId),
         serviceInstanceId: instanceId,
         operationId: write.operationId as string,
-        flowName: flow(),
-        intent: text,
+        loomName: loom(),
+        input: loomInput,
       }),
     );
   }
@@ -342,10 +351,10 @@ export function App(props: { projectPath: string; core?: CliCore }) {
     };
     const scope =
       choice === "abandon"
-        ? "workflow"
+        ? "loom"
         : choice === "current"
           ? undefined
-          : (choice as "step" | "stage" | "workflow");
+          : (choice as "step" | "stage" | "loom");
     void admit(write, () =>
       core.resumeRun({
         ...input(write.instanceId),
@@ -366,8 +375,8 @@ export function App(props: { projectPath: string; core?: CliCore }) {
       case "/run":
         newRun(args.join(" ") || undefined);
         break;
-      case "/workflow":
-        setDialog("workflows");
+      case "/loom":
+        setDialog("looms");
         break;
       case "/runs":
         setDialog("runs");
@@ -392,15 +401,15 @@ export function App(props: { projectPath: string; core?: CliCore }) {
       id: "/run",
       name: "/run",
       description: canWrite()
-        ? "Create a new intent draft"
+        ? "Create a new Loom input draft"
         : "Unavailable while Service is disconnected or an operation is pending",
       disabled: !canWrite(),
     },
     {
-      id: "/workflow",
-      name: "/workflow",
+      id: "/loom",
+      name: "/loom",
       description: connected()
-        ? "Choose Workflow for a new Run · Ctrl+P"
+        ? "Choose Loom for a new Run · Ctrl+P"
         : "Connect to the project Service first",
       disabled: !connected(),
     },
@@ -437,10 +446,10 @@ export function App(props: { projectPath: string; core?: CliCore }) {
       description: "Close TUI; background Runs keep executing",
     },
   ];
-  const workflowChoices = (): Choice[] =>
-    snapshot().workflows.map((item, index) => ({
+  const loomChoices = (): Choice[] =>
+    snapshot().looms.map((item, index) => ({
       id: String(index),
-      name: item.flowName ?? item.packageName,
+      name: item.loomName ?? item.packageName,
       disabled: !runnable(item),
       description: item.isAvailable
         ? `${item.packageName} · ${item.readiness?.status ?? "available"}${item.readiness?.error ? ` · ${item.readiness.error.message}` : ""}`
@@ -478,8 +487,8 @@ export function App(props: { projectPath: string; core?: CliCore }) {
           disabled: boundary === "stage_end",
         },
         {
-          id: "workflow",
-          name: "Continue Workflow",
+          id: "loom",
+          name: "Continue Loom",
           description: "Continue to completion or the next user action",
         },
       ],
@@ -487,7 +496,7 @@ export function App(props: { projectPath: string; core?: CliCore }) {
         ? [
             {
               id: "abandon",
-              name: "Continue Workflow without mirror capture",
+              name: "Continue Loom without mirror capture",
               description:
                 "Explicitly abandon further mirror capture for this Run",
             },
@@ -517,13 +526,13 @@ export function App(props: { projectPath: string; core?: CliCore }) {
     } else if (key.ctrl && ["o", "p"].includes(key.name)) {
       key.preventDefault();
       key.stopPropagation();
-      setDialog(key.name === "o" ? "runs" : "workflows");
+      setDialog(key.name === "o" ? "runs" : "looms");
     } else if (
       key.sequence === "/" &&
       (view() === "logs" ||
         !connected() ||
         pending() ||
-        (!selectedRun() && !snapshot().workflows.some(runnable)))
+        (!selectedRun() && !snapshot().looms.some(runnable)))
     ) {
       key.preventDefault();
       key.stopPropagation();
@@ -618,19 +627,18 @@ export function App(props: { projectPath: string; core?: CliCore }) {
                         I N T L O O M
                       </text>
                       <text flexShrink={0}>
-                        What would you like this Workflow to do?
+                        What would you like this Loom to do?
                       </text>
                       <Show
-                        when={snapshot().workflows.some(runnable)}
+                        when={snapshot().looms.some(runnable)}
                         fallback={
                           <box flexDirection="column">
                             <text>
-                              No runnable Workflow. Ctrl+P shows Workflow
-                              readiness.
+                              No runnable Loom. Ctrl+P shows Loom readiness.
                             </text>
-                            <For each={snapshot().workflows}>
+                            <For each={snapshot().looms}>
                               {(item) => (
-                                <text fg="#ecc77b">{`${item.flowName ?? item.packageName}: ${item.isAvailable ? (item.readiness?.error?.message ?? item.readiness?.status ?? "available") : item.error.message}`}</text>
+                                <text fg="#ecc77b">{`${item.loomName ?? item.packageName}: ${item.isAvailable ? (item.readiness?.error?.message ?? item.readiness?.status ?? "available") : item.error.message}`}</text>
                               )}
                             </For>
                             <text>
@@ -642,24 +650,33 @@ export function App(props: { projectPath: string; core?: CliCore }) {
                         <box
                           flexDirection="column"
                           border
-                          title="Intent"
+                          title="Loom inputs"
                           borderColor={accent()}
                           paddingX={1}
                         >
                           <Composer
-                            value={intent()}
-                            change={setIntent}
-                            submit={submitIntent}
+                            value={draft()}
+                            change={setDraft}
+                            submit={submitDraft}
                             commands={openCommands}
                             focused={
                               focused() && canWrite() && view() === "workbench"
                             }
-                            placeholder="Describe your intent, or / for commands"
+                            placeholder={loomInputHint(
+                              (() => {
+                                const selected = snapshot().looms.find(
+                                  (item) => item.loomName === loom(),
+                                );
+                                return selected?.isAvailable
+                                  ? selected.inputs
+                                  : (["prompt"] as const);
+                              })(),
+                            )}
                           />
                           <text
                             flexShrink={0}
                             fg={primaryColor}
-                          >{`Workflow: ${flow() || "Choose a Workflow"} · Ctrl+P Select`}</text>
+                          >{`Loom: ${loom() || "Choose a Loom"} · Ctrl+P Select`}</text>
                           <text flexShrink={0} fg="#9299a5">
                             Enter Submit · Shift+Enter New line · Long text
                             wraps automatically
@@ -672,7 +689,7 @@ export function App(props: { projectPath: string; core?: CliCore }) {
               >
                 <text
                   flexShrink={0}
-                >{`${run()?.flowName ?? "Run"} · ${selectedRun()} · ${run() ? displayStatus(run() as ServiceRunView) : "Loading Run…"}`}</text>
+                >{`${run()?.loomName ?? "Run"} · ${selectedRun()} · ${run() ? displayStatus(run() as ServiceRunView) : "Loading Run…"}`}</text>
                 <Show when={run()}>
                   {(current: Accessor<ServiceRunView>) => (
                     <>
@@ -842,14 +859,14 @@ export function App(props: { projectPath: string; core?: CliCore }) {
           height={3}
           borderColor={primaryColor}
         >
-          <text>/ for commands · Ctrl+O Run · Ctrl+P Workflow</text>
+          <text>/ for commands · Ctrl+O Run · Ctrl+P Loom</text>
         </box>
       </Show>
       <text flexShrink={0} maxHeight={2}>
         {snapshot().message}
       </text>
       <text flexShrink={0} fg="#9299a5">
-        Tab Run / Logs / Assets · / Commands · Ctrl+O Run · Ctrl+P Workflow
+        Tab Run / Logs / Assets · / Commands · Ctrl+O Run · Ctrl+P Loom
       </text>
       <Show when={dialog()} keyed>
         {(mode: Dialog) => (
@@ -863,8 +880,8 @@ export function App(props: { projectPath: string; core?: CliCore }) {
             <Picker
               initialQuery={mode === "commands" ? commandQuery() : ""}
               title={
-                mode === "workflows"
-                  ? "Choose Workflow for a new Run"
+                mode === "looms"
+                  ? "Choose Loom for a new Run"
                   : mode === "runs"
                     ? "Switch Run"
                     : mode === "cancel"
@@ -874,12 +891,12 @@ export function App(props: { projectPath: string; core?: CliCore }) {
                         : "Commands · MVP"
               }
               choices={
-                mode === "workflows"
-                  ? workflowChoices()
+                mode === "looms"
+                  ? loomChoices()
                   : mode === "runs"
                     ? newest(snapshot().runs).map((item) => ({
                         id: item.runId,
-                        name: `${item.flowName} · ${displayStatus(item)}`,
+                        name: `${item.loomName} · ${displayStatus(item)}`,
                         description: `${item.runId} · ${item.cursor.stageName}/${item.cursor.stepName}`,
                       }))
                     : mode === "cancel"
@@ -901,9 +918,9 @@ export function App(props: { projectPath: string; core?: CliCore }) {
                         : commands()
               }
               select={(id, query) => {
-                if (mode === "workflows") {
-                  const item = snapshot().workflows[Number(id)];
-                  if (item?.flowName && runnable(item)) newRun(item.flowName);
+                if (mode === "looms") {
+                  const item = snapshot().looms[Number(id)];
+                  if (item?.loomName && runnable(item)) newRun(item.loomName);
                 } else if (mode === "runs") selectRun(id);
                 else if (mode === "cancel") {
                   if (id === "cancel") void cancel();

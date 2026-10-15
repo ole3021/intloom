@@ -49,7 +49,6 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
     "@intloom/cli",
     "intloom",
     "@intloom/workflow-sdk",
-    "@intloom/workflow-intent",
     "@intloom/utils",
   ]);
   function archiveFor(name: string): string {
@@ -70,7 +69,6 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
           type: "module",
           dependencies: {
             [launcher]: `file:${archiveFor(launcher)}`,
-            "@intloom/workflow-intent": `file:${archiveFor("@intloom/workflow-intent")}`,
           },
           devDependencies: {
             "@types/node": repositoryManifest.devDependencies["@types/node"],
@@ -220,13 +218,9 @@ import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { workflowProtocolVersion } from "@intloom/workflow-sdk";
-import { blueprint } from "@intloom/workflow-intent";
 import { runCli, startService, stopService, startProjectHost, connectProject, connectProjectClient, discoverProjectConnection, addWorkflow, removeWorkflow, listInstalledWorkflows, doctorProject } from "@intloom/cli";
 for (const item of [runCli, startService, startProjectHost, connectProject, connectProjectClient, discoverProjectConnection, addWorkflow, removeWorkflow, listInstalledWorkflows, doctorProject]) assert.equal(typeof item, "function");
 await assert.rejects(import("@intloom/kernel"), { code: "ERR_MODULE_NOT_FOUND" });
-assert.equal(blueprint.flowName, "intent");
-assert.equal(createRequire(import.meta.url)("@intloom/workflow-intent/package.json").intloom.version, workflowProtocolVersion);
 const require = createRequire(import.meta.resolve("@intloom/cli"));
 for (const backend of ["file", "sqlite"]) {
   const projectRoot = process.argv[2] + "-" + backend;

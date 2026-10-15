@@ -18,75 +18,44 @@ import {
   untilRun,
 } from "./project-fixture.ts";
 import { temporaryDirectory } from "./directory-fixture.ts";
-import { packSpecification } from "./workflow-fixture.ts";
 
-for (const installAgentWorkflow of [false, true]) {
-  test(`fresh init without llms starts a real host${installAgentWorkflow ? " with Agent resources" : " without Workflows"}`, {
-    timeout: 120_000,
-  }, async (t) => {
-    const base = await temporaryDirectory(t, (directory) =>
-      stopService(join(directory, "project")).then(
-        () => {},
-        () => {},
-      ),
-    );
-    const root = join(base, "project");
-    const archive = installAgentWorkflow
-      ? await packSpecification(base)
-      : undefined;
-    const initialized = await cli(root, [
-      "init",
-      ...(archive ? ["--workflow", archive] : []),
-      "--json",
-    ]);
-    assert.equal(initialized.code, 0, initialized.stdout);
-    const yaml = await readFile(join(root, "intloom.yaml"), "utf8");
-    assert.match(yaml, /^useMcpAgent: true$/m);
-    assert.doesNotMatch(yaml, /^llms:/m);
-    const { service } = await startService({ projectRoot: root });
-    assert.equal(service.availableWorkflowCount, installAgentWorkflow ? 1 : 0);
-    const local = await connectProject(root);
-    const connection = await discoverProjectConnection(root);
-    const ide = await connectProjectClient({
-      ...connection,
-      url: `${service.url}/codex`,
-    });
-    t.after(async () => {
-      await local.close();
-      await ide.close();
-    });
-    if (installAgentWorkflow) {
-      const [workflow] = await ide.listWorkflows();
-      assert.ok(workflow?.isAvailable);
-      assert.equal(workflow.readiness?.status, "available");
-      const receipt = await ide.flow(
-        workflow.flowName,
-        "Describe a local todo application",
-      );
-      assert.equal(receipt.status, "running");
-      const run = await untilRun(
-        ide,
-        receipt.runId,
-        (view) => view.status === "waiting",
-      );
-      assert.equal(run.status, "waiting");
-      assert.ok(run.pendingAgentCall);
-      await ide.cancelRun(run.runId);
-      await assert.rejects(local.flow(workflow.flowName, "No model setup"), {
-        code: "INVALID_REQUEST",
-        message: /llms.default/,
-      });
-    } else assert.deepEqual(await ide.listWorkflows(), []);
-    assert.equal((await ide.listRuns()).length, installAgentWorkflow ? 1 : 0);
-    const config = await cli(root, ["config", "codex"]);
-    assert.equal(config.code, 0, config.stdout);
-    assert.match(config.stdout, /mcp/);
+test("fresh init without llms starts a real host without Looms", {
+  timeout: 120_000,
+}, async (t) => {
+  const base = await temporaryDirectory(t, (directory) =>
+    stopService(join(directory, "project")).then(
+      () => {},
+      () => {},
+    ),
+  );
+  const root = join(base, "project");
+  const initialized = await cli(root, ["init", "--json"]);
+  assert.equal(initialized.code, 0, initialized.stdout);
+  const yaml = await readFile(join(root, "intloom.yaml"), "utf8");
+  assert.match(yaml, /^useMcpAgent: true$/m);
+  assert.doesNotMatch(yaml, /^llms:/m);
+  const { service } = await startService({ projectRoot: root });
+  assert.equal(service.availableWorkflowCount, 0);
+  const local = await connectProject(root);
+  const connection = await discoverProjectConnection(root);
+  const ide = await connectProjectClient({
+    ...connection,
+    url: `${service.url}/codex`,
+  });
+  t.after(async () => {
     await local.close();
     await ide.close();
-    await stopService(root);
-    await assert.rejects(serviceStatus(root), { code: "CLI_SERVICE_OFFLINE" });
   });
-}
+  assert.deepEqual(await ide.listWorkflows(), []);
+  assert.equal((await ide.listRuns()).length, 0);
+  const config = await cli(root, ["config", "codex"]);
+  assert.equal(config.code, 0, config.stdout);
+  assert.match(config.stdout, /mcp/);
+  await local.close();
+  await ide.close();
+  await stopService(root);
+  await assert.rejects(serviceStatus(root), { code: "CLI_SERVICE_OFFLINE" });
+});
 
 test("model-free Code Run uses MCP policy while CLI/Studio reject creation; cross-entry cancellation preserves policy", async (t) => {
   const root = await projectFixture(t);

@@ -14,7 +14,7 @@ test("cancelRun rejects the original ask, invalidates access, and preserves its 
   const f = runtimeFixture();
   let rejected: unknown;
   let access: CodeExecutionAccess<JsonValue> | undefined;
-  f.codes.start = async (_input, current) => {
+  f.codes.start = async (current) => {
     access = current;
     try {
       await current.interaction.confirm("continue?");
@@ -25,7 +25,7 @@ test("cancelRun rejects the original ask, invalidates access, and preserves its 
     return { outcome: "complete" };
   };
   const runtime = createRuntime(f.options);
-  const waiting = await runtime.flow(f.blueprint, "text");
+  const waiting = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(waiting.pendingAction);
   await runtime.cancelRun(waiting.runId);
   const stopped = await runtime.getRun(waiting.runId);
@@ -72,7 +72,7 @@ test("public cancelRun releases flow during initialization without waiting for i
     },
   });
   const runtime = createRuntime(f.options);
-  const started = runtime.flow(f.blueprint, "text");
+  const started = runtime.run(f.blueprint, { prompt: "text" });
   await entered.promise;
   const [running] = await runtime.listRuns();
   assert.ok(running);
@@ -90,7 +90,7 @@ test("late running Code results, exceptions and writes cannot overwrite a stoppe
     const f = runtimeFixture();
     const entered = deferred();
     const release = deferred();
-    f.codes.start = async (_input, access) => {
+    f.codes.start = async (access) => {
       entered.resolve();
       await release.promise;
       await assert.rejects(access.state.update({ value: 9, intent: "text" }), {
@@ -100,7 +100,7 @@ test("late running Code results, exceptions and writes cannot overwrite a stoppe
       return { outcome: "complete" };
     };
     const runtime = createRuntime(f.options);
-    const started = runtime.flow(f.blueprint, "text");
+    const started = runtime.run(f.blueprint, { prompt: "text" });
     await entered.promise;
     const [running] = await runtime.listRuns();
     assert.ok(running);
@@ -116,16 +116,16 @@ test("late running Code results, exceptions and writes cannot overwrite a stoppe
 
 test("cancelAllRuns cancels active Runs, retains completed Runs, and is safe when empty", async () => {
   const f = runtimeFixture();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     if (fixtureStateSchema.parse(access.state.value).intent !== "done")
       await access.interaction.confirm("continue?");
     return { outcome: "complete" };
   };
   const runtime = createRuntime(f.options);
   await runtime.cancelAllRuns();
-  const a = await runtime.flow(f.blueprint, "A");
-  const b = await runtime.flow(f.blueprint, "B");
-  const done = await runtime.flow(f.blueprint, "done");
+  const a = await runtime.run(f.blueprint, { prompt: "A" });
+  const b = await runtime.run(f.blueprint, { prompt: "B" });
+  const done = await runtime.run(f.blueprint, { prompt: "done" });
   await assert.rejects(runtime.cancelRun("missing"), { code: "NOT_FOUND" });
   assert.deepEqual(await runtime.getRun(a.runId), a);
   await runtime.cancelRun(a.runId);
@@ -141,13 +141,13 @@ test("cancelAllRuns cancels active Runs, retains completed Runs, and is safe whe
 
 test("cancelRun wins against an accepted answer still advancing, and later answers conflict", async () => {
   const f = runtimeFixture();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("continue?");
     await access.state.clear();
     return { outcome: "complete" };
   };
   const runtime = createRuntime(f.options);
-  const waiting = await runtime.flow(f.blueprint, "text");
+  const waiting = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(waiting.pendingAction);
   const answering = runtime.answerAsk(waiting.runId, waiting.pendingAction.id, {
     isConfirmed: true,
@@ -173,7 +173,7 @@ test("cancelRun prevents an already queued asynchronous State validation from co
       }
     }),
   });
-  f.codes.start = async (_input, current) => {
+  f.codes.start = async (current) => {
     access = current;
     try {
       await current.state.update({ value: 9, intent: "text" });
@@ -184,7 +184,7 @@ test("cancelRun prevents an already queued asynchronous State validation from co
     return { outcome: "complete" };
   };
   const runtime = createRuntime(f.options);
-  const started = runtime.flow(f.blueprint, "text");
+  const started = runtime.run(f.blueprint, { prompt: "text" });
   await validating.promise;
   const [running] = await runtime.listRuns();
   assert.ok(running);

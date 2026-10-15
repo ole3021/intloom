@@ -1,58 +1,60 @@
-# @intloom/workflow-intent
+# @intloom/intent
 
-The software-development Workflow for IntLoom. It carries one intent through Specification → Solution → Implementation → Validation under the same Run ID, with human confirmation of requirements and design before project changes.
+Intent advances a feature-development round and preserves project facts that later development can understand and use. It addresses unclear intent, drift between requirements/design/code, changes without traceable reasons, and completion claims without evidence.
 
-## Usage
+It adds, adjusts, removes, or fixes features, including their necessary module and test changes. Independent code cleanup and restructuring belong to a separate Loom. A fix can leave formal requirements unchanged while still having an explicit round scope. Business constraints and preferences enter through `prompt`.
 
-Requires Node.js 26.4.0+, the IntLoom CLI, and an initialized project. Repository development uses Node.js 26.4.0+ and Bun. See [installation and project setup](https://github.com/ole3021/intloom/blob/main/docs/guide/start/installation.md) for source builds and published-release prerequisites.
+## Four stages
 
-From the project directory, with its service stopped, install a compiled Intent archive and start the host:
-
-```sh
-intloom workflow add /absolute/path/to/intloom-workflow-intent.tgz
-intloom start
-intloom flow intent --intent "Build a Todo app with local persistence"
-```
-
-Replace the archive path with the package you obtained. Its runtime dependencies must be resolvable. When the package and dependencies are available from your registry, `intloom workflow add @intloom/workflow-intent` also works.
-
-CLI execution uses the project's configured `llms`. For a connected Agent IDE, MCP with `useMcpAgent: true` uses the client's Agent execution environment. See the [CLI guide](https://github.com/ole3021/intloom/blob/main/docs/guide/start/cmd.md) or [MCP guide](https://github.com/ole3021/intloom/blob/main/docs/guide/start/mcp.md) for model setup and connection instructions.
-
-Answer questions and review confirmations to continue the same Run. Feedback revises the current draft. Inspect execution and saved results with:
-
-```sh
-intloom runs
-intloom artifacts
-```
-
-## Stages and results
-
-| Stage | Responsibility | Saved output |
+| Stage | Responsibility | Formal output |
 | --- | --- | --- |
-| Specification | Clarify requirements, review cumulative changes, obtain confirmation | Specification Artifact and Record |
-| Solution | Design against confirmed requirements, agree on build/test commands, obtain confirmation | Solution Artifact and Record |
-| Implementation | Change project files, record their origins, pass host-executed checks | Implementation Record with file hashes and command results |
-| Validation | Repeat the checks independently, assess coverage, save evidence and findings | Validation Artifact |
+| Specification | Analyze intent and existing facts; draft and confirm features, requirements, acceptance conditions and round scope | Full requirement Record + current requirement Artifact |
+| Solution | Analyze fixed requirements; confirm design, implementation dependencies and verification responsibilities | Full solution Record + current design Artifact |
+| Implementation | Make the planned changes, record actual operations and verify a fixed candidate | Project files + Implementation Record; no Artifact |
+| Validation | Independently collect evidence, assess every target and review historical findings | Validation Record + cumulative validation Artifact |
 
-Agents edit changed objects through typed Tools, then submit questions or finish their draft. Tools maintain cumulative patches and provenance. Validation assesses this Run’s changes and related scope; initial or broad changes use full coverage. Historical targets outside the scope are not newly verified. Code owns real user answers, confirmation, host check results, and persistence. `completed` means the Validation report was saved; read its findings and per-target results to assess the delivered work.
+Each stage commits once per Run. A downstream stage resolves the preceding Record and its immutable upstream references, never substitutes the latest Artifact. Substantive changes to a committed requirement, design or delivered candidate start a new Run. Validation does not repair product files.
 
-Intent is exclusive within one host while active, including waits. Earlier commits and project edits remain after failure or cancellation. Specification question/confirmation waits support restart recovery; Solution waits currently require the live host. Inspect saved results before starting another Run after failure.
+Specification and Solution use separate analysis and draft/design Steps with the same Agent. Tools edit drafts in batches; Code assigns new IDs, checks relationships and obtains actual user confirmation. `roundCriteria` belong only to the round's Record. A partial Implementation handoff needs an explicit candidate-bound user decision and preserves the complete acceptance scope.
 
-## Source organization
+Verification plans assign work to `implementation`, `validation` or `both`. Commands produce host receipts; procedure observations reference actual operations, reads or user reports. A saved Validation report may be `passed`, `failed`, `partial` or `undone`. Run completion means the report was committed, not that every target passed. Historical conclusions retain their original candidate and target definition; omitted findings do not close automatically.
 
-| Path | Responsibility |
+## Build and use
+
+Development uses Bun; the supported runtime is Node.js 26.4.0+. From the repository root:
+
+```sh
+bun run build --filter=@intloom/intent
+```
+
+Developers can also run `intloom build packages/intent`, or `intloom build` inside the package directory with the development CLI available. The definition lives in `package.json` → `loom`. There is no separate Loom definition file or Intent-specific build script.
+
+Users install a built archive with `intloom loom add /absolute/path/to/intloom-intent.tgz`. When available from the configured registry, `intloom loom add @intloom/intent` installs the published package. After project/model setup:
+
+```sh
+intloom run intent --prompt "Build a task management application"
+intloom runs
+intloom attach <run-id>
+```
+
+Answer the pending questions and review the displayed version. Feedback revises an uncommitted draft. Cancellation does not roll back earlier formal results or project edits. Intent is exclusive within a host; do not run competing writers in the same workspace. Candidate hashes detect drift but do not back up files or identify running services. An interrupted command without a settled receipt blocks continuation rather than being automatically replayed.
+
+## Source ownership
+
+| Path | Owns |
 | --- | --- |
-| `workflow.yaml`, `stages/` | Four-Stage topology, Steps, resources, and outcome routes |
-| `initializers/` | Construct each Stage's seed from the actual Run ID and intent |
-| [schemas/](https://github.com/ole3021/intloom/blob/main/packages/intent/schemas/README.md) | Direct Zod State, proposal, Artifact, Record, and command contracts |
-| `codes/` | Initialization, interaction, checks, and finalization |
-| [src/](https://github.com/ole3021/intloom/blob/main/packages/intent/src/README.md) | Business rules, confirmation formatting, snapshots, and persistence helpers |
-| `tools/`, `agents/`, `skills/` | Agent capabilities, instructions, and Specification Skills |
-| `build.ts`, [build/](https://github.com/ole3021/intloom/blob/main/packages/intent/build/README.md) | Compile the Workflow and prepare its distribution manifest |
-| [test/](https://github.com/ole3021/intloom/blob/main/packages/intent/test/README.md) | Built-package integration tests and fixtures |
+| `package.json` → `loom` | Input kinds and stage topology |
+| `stages/<stage>/stage.yaml` | Step routing and capability bindings |
+| `stages/<stage>/schema/` | Editable submissions, State and formal outputs |
+| `stages/<stage>/src/` | Stage rules and transitions |
+| `stages/<stage>/codes/` | SDK Code Step entry points and interaction recovery |
+| `stages/<stage>/tools/` | Typed business operations |
+| `stages/<stage>/agents/`, `skills/` | Role boundaries and reusable methods |
+| `src/` | Shared IDs, evidence, project operations, interactions and publication |
+| `test/` | Focused storage, loader and package integration |
 
-The compiled package exports `blueprint`, `codes`, and `agentSpecs`. Source navigation links point to the repository because source files and development READMEs are not included in the distribution.
+The compiled distribution exports `blueprint`, `codes`, and `agentSpecs`. It contains no source tests. See [shared code](src/README.md), [tests](test/README.md), [Intent guide](../../docs/guide/intent/overview.md), and [Loom design principles](../../docs/guide/development/design-principles.md).
 
-## AI-driven E2E
+The previous Intent data format is replaced without a compatibility migration. Existing legacy Artifacts and Records cannot serve as the new flow's formal basis.
 
-[Intent E2E inputs and configuration](e2e/README.md) own ordered S01/M01/L01 cases, knowledge, model roles, optional limits and acceptance scripts. The private root E2E workspace exercises real CMD/MCP entries and is outside `test:intg`.
+This refactor does not update or run the existing E2E harness. Its historical cases are not proof of the new flow; real-model and two-round E2E validation remain deferred.

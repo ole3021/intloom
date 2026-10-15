@@ -1,12 +1,12 @@
 import * as z from "zod";
-import type { WorkflowPackage } from "../src/workflow/types.ts";
+import type { LoomPackage } from "../src/loom/types.ts";
 
 export const codeId = "CODE-abcdefghijklmnopqrstu";
 export const agentId = "AGENT-abcdefghijklmnopqrstu";
-export const source: WorkflowPackage = {
+export const source: LoomPackage = {
   packageName: "@intloom/fixture",
   packageVersion: "1.0.0",
-  protocolVersion: "2026-10-08",
+  protocolVersion: "2026-10-15",
   packageRoot: "/fixture",
   entryUrl: "file:///fixture/workflow.generated.js",
   assetRoot: "/fixture",
@@ -15,7 +15,8 @@ export const source: WorkflowPackage = {
 export function workflowModule() {
   return {
     blueprint: {
-      flowName: "fixture",
+      loomName: "fixture",
+      inputs: ["prompt"],
       entryStageName: "first",
       stages: {
         first: {
@@ -30,7 +31,7 @@ export function workflowModule() {
               on: { complete: { kind: "stage_end" } },
             },
           },
-          on: { complete: { kind: "workflow_end" } },
+          on: { complete: { kind: "loom_end" } },
         },
       },
     },

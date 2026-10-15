@@ -1,3 +1,4 @@
+import { loomInputSchema, stepResultSchema } from "@intloom/loom-sdk";
 import {
   closeSync,
   constants,
@@ -17,7 +18,7 @@ import { join } from "node:path";
 import * as z from "zod";
 import { controlSchema, jsonCopy } from "../../mirror/contracts.ts";
 import { pendingUserActionSchema } from "../schemas/pending-user-action.ts";
-import { cursorSchema } from "../../workflow/schemas/cursor.ts";
+import { cursorSchema } from "../../loom/schemas/cursor.ts";
 
 const savedStageSchema = z.strictObject({
   stageName: z.string().optional(),
@@ -40,8 +41,8 @@ export const checkpointSchema = z.strictObject({
       status: z.enum(["running", "completed"]),
     })
     .optional(),
-  workflowIdentity: z.string().min(1),
-  sourceWorkflowIdentity: z.string().min(1).optional(),
+  loomIdentity: z.string().min(1),
+  sourceLoomIdentity: z.string().min(1).optional(),
   phase: z.enum([
     "stage_pending",
     "step_ready",
@@ -53,8 +54,8 @@ export const checkpointSchema = z.strictObject({
   ]),
   run: z.strictObject({
     id: z.string().min(1),
-    flowName: z.string().min(1),
-    intent: z.string().min(1),
+    loomName: z.string().min(1),
+    input: loomInputSchema,
     execution: z.strictObject({
       source: z.enum(["cli", "studio", "agent_ide"]),
       agentExecutor: z.enum(["service", "mcp_client"]),
@@ -81,7 +82,7 @@ export const checkpointSchema = z.strictObject({
     updatedAt: z.iso.datetime(),
   }),
   stage: savedStageSchema.optional(),
-  result: z.strictObject({ outcome: z.string().min(1) }).optional(),
+  result: stepResultSchema.optional(),
   answer: z.json().optional(),
   answeredAction: pendingUserActionSchema.optional(),
 });

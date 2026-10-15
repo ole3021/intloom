@@ -12,7 +12,7 @@
       "!!**/dist",
       "!!**/.turbo",
       "!!**/.intloom-build-*",
-      "!!**/workflow.generated.ts",
+      "!!**/loom.generated.ts",
       "!!**/node_modules",
       "!!**/example",
       "!!packages/intent/e2e/cases/*/workspace",

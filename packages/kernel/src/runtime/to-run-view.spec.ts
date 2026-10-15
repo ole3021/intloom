@@ -8,8 +8,8 @@ function runState(): RunState {
   return {
     id: "RUN-1",
     execution: { source: "cli", agentExecutor: "service" },
-    flowName: "intent",
-    intent: "  original user intent  ",
+    loomName: "intent",
+    input: { prompt: "  original user intent  " },
     cursor: { stageName: "specification", stepName: "clarify" },
     status: "running",
     createdAt: new Date("2026-10-05T00:00:00Z"),
@@ -22,7 +22,7 @@ function waitingState(): RunState {
   run.status = "waiting";
   run.pendingAction = {
     id: "ASK-1",
-    flowName: run.flowName,
+    loomName: run.loomName,
     cursor: { ...run.cursor },
     kind: "user_ask_questions",
     request: [
@@ -94,7 +94,7 @@ test("rejects inconsistent waiting status and action ownership", () => {
   });
   assert.ok(run.pendingAction);
   for (const action of [
-    { ...run.pendingAction, flowName: "other" },
+    { ...run.pendingAction, loomName: "other" },
     { ...run.pendingAction, cursor: { ...run.cursor, stepName: "other" } },
     { ...run.pendingAction, cursor: { ...run.cursor, stageName: "other" } },
   ]) {

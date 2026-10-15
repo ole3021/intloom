@@ -1,3 +1,4 @@
+import { loomInputSchema } from "@intloom/loom-sdk";
 import { resumeRunSchema } from "./application/mirrors.ts";
 export { resumeRunSchema };
 import * as z from "zod";
@@ -6,7 +7,7 @@ import {
   runViewSchema,
   runViewDataSchema,
   serviceStatusSchema,
-  workflowViewSchema,
+  loomViewSchema,
 } from "./contracts.ts";
 import type { RunView } from "../runtime/run-view.ts";
 
@@ -74,13 +75,13 @@ export const operationReceiptSchema = z.discriminatedUnion("status", [
     status: z.literal("pending"),
     serviceInstanceId: z.uuid(),
     operationId: z.uuid(),
-    kind: z.enum(["flow", "answer", "resume"]),
+    kind: z.enum(["run", "answer", "resume"]),
   }),
   z.strictObject({
     status: z.literal("accepted"),
     serviceInstanceId: z.uuid(),
     operationId: z.uuid(),
-    kind: z.enum(["flow", "answer", "resume"]),
+    kind: z.enum(["run", "answer", "resume"]),
     runId: z.string(),
     acceptedAt: z.iso.datetime(),
     acceptedRevision: z.number().int().positive(),
@@ -89,7 +90,7 @@ export const operationReceiptSchema = z.discriminatedUnion("status", [
     status: z.literal("rejected"),
     serviceInstanceId: z.uuid(),
     operationId: z.uuid(),
-    kind: z.enum(["flow", "answer", "resume"]),
+    kind: z.enum(["run", "answer", "resume"]),
     error: errorViewSchema,
   }),
 ]);
@@ -111,7 +112,7 @@ export const projectEventSchema = z.discriminatedUnion("type", [
     type: z.literal("project_snapshot"),
     serviceInstanceId: z.uuid(),
     service: serviceApiInfoSchema,
-    workflows: z.array(workflowViewSchema),
+    looms: z.array(loomViewSchema),
     runs: z.array(serviceRunViewSchema),
   }),
   z.strictObject({
@@ -130,10 +131,10 @@ export const projectEventSchema = z.discriminatedUnion("type", [
   }),
 ]);
 export type ProjectEvent = z.infer<typeof projectEventSchema>;
-export const flowRequestSchema = z.strictObject({
+export const runRequestSchema = z.strictObject({
   operationId: z.uuid(),
-  flowName: z.string().refine((value) => value.trim().length > 0),
-  intent: z.string().refine((value) => value.trim().length > 0),
+  loomName: z.string().refine((value) => value.trim().length > 0),
+  input: loomInputSchema,
 });
 export const answerRequestSchema = z.strictObject({
   operationId: z.uuid(),

@@ -4,8 +4,8 @@ import { realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import * as z from "zod";
 import { checkProject } from "../../core/check-project.ts";
-import { initializeWorkflows } from "../../workflow/initialize-workflows.ts";
-import { workflowIdentity } from "../../runtime/recovery/workflow-identity.ts";
+import { initializeLooms } from "../../loom/initialize-looms.ts";
+import { loomIdentity } from "../../runtime/recovery/loom-identity.ts";
 import { restoreRuns } from "../../runtime/recovery/restore.ts";
 import { createEffector } from "../../effector/create-effector.ts";
 import { createExecutionPreparation } from "../../core/prepare-execution.ts";
@@ -13,7 +13,7 @@ import { acquireServiceLock, readServiceInfo } from "../discovery.ts";
 import {
   exists,
   inside,
-  protectedWorkflowPaths,
+  protectedLoomPaths,
   safePath,
 } from "../../mirror/files.ts";
 import { scopeSchema, jsonCopy } from "../../mirror/contracts.ts";
@@ -103,20 +103,20 @@ export async function restoreMirror(
     const project = await checkProject(target);
     if ((project.config.localStorage ?? "file") !== image.storage.backend)
       throw new Error("File/SQLite restore requires the same backend type.");
-    const initialized = await initializeWorkflows({
+    const initialized = await initializeLooms({
       projectRoot: target,
       config: project.config,
     });
     const blueprints = initialized.registries.blueprints;
-    const blueprint = blueprints[image.checkpoint.run.flowName];
+    const blueprint = blueprints[image.checkpoint.run.loomName];
     if (!blueprint)
       throw new Error(
-        `Current Workflow cannot load: ${image.checkpoint.run.flowName}`,
+        `Current Loom cannot load: ${image.checkpoint.run.loomName}`,
       );
     const identities = Object.fromEntries(
       await Promise.all(
         Object.entries(initialized.registries.sources).map(
-          async ([name, resource]) => [name, await workflowIdentity(resource)],
+          async ([name, resource]) => [name, await loomIdentity(resource)],
         ),
       ),
     );
@@ -138,14 +138,13 @@ export async function restoreMirror(
       ...(parsed.scope === "stage"
         ? {
             stageVisitId:
-              image.manifest.boundary.kind === "workflow_start"
+              image.manifest.boundary.kind === "loom_start"
                 ? control.stageVisitId + 1
                 : control.stageVisitId,
           }
         : {}),
     };
-    saved.sourceWorkflowIdentity =
-      saved.sourceWorkflowIdentity ?? saved.workflowIdentity;
+    saved.sourceLoomIdentity = saved.sourceLoomIdentity ?? saved.loomIdentity;
     saved.run.status = "paused";
     saved.run.updatedAt = new Date().toISOString();
     if (image.manifest.observation)
@@ -175,10 +174,10 @@ export async function restoreMirror(
       recovery: {
         store: { read: () => [saved], write: () => {} },
         blueprints,
-        workflowIdentities: identities,
+        loomIdentities: identities,
       },
     });
-    const protectedPaths = await protectedWorkflowPaths(
+    const protectedPaths = await protectedLoomPaths(
       target,
       initialized.registries.sources,
     );
@@ -204,9 +203,9 @@ export async function restoreMirror(
           }
         : {}),
       warnings:
-        identities[saved.run.flowName] !== saved.workflowIdentity
+        identities[saved.run.loomName] !== saved.loomIdentity
           ? [
-              "Workflow identity changed; current Code will execute after explicit resume. Compatibility is not guaranteed.",
+              "Loom identity changed; current Code will execute after explicit resume. Compatibility is not guaranteed.",
             ]
           : [],
       ...result,

@@ -6,8 +6,8 @@ import { constants } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { generateId, isLoomError, withLogger } from "@intloom/utils";
 import * as z from "zod";
-import type { AgentExecutionAccess, JsonValue } from "@intloom/workflow-sdk";
-import type { LoadedAgent } from "../workflow/types.ts";
+import type { AgentExecutionAccess, JsonValue } from "@intloom/loom-sdk";
+import type { LoadedAgent } from "../loom/types.ts";
 import {
   agentJsonSchema,
   executeAgentTool,

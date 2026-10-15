@@ -17,8 +17,7 @@ describe("createRuntime", () => {
   test("flow runs an explicit multi-Step multi-Stage path and preserves original intent", async () => {
     const f = runtimeFixture();
     let old: CodeExecutionAccess<JsonValue> | undefined;
-    f.codes.start = async (input, access) => {
-      assert.equal(input, null);
+    f.codes.start = async (access) => {
       assert.deepEqual(access.state.value, {
         value: 0,
         intent: "  original  ",
@@ -27,16 +26,16 @@ describe("createRuntime", () => {
       await access.state.update({ value: 42, intent: "  original  " });
       return { outcome: "complete" };
     };
-    f.codes.review = (_input, access) => {
+    f.codes.review = (access) => {
       assert.equal(fixtureStateSchema.parse(access.state.value).value, 42);
       return { outcome: "complete" };
     };
-    f.codes.finish = (_input, access) => {
+    f.codes.finish = (access) => {
       assert.equal(fixtureStateSchema.parse(access.state.value).value, 0);
       return { outcome: "complete" };
     };
     const runtime = createRuntime(f.options);
-    const view = await runtime.flow(f.blueprint, "  original  ");
+    const view = await runtime.run(f.blueprint, { prompt: "  original  " });
     assert.equal(view.status, "completed");
     assert.match(view.runId, /^RUN-/u);
     assert.deepEqual(view.cursor, {
@@ -67,7 +66,9 @@ describe("createRuntime", () => {
     });
     const runtime = createRuntime(f.options);
     t.after(() => runtime.cancelAllRuns());
-    const admitted = await runtime.startFlow(f.blueprint, "original intent");
+    const admitted = await runtime.startRun(f.blueprint, {
+      prompt: "original intent",
+    });
     assert.equal(admitted.status, "running");
     assert.match(admitted.runId, /^RUN-/u);
     await entered.promise;
@@ -87,7 +88,7 @@ describe("createRuntime", () => {
       },
     });
     const runtime = createRuntime(f.options);
-    const completion = runtime.flow(f.blueprint, "text");
+    const completion = runtime.run(f.blueprint, { prompt: "text" });
     await entered.promise;
     const views = await runtime.listRuns("fixture");
     assert.equal(views.length, 1);
@@ -108,20 +109,23 @@ describe("createRuntime", () => {
     const f = runtimeFixture();
     const runtime = createRuntime(f.options);
     for (const text of ["", "  "])
-      await assert.rejects(runtime.flow(f.blueprint, text), {
+      await assert.rejects(runtime.run(f.blueprint, { prompt: text }), {
         code: "INVALID_REQUEST",
       });
     await assert.rejects(
-      runtime.flow({ ...f.blueprint, entryStageName: "constructor" }, "text"),
+      runtime.run(
+        { ...f.blueprint, entryStageName: "constructor" },
+        { prompt: "text" },
+      ),
       { code: "INVALID_CURSOR" },
     );
     await assert.rejects(
-      runtime.flow(
+      runtime.run(
         {
           ...f.blueprint,
           stages: { first: { ...f.first, entryStepName: "missing" } },
         },
-        "text",
+        { prompt: "text" },
       ),
       { code: "INVALID_CURSOR" },
     );
@@ -138,7 +142,9 @@ describe("createRuntime", () => {
     ]) {
       const f = runtimeFixture();
       Object.assign(f.first, { initializeState });
-      const view = await createRuntime(f.options).flow(f.blueprint, "text");
+      const view = await createRuntime(f.options).run(f.blueprint, {
+        prompt: "text",
+      });
       assert.equal(view.status, "failed");
       assert.equal(view.lastError?.code, "RUN_INITIALIZATION_FAILED");
       assert.deepEqual(view.cursor, {
@@ -156,7 +162,7 @@ describe("createRuntime", () => {
   test("Stage transition initialization failure keeps the target cursor and revokes old access", async () => {
     const f = runtimeFixture();
     let access: CodeExecutionAccess<JsonValue> | undefined;
-    f.codes.review = (_input, value) => {
+    f.codes.review = (value) => {
       access = value;
       return { outcome: "complete" };
     };
@@ -165,7 +171,9 @@ describe("createRuntime", () => {
         throw new Error("failed second Stage");
       },
     });
-    const view = await createRuntime(f.options).flow(f.blueprint, "text");
+    const view = await createRuntime(f.options).run(f.blueprint, {
+      prompt: "text",
+    });
     assert.equal(view.lastError?.code, "RUN_INITIALIZATION_FAILED");
     assert.deepEqual(view.cursor, {
       stageName: "second",
@@ -187,7 +195,9 @@ describe("createRuntime", () => {
       f.codes.start = () => {
         throw cause;
       };
-      const view = await createRuntime(f.options).flow(f.blueprint, "text");
+      const view = await createRuntime(f.options).run(f.blueprint, {
+        prompt: "text",
+      });
       assert.equal(view.status, "failed");
       assert.equal(
         view.lastError?.code,
@@ -205,7 +215,9 @@ describe("createRuntime", () => {
     ] as const) {
       const f = runtimeFixture();
       f.codes.start = () => result;
-      const view = await createRuntime(f.options).flow(f.blueprint, "text");
+      const view = await createRuntime(f.options).run(f.blueprint, {
+        prompt: "text",
+      });
       assert.equal(view.lastError?.code, code);
       assert.equal(view.cursor.stepName, "start");
       assert.deepEqual(f.events, ["init:first"]);
@@ -222,7 +234,9 @@ describe("createRuntime", () => {
       const f = runtimeFixture();
       assert.ok(f.first.steps.start);
       Object.assign(f.first.steps.start, { execution });
-      const view = await createRuntime(f.options).flow(f.blueprint, "text");
+      const view = await createRuntime(f.options).run(f.blueprint, {
+        prompt: "text",
+      });
       assert.equal(view.lastError?.code, "STEP_EXECUTION_FAILED");
       assert.deepEqual(f.events, ["init:first"]);
     }
@@ -250,8 +264,8 @@ describe("createRuntime", () => {
     let agentCalls = 0;
     f.options.effector.executeAgent = async (agent, input, access) => {
       agentCalls++;
-      assert.equal(agent, executable);
       assert.equal(input, null);
+      assert.equal(agent, executable);
       assert.equal("commit" in access.storage, false);
       assert.equal("interaction" in access, false);
       assert.equal("run" in access, false);
@@ -263,7 +277,8 @@ describe("createRuntime", () => {
       return { outcome: "complete" };
     };
     assert.equal(
-      (await createRuntime(f.options).flow(f.blueprint, "text")).status,
+      (await createRuntime(f.options).run(f.blueprint, { prompt: "text" }))
+        .status,
       "completed",
     );
     assert.equal(agentCalls, 1);
@@ -285,7 +300,7 @@ describe("createRuntime", () => {
         removedRecordIds: [],
       };
     };
-    f.codes.start = async (_input, access) => {
+    f.codes.start = async (access) => {
       calls++;
       if (calls === 1) {
         old = access;
@@ -308,14 +323,15 @@ describe("createRuntime", () => {
       );
       return { outcome: calls === 2 ? "reenter" : "complete" };
     };
-    f.codes.finish = async (_input, access) => {
+    f.codes.finish = async (access) => {
       await access.state.clear();
       assert.equal(access.state.value, undefined);
       cleared = true;
       return { outcome: "complete" };
     };
     assert.equal(
-      (await createRuntime(f.options).flow(f.blueprint, "text")).status,
+      (await createRuntime(f.options).run(f.blueprint, { prompt: "text" }))
+        .status,
       "completed",
     );
     assert.equal(calls, 3);
@@ -332,7 +348,7 @@ describe("createRuntime", () => {
     let calls = 0;
     let continued = false;
     let access: CodeExecutionAccess<JsonValue> | undefined;
-    f.codes.start = async (_input, value) => {
+    f.codes.start = async (value) => {
       calls++;
       access = value;
       await value.interaction.confirm("Continue?");
@@ -340,7 +356,7 @@ describe("createRuntime", () => {
       return { outcome: "complete" };
     };
     const runtime = createRuntime(f.options);
-    const view = await runtime.flow(f.blueprint, "text");
+    const view = await runtime.run(f.blueprint, { prompt: "text" });
     assert.equal(view.status, "waiting");
     assert.equal(calls, 1);
     assert.equal(continued, false);
@@ -374,14 +390,16 @@ describe("createRuntime", () => {
         description: undefined,
       },
     ];
-    f.codes.start = async (_input, access) => {
+    f.codes.start = async (access) => {
       const answer = access.interaction.askQuestions(questions);
       assert.ok(questions[0]);
       questions[0].question = "mutated";
       await answer;
       return { outcome: "complete" };
     };
-    const view = await createRuntime(f.options).flow(f.blueprint, "text");
+    const view = await createRuntime(f.options).run(f.blueprint, {
+      prompt: "text",
+    });
     assert.deepEqual(view.pendingAction?.request, [
       { id: "Q1", question: "Question?", isSkippable: false },
     ]);
@@ -390,12 +408,14 @@ describe("createRuntime", () => {
   test("invalid questions and confirmation contexts fail without publishing a waiting action", async () => {
     for (const kind of ["questions", "confirmation"]) {
       const f = runtimeFixture();
-      f.codes.start = async (_input, access) => {
+      f.codes.start = async (access) => {
         if (kind === "questions") await access.interaction.askQuestions([]);
         else await access.interaction.confirm("");
         return { outcome: "complete" };
       };
-      const view = await createRuntime(f.options).flow(f.blueprint, "text");
+      const view = await createRuntime(f.options).run(f.blueprint, {
+        prompt: "text",
+      });
       assert.equal(view.lastError?.code, "STEP_INTERACTION_INVALID");
       assert.equal(view.pendingAction, undefined);
     }
@@ -404,13 +424,13 @@ describe("createRuntime", () => {
   test("unawaited and overlapping interactions are caught as protocol failures", async () => {
     for (const overlap of [false, true]) {
       const f = runtimeFixture();
-      f.codes.start = (_input, access) => {
+      f.codes.start = (access) => {
         void access.interaction.confirm("first");
         if (overlap) void access.interaction.confirm("second");
         return { outcome: "complete" };
       };
       const runtime = createRuntime(f.options);
-      const initial = await runtime.flow(f.blueprint, "text");
+      const initial = await runtime.run(f.blueprint, { prompt: "text" });
       await setImmediate();
       const view = await runtime.getRun(initial.runId);
       assert.equal(view.status, "failed");
@@ -422,13 +442,13 @@ describe("createRuntime", () => {
   test("background failure after flow returns waiting is captured and clears the action", async () => {
     const f = runtimeFixture();
     const gate = deferred<void>();
-    f.codes.start = async (_input, access) => {
+    f.codes.start = async (access) => {
       void access.interaction.confirm("first");
       await gate.promise;
       throw new Error("private background failure");
     };
     const runtime = createRuntime(f.options);
-    const waiting = await runtime.flow(f.blueprint, "text");
+    const waiting = await runtime.run(f.blueprint, { prompt: "text" });
     assert.equal(waiting.status, "waiting");
     gate.resolve();
     await setImmediate();
@@ -445,7 +465,7 @@ describe("createRuntime", () => {
   test("two Runs isolate access and State while one waits and another completes", async () => {
     const f = runtimeFixture();
     const accesses: CodeExecutionAccess<JsonValue>[] = [];
-    f.codes.start = async (_input, access) => {
+    f.codes.start = async (access) => {
       accesses.push(access);
       const state = fixtureStateSchema.parse(access.state.value);
       await access.state.update({
@@ -456,8 +476,8 @@ describe("createRuntime", () => {
       return { outcome: "complete" };
     };
     const runtime = createRuntime(f.options);
-    const a = await runtime.flow(f.blueprint, "A");
-    const b = await runtime.flow(f.blueprint, "B");
+    const a = await runtime.run(f.blueprint, { prompt: "A" });
+    const b = await runtime.run(f.blueprint, { prompt: "B" });
     assert.equal(a.status, "waiting");
     assert.equal(b.status, "completed");
     assert.notEqual(a.runId, b.runId);
@@ -480,13 +500,13 @@ describe("createRuntime", () => {
       }),
     });
     let write: Promise<void> | undefined;
-    f.codes.start = async (_input, access) => {
+    f.codes.start = async (access) => {
       write = access.state.update({ value: 99, intent: "text" });
       void write.catch(() => {});
       await started.promise;
       return { outcome: "complete" };
     };
-    f.codes.review = async (_input, access) => {
+    f.codes.review = async (access) => {
       release.resolve();
       assert.ok(write);
       await assert.rejects(write, { code: "EXECUTION_OWNERSHIP_LOST" });
@@ -495,7 +515,8 @@ describe("createRuntime", () => {
       return { outcome: "complete" };
     };
     assert.equal(
-      (await createRuntime(f.options).flow(f.blueprint, "text")).status,
+      (await createRuntime(f.options).run(f.blueprint, { prompt: "text" }))
+        .status,
       "completed",
     );
   });
@@ -515,7 +536,8 @@ describe("createRuntime", () => {
       return { outcome: "complete" };
     };
     assert.equal(
-      (await createRuntime(f.options).flow(f.blueprint, "text")).status,
+      (await createRuntime(f.options).run(f.blueprint, { prompt: "text" }))
+        .status,
       "completed",
     );
   });
@@ -536,7 +558,9 @@ test("host abort while preparing execution prevents late Run admission and busin
       return { source: "cli", agentExecutor: "service" };
     },
   });
-  const request = runtime.flow(fixture.blueprint, "stop during preparation");
+  const request = runtime.run(fixture.blueprint, {
+    prompt: "stop during preparation",
+  });
   const stopped = new Error("host closed");
   controller.abort(stopped);
   ready();
@@ -555,10 +579,18 @@ test("exclusive workflows reject concurrent starts and release after completion"
     return { outcome: "complete" };
   };
   const runtime = createRuntime(f.options);
-  const first = runtime.flow({ ...f.blueprint, exclusive: true }, "first");
+  const first = runtime.run(
+    { ...f.blueprint, exclusive: true },
+    { prompt: "first" },
+  );
   await entered.promise;
-  await assert.rejects(runtime.flow(f.blueprint, "conflict"), { code: "BUSY" });
+  await assert.rejects(runtime.run(f.blueprint, { prompt: "conflict" }), {
+    code: "BUSY",
+  });
   release.resolve();
   assert.equal((await first).status, "completed");
-  assert.equal((await runtime.flow(f.blueprint, "next")).status, "completed");
+  assert.equal(
+    (await runtime.run(f.blueprint, { prompt: "next" })).status,
+    "completed",
+  );
 });

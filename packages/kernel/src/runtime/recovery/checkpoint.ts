@@ -6,8 +6,8 @@ import type { CheckpointPhase, RunCheckpointStore } from "./store.ts";
 
 export interface RunRecoveryControl {
   readonly store: RunCheckpointStore;
-  readonly workflowIdentity: string;
-  readonly sourceWorkflowIdentity?: string;
+  readonly loomIdentity: string;
+  readonly sourceLoomIdentity?: string;
   phase: CheckpointPhase;
   error?: Error;
   suspended?: boolean;
@@ -23,16 +23,16 @@ export function checkpointData(
     jsonCopy({
       version: 2,
       schemaVersion: 2,
-      workflowIdentity: entry.recovery?.workflowIdentity ?? "untracked",
-      ...(entry.recovery?.sourceWorkflowIdentity
-        ? { sourceWorkflowIdentity: entry.recovery.sourceWorkflowIdentity }
+      loomIdentity: entry.recovery?.loomIdentity ?? "untracked",
+      ...(entry.recovery?.sourceLoomIdentity
+        ? { sourceLoomIdentity: entry.recovery.sourceLoomIdentity }
         : {}),
       phase,
       run: {
         id: state.id,
-        flowName: state.flowName,
+        loomName: state.loomName,
         execution: state.execution,
-        intent: state.intent,
+        input: state.input,
         cursor: { ...state.cursor },
         status: state.status,
         ...(state.pendingAction ? { pendingAction: state.pendingAction } : {}),

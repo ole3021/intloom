@@ -6,12 +6,12 @@ title: Implement Code and Agents
 
 ## Code
 
-Default-export an `ExecutableCode` from a referenced source file. Business input lives in Stage State; Runtime currently invokes Steps with `null` as the call input.
+Default-export an `ExecutableCode` from a referenced source file. Business input lives in Stage State; Code receives only `access`; the Stage initializer receives the declared Loom inputs.
 
 ```ts
-import type { ExecutableCode } from "@intloom/workflow-sdk";
+import type { ExecutableCode } from "@intloom/loom-sdk";
 
-const complete: ExecutableCode = (_input, access) => {
+const complete: ExecutableCode = (access) => {
   access.signal.throwIfAborted();
   return { outcome: "complete" };
 };
@@ -40,9 +40,9 @@ Bind it in an Agent Step fragment:
 ```yaml
 review:
   type: agent
-  agent: "@agents/reviewer"
-  llm: review
-  outputSchema: "@schemas/review-result"
+  agent: "./agents/reviewer.md"
+  llm: thinking
+  outputSchema: "./schema/review-result.ts"
   tools: []
   skills: []
   on:
@@ -50,7 +50,7 @@ review:
       end: true
 ```
 
-Create `schemas/review-result.ts` with a default Zod Schema, such as `z.strictObject({ outcome: z.literal("complete") })`. Add the resource files to production TypeScript includes. Declare Tools when the Agent needs business context.
+Create `schema/review-result.ts` with a default Zod Schema, such as `z.strictObject({ outcome: z.literal("complete") })`. Compiler checks the entry dependency graph. Declare Tools when the Agent needs business context.
 
 The host constructs or hands off the Agent at runtime. Compiler packages its specification without creating a model. Final outputs must satisfy the advertised Schema input shape; the original parser validates them once.
 

@@ -75,8 +75,8 @@ function boundaryPath(
     (name ?? "unknown").replace(/[^a-zA-Z0-9_-]/gu, "_").slice(0, 100);
   const stage = `stages/${String(b.stageVisitId).padStart(4, "0")}-${label(b.stageName)}`;
   const step = `${stage}/steps/${String(b.stepVisitId).padStart(4, "0")}-${label(b.stepName)}`;
-  const path = b.kind.startsWith("workflow_")
-    ? `workflow/${b.kind === "workflow_start" ? "start" : "end"}`
+  const path = b.kind.startsWith("loom_")
+    ? `loom/${b.kind === "loom_start" ? "start" : "end"}`
     : b.kind.startsWith("step_")
       ? `${step}/${b.kind === "step_before" ? "before" : "after"}`
       : `${stage}/${b.kind === "stage_before_init" ? "before-init" : b.kind === "stage_start" ? "start" : "end"}`;
@@ -175,9 +175,9 @@ export function createMirrorCoordinator(
               mirrorId: fixed.control?.sourceMirrorId ?? null,
               traceId: fixed.control?.sourceTraceId ?? null,
             },
-            workflow: {
-              name: fixed.run.flowName,
-              identityAtCapture: fixed.workflowIdentity,
+            loom: {
+              name: fixed.run.loomName,
+              identityAtCapture: fixed.loomIdentity,
             },
             storageBackend: storage.backend as "file" | "sqlite",
             complete: true,
@@ -276,20 +276,20 @@ export async function readMirrorDirectory(directory: string) {
     !checkpoint.control ||
     checkpoint.run.id !== manifest.runId ||
     checkpoint.control.traceId !== manifest.traceId ||
-    checkpoint.run.flowName !== manifest.workflow.name ||
-    checkpoint.workflowIdentity !== manifest.workflow.identityAtCapture ||
+    checkpoint.run.loomName !== manifest.loom.name ||
+    checkpoint.loomIdentity !== manifest.loom.identityAtCapture ||
     !isDeepStrictEqual(checkpoint.control.boundary, manifest.boundary)
   )
     throw new Error("Mirror checkpoint identity or format is inconsistent.");
   const boundary = manifest.boundary;
   const phases = {
-    workflow_start: ["stage_pending"],
+    loom_start: ["stage_pending"],
     stage_before_init: ["stage_pending"],
     stage_start: ["step_ready"],
     step_before: ["step_ready"],
     step_after: ["step_result"],
     stage_end: ["stage_pending", "terminal"],
-    workflow_end: ["terminal"],
+    loom_end: ["terminal"],
   };
   if (
     !phases[boundary.kind].includes(checkpoint.phase) ||
@@ -308,7 +308,7 @@ export async function readMirrorDirectory(directory: string) {
       "Mirror boundary, phase, visits or recoverability are inconsistent.",
     );
   if (
-    ["workflow_start", "stage_before_init"].includes(boundary.kind) &&
+    ["loom_start", "stage_before_init"].includes(boundary.kind) &&
     checkpoint.stage
   )
     throw new Error(
@@ -501,7 +501,7 @@ async function diffSummary(
     validatedRoute: next.checkpoint.validatedRoute ?? null,
   };
 }
-/** Offline inspection keeps unknown fields and does not load the Workflow. */
+/** Offline inspection keeps unknown fields and does not load the Loom. */
 export async function inspectMirror(project: string, mirrorId: string) {
   const directory = await findMirror(project, mirrorId);
   const raw = Object.fromEntries(
@@ -534,7 +534,7 @@ export async function inspectMirror(project: string, mirrorId: string) {
     limitations: [
       "Only the declared local file scope and formal Storage are restored.",
       "External services and effects are not copied or reversed.",
-      "Current target Workflow and configuration are required for execution.",
+      "Current target Loom and configuration are required for execution.",
     ],
   };
 }
@@ -600,7 +600,7 @@ export function validateScope(
   manifest: MirrorManifest,
   scope: MirrorScope,
 ): void {
-  if (!manifest.restorable || manifest.boundary.kind === "workflow_end")
+  if (!manifest.restorable || manifest.boundary.kind === "loom_end")
     throw new Error(
       manifest.reason ?? "Mirror is not a resumable safe boundary.",
     );
@@ -616,7 +616,7 @@ export function validateScope(
 export function restoreFailure(cause: unknown): LoomError<string> {
   return new LoomError(
     "MIRROR_RESTORE_FAILED",
-    `${cause instanceof Error ? cause.message : String(cause)} Please manually execute the Workflow from the beginning to generate new mirrors.`,
+    `${cause instanceof Error ? cause.message : String(cause)} Please manually execute the Loom from the beginning to generate new mirrors.`,
     { retryable: false, cause },
   );
 }

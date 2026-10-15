@@ -12,7 +12,7 @@ test("public answers resume the same Code across successive actions without repe
   const f = runtimeFixture();
   let effects = 0;
   let continued = 0;
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     effects++;
     const first = await access.interaction.confirm("first?");
     assert.equal(first.isConfirmed, true);
@@ -25,7 +25,7 @@ test("public answers resume the same Code across successive actions without repe
   };
   const runtime = createRuntime(f.options);
   t.after(() => runtime.cancelAllRuns());
-  const first = await runtime.flow(f.blueprint, "text");
+  const first = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(first.pendingAction);
   assert.equal(continued, 0);
   const second = await runtime.answerAsk(first.runId, first.pendingAction.id, {
@@ -60,13 +60,13 @@ test("public answers resume the same Code across successive actions without repe
 
 test("invalid confirmation submissions retain the exact action and timestamps", async (t) => {
   const f = runtimeFixture();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("continue?");
     return { outcome: "complete" };
   };
   const runtime = createRuntime(f.options);
   t.after(() => runtime.cancelAllRuns());
-  const view = await runtime.flow(f.blueprint, "text");
+  const view = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(view.pendingAction);
   await assert.rejects(
     runtime.answerAsk("missing", view.pendingAction.id, {}),
@@ -108,7 +108,7 @@ test("invalid confirmation submissions retain the exact action and timestamps", 
 test("question replies match the whole request once, respect skipping, and preserve free text", async (t) => {
   const f = runtimeFixture();
   let received: unknown;
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     received = await access.interaction.askQuestions([
       {
         id: "required",
@@ -122,7 +122,7 @@ test("question replies match the whole request once, respect skipping, and prese
   };
   const runtime = createRuntime(f.options);
   t.after(() => runtime.cancelAllRuns());
-  const view = await runtime.flow(f.blueprint, "text");
+  const view = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(view.pendingAction);
   const valid = {
     questionId: "required",
@@ -180,13 +180,15 @@ test("duplicate question or per-question option IDs fail before creating an acti
           }
         : {}),
     };
-    f.codes.start = async (_input, access) => {
+    f.codes.start = async (access) => {
       await access.interaction.askQuestions(
         duplicateOptions ? [question] : [question, question],
       );
       return { outcome: "complete" };
     };
-    const view = await createRuntime(f.options).flow(f.blueprint, "text");
+    const view = await createRuntime(f.options).run(f.blueprint, {
+      prompt: "text",
+    });
     assert.equal(view.status, "failed");
     assert.equal(view.lastError?.code, "STEP_INTERACTION_INVALID");
     assert.equal(view.pendingAction, undefined);
@@ -196,7 +198,7 @@ test("duplicate question or per-question option IDs fail before creating an acti
 test("concurrent answers consume an action only once and do not affect the next question", async (t) => {
   const f = runtimeFixture();
   let answers = 0;
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("first?");
     answers++;
     await access.interaction.confirm("second?");
@@ -205,7 +207,7 @@ test("concurrent answers consume an action only once and do not affect the next 
   };
   const runtime = createRuntime(f.options);
   t.after(() => runtime.cancelAllRuns());
-  const view = await runtime.flow(f.blueprint, "text");
+  const view = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(view.pendingAction);
   const results = await Promise.allSettled([
     runtime.answerAsk(view.runId, view.pendingAction.id, { isConfirmed: true }),
@@ -228,7 +230,7 @@ test("submitAnswer acknowledges consumption while continuation is running", asyn
   const f = runtimeFixture();
   const resumed = deferred();
   const release = deferred();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("continue?");
     resumed.resolve();
     await release.promise;
@@ -236,7 +238,7 @@ test("submitAnswer acknowledges consumption while continuation is running", asyn
   };
   const runtime = createRuntime(f.options);
   t.after(() => runtime.cancelAllRuns());
-  const waiting = await runtime.flow(f.blueprint, "text");
+  const waiting = await runtime.run(f.blueprint, { prompt: "text" });
   const action = waiting.pendingAction;
   assert.ok(action);
   assert.throws(() => runtime.submitAnswer(waiting.runId, action.id, {}), {
@@ -265,7 +267,7 @@ test("an accepted answer waits for stable execution and Code failures become Run
   const f = runtimeFixture();
   const resumed = deferred();
   const release = deferred();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("continue?");
     resumed.resolve();
     await release.promise;
@@ -273,7 +275,7 @@ test("an accepted answer waits for stable execution and Code failures become Run
   };
   const runtime = createRuntime(f.options);
   t.after(() => runtime.cancelAllRuns());
-  const view = await runtime.flow(f.blueprint, "text");
+  const view = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(view.pendingAction);
   let returned = false;
   const answer = runtime.answerAsk(view.runId, view.pendingAction.id, {
@@ -300,14 +302,14 @@ test("an accepted answer waits for stable execution and Code failures become Run
 
 test("answer identities isolate Runs even when they ask the same question", async (t) => {
   const f = runtimeFixture();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("same question");
     return { outcome: "complete" };
   };
   const runtime = createRuntime(f.options);
   t.after(() => runtime.cancelAllRuns());
-  const a = await runtime.flow(f.blueprint, "A");
-  const b = await runtime.flow(f.blueprint, "B");
+  const a = await runtime.run(f.blueprint, { prompt: "A" });
+  const b = await runtime.run(f.blueprint, { prompt: "B" });
   assert.ok(a.pendingAction && b.pendingAction);
   await assert.rejects(
     runtime.answerAsk(b.runId, a.pendingAction.id, { isConfirmed: true }),
@@ -329,13 +331,13 @@ test("answer identities isolate Runs even when they ask the same question", asyn
 test("answer parsing cannot consume an action stopped by a reentrant input getter", async () => {
   const f = runtimeFixture();
   let continued = false;
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("continue?");
     continued = true;
     return { outcome: "complete" };
   };
   const runtime = createRuntime(f.options);
-  const view = await runtime.flow(f.blueprint, "text");
+  const view = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(view.pendingAction);
   await assert.rejects(
     runtime.answerAsk(view.runId, view.pendingAction.id, {
@@ -355,11 +357,14 @@ test("answer parsing cannot consume an action stopped by a reentrant input gette
 
 test("a broken waiting continuation fails the Run instead of replaying or consuming an answer", async () => {
   const f = runtimeFixture();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("continue?");
     return { outcome: "complete" };
   };
-  const entry = createRunEntry(f.blueprint, createRun(f.blueprint, "text"));
+  const entry = createRunEntry(
+    f.blueprint,
+    createRun(f.blueprint, { prompt: "text" }),
+  );
   const waiting = waitUntilStable(entry);
   launchRunLoop(entry, f.options);
   const task = entry.task;

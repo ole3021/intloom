@@ -26,6 +26,6 @@ JSON 操作、快照 SSE 和 MCP 是共用项目操作的 Service 适配器。�
 
 ## 公开开发边界
 
-通过 `@intloom/workflow-sdk` 编写 Workflow，通过 `@intloom/compiler` 构建。Kernel 内部私有，不是需要单独安装的公开依赖。
+通过 `@intloom/loom-sdk` 编写 Workflow，通过 `@intloom/compiler` 构建。Kernel 内部私有，不是需要单独安装的公开依赖。
 
 参见[执行资源](./execution.md)、[生命周期](./lifecycle.md)和 [ProjectClient](../reference/project-client.md)。

@@ -29,7 +29,7 @@ describe("resolveCurrentExecution", () => {
       if (status === "waiting") {
         run.pendingAction = {
           id: "ASK-1",
-          flowName: run.flowName,
+          loomName: run.loomName,
           cursor: { ...run.cursor },
           kind: "user_ask_confirmation",
           request: { question: "Continue?" },
@@ -92,11 +92,11 @@ describe("resolveCurrentExecution", () => {
 
   test("rejects a different Flow and inconsistent Run state", () => {
     const { blueprint, run } = routingFixture();
-    run.flowName = "other";
+    run.loomName = "other";
     rejectsUnchanged(run, "RUN_STATE_INVALID", () =>
       resolveCurrentExecution(blueprint, run),
     );
-    run.flowName = blueprint.flowName;
+    run.loomName = blueprint.loomName;
     run.status = "waiting";
     rejectsUnchanged(run, "RUN_STATE_INVALID", () =>
       resolveCurrentExecution(blueprint, run),

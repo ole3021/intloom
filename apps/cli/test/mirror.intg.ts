@@ -16,7 +16,7 @@ import {
 function workflow(delta = 1) {
   return `import * as z from 'zod';
 export const blueprint={flowName:'tiny-mirror',entryStageName:'first',stages:{first:{stageName:'first',initializeState:ctx=>({n:0,runId:ctx.runId}),stateSchema:z.strictObject({n:z.number(),runId:z.string()}),entryStepName:'one',steps:{one:{stepName:'one',execution:{kind:'code',codeId:'CODE-123456789012345678901'},on:{done:{kind:'step',stepName:'two'}}},two:{stepName:'two',execution:{kind:'code',codeId:'CODE-123456789012345678901'},on:{done:{kind:'stage_end'}}}},on:{done:{kind:'workflow_end'}}}}};
-export const codes={'CODE-123456789012345678901':async(_input,a)=>{const state=a.state.value,n=state.n+${delta};await a.state.update({...state,n});await a.project.write('result.txt',String(n));await a.storage.commit([{type:'append_record',id:state.runId+'-'+n,payload:{flowName:'tiny-mirror',stageName:'first',data:{n}}}]);return {outcome:'done'};}};export const agentSpecs={};`;
+export const codes={'CODE-123456789012345678901':async(a)=>{const state=a.state.value,n=state.n+${delta};await a.state.update({...state,n});await a.project.write('result.txt',String(n));await a.storage.commit([{type:'append_record',id:state.runId+'-'+n,payload:{flowName:'tiny-mirror',stageName:'first',data:{n}}}]);return {outcome:'done'};}};export const agentSpecs={};`;
 }
 for (const backend of ["file", "sqlite"] as const)
   test(`${backend}: actual CLI, independent host, shared operation receipts and MCP mirror controls`, {

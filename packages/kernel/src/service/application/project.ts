@@ -6,7 +6,7 @@ import {
   resumeRunSchema,
 } from "./mirrors.ts";
 import {
-  listWorkflows,
+  listLooms,
   getRun,
   listRuns,
   cancelRun,
@@ -90,9 +90,9 @@ export function createProjectApplication(
       agentRuntime(request.runId).completeAgentCall(request),
     failAgentCall: (request) =>
       agentRuntime(request.runId).failAgentCall(request),
-    async flow(flowName, intent) {
+    async run(loomName, input) {
       assertOpen();
-      return host.presentRun(await host.startFlow(flowName, intent, source));
+      return host.presentRun(await host.startRun(loomName, input, source));
     },
     async getRun(runId) {
       return queryRun(runId, async () => {
@@ -100,15 +100,15 @@ export function createProjectApplication(
         return host.presentRun(await getRun(host.execution, runId));
       });
     },
-    async listRuns(flowName) {
+    async listRuns(loomName) {
       assertOpen();
-      return (await listRuns(host.execution, flowName)).map((run) =>
+      return (await listRuns(host.execution, loomName)).map((run) =>
         host.presentRun(run),
       );
     },
-    async listWorkflows() {
+    async listLooms() {
       assertOpen();
-      return listWorkflows(host.execution, source);
+      return listLooms(host.execution, source);
     },
     async answerAsk(runId, actionId, answer) {
       assertOpen(runId);

@@ -14,7 +14,7 @@ test("repeated steps and resumed Code retain distinct execution identities acros
   t.after(() => logs.close());
   const f = runtimeFixture();
   const visits = new Map<string, number>();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     const intent = String((access.state.value as { intent: string }).intent);
     const visit = (visits.get(intent) ?? 0) + 1;
     visits.set(intent, visit);
@@ -33,8 +33,10 @@ test("repeated steps and resumed Code retain distinct execution identities acros
     },
   };
   const views = await Promise.all([
-    withLogger(requestLogger, () => runtime.flow(f.blueprint, "PRIVATE_A")),
-    runtime.flow(f.blueprint, "PRIVATE_B"),
+    withLogger(requestLogger, () =>
+      runtime.run(f.blueprint, { prompt: "PRIVATE_A" }),
+    ),
+    runtime.run(f.blueprint, { prompt: "PRIVATE_B" }),
   ]);
   for (const view of views) {
     assert.ok(view.pendingAction);

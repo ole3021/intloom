@@ -46,7 +46,7 @@ export async function startService(
           rejectReady(
             failure(
               "CLI_SERVICE_TIMEOUT",
-              "The service did not finish initialization and Workflow restoration within 5 minutes.",
+              "The service did not finish initialization and Loom restoration within 5 minutes.",
             ),
           ),
         300_000,

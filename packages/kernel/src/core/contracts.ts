@@ -1,14 +1,15 @@
+import type { LoomInputKind } from "@intloom/loom-sdk";
 import type { RunExecution, RunSource } from "../runtime/execution-policy.ts";
-import type { Blueprint } from "../workflow/blueprint.ts";
+import type { Blueprint } from "../loom/blueprint.ts";
 import type { Effector } from "../effector/contracts.ts";
 import type { Logger } from "@intloom/utils";
 import type { Runtime } from "../runtime/contracts.ts";
 import type { StorageAccess } from "../storage/contracts.ts";
 import type {
-  WorkflowInitializationPhase,
-  WorkflowInitializationOutcome,
-} from "../workflow/types.ts";
-import type { WorkflowRegistries } from "../workflow/registries.ts";
+  LoomInitializationPhase,
+  LoomInitializationOutcome,
+} from "../loom/types.ts";
+import type { LoomRegistries } from "../loom/registries.ts";
 import type { RunErrorView } from "../runtime/run-view.ts";
 
 /** The host creates and owns resources; initialization borrows access without closing or replacing them. */
@@ -35,10 +36,10 @@ export interface ProjectExecution {
     blueprint: Blueprint,
     source: RunSource,
   ) => ExecutionReadiness;
-  readonly registries: WorkflowRegistries;
+  readonly registries: LoomRegistries;
   readonly runtime: Runtime;
-  /** In-process initialization diagnostics; cross-client presentation uses listWorkflows error projections. */
-  readonly workflows: readonly WorkflowInitializationOutcome[];
+  /** In-process initialization diagnostics; cross-client presentation uses listLooms error projections. */
+  readonly looms: readonly LoomInitializationOutcome[];
 }
 
 export interface ExecutionReadiness extends RunExecution {
@@ -47,17 +48,18 @@ export interface ExecutionReadiness extends RunExecution {
   readonly error?: RunErrorView;
 }
 
-export type WorkflowView =
+export type LoomView =
   | {
       readonly packageName: string;
-      readonly flowName: string;
+      readonly loomName: string;
       readonly isAvailable: true;
+      readonly inputs: readonly LoomInputKind[];
       readonly readiness?: ExecutionReadiness;
     }
   | {
       readonly packageName: string;
-      readonly flowName?: string;
+      readonly loomName?: string;
       readonly isAvailable: false;
-      readonly phase: WorkflowInitializationPhase;
+      readonly phase: LoomInitializationPhase;
       readonly error: RunErrorView;
     };

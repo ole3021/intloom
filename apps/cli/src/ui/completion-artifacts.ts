@@ -12,7 +12,7 @@ export async function showCompletionArtifacts(
   projectRoot?: string,
 ) {
   if (run.status !== "completed" || ui.json) return;
-  const query = { flowName: run.flowName };
+  const query = { loomName: run.loomName };
   let message: string;
   try {
     message = renderArtifacts(

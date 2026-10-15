@@ -1,3 +1,4 @@
+import type { LoomInput } from "@intloom/kernel";
 import { packageVersion } from "../version.ts";
 import {
   Client,
@@ -18,7 +19,7 @@ import {
 import {
   errorViewSchema,
   runViewSchema,
-  workflowViewSchema,
+  loomViewSchema,
 } from "../service/contracts.ts";
 import type {
   ProjectClient,
@@ -106,8 +107,8 @@ export async function connectProjectClient(
           "PROJECT_REQUEST_FAILED",
           knownRunId
             ? `The request outcome is unknown for Run ${knownRunId}. Query get_run or attach with this Run ID; do not repeat the mutation.`
-            : name === "flow"
-              ? "The flow result is unknown and no Run ID was received. Inspect list_runs and logs before considering another flow; requestId is only for log correlation."
+            : name === "run"
+              ? "The run result is unknown and no Run ID was received. Inspect list_runs and logs before considering another run; requestId is only for log correlation."
               : "The request did not return a confirmed result. Query runs/attach or the committed Record before repeating an execution.",
           cause,
         );
@@ -151,8 +152,8 @@ export async function connectProjectClient(
   }
   const oneRun = z.strictObject({ run: runViewSchema });
   return {
-    async flow(flowName: string, intent: string) {
-      return (await call("flow", { flowName, intent }, oneRun)).run;
+    async run(loomName: string, input: LoomInput) {
+      return (await call("run", { loomName, input }, oneRun)).run;
     },
     async getRun(runId: string) {
       return (await call("get_run", { runId }, oneRun, runId)).run;
@@ -169,23 +170,23 @@ export async function connectProjectClient(
     async cancelRun(runId: string) {
       return (await call("cancel_run", { runId }, oneRun, runId)).run;
     },
-    async listRuns(flowName?: string) {
+    async listRuns(loomName?: string) {
       return (
         await call(
           "list_runs",
-          flowName === undefined ? {} : { flowName },
+          loomName === undefined ? {} : { loomName },
           z.strictObject({ runs: z.array(runViewSchema) }),
         )
       ).runs;
     },
-    async listWorkflows() {
+    async listLooms() {
       return (
         await call(
-          "list_workflows",
+          "list_looms",
           {},
-          z.strictObject({ workflows: z.array(workflowViewSchema) }),
+          z.strictObject({ looms: z.array(loomViewSchema) }),
         )
-      ).workflows;
+      ).looms;
     },
     async getArtifact(selector: ArtifactSelector) {
       return (

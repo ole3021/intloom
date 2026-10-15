@@ -1,5 +1,5 @@
 import type { StorageAccess } from "../storage/contracts.ts";
-import type { ProjectAccess } from "@intloom/workflow-sdk";
+import type { ProjectAccess } from "@intloom/loom-sdk";
 import { KERNEL_ERRORS } from "../errors/kernel.ts";
 
 /** Host writes already accepted before capture settle; new writes and Runs are rejected until release. */

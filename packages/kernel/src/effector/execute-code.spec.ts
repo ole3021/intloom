@@ -3,22 +3,16 @@ import { test } from "node:test";
 import { executionAccess } from "../../test/effector-fixture.ts";
 import { createEffector } from "./create-effector.ts";
 
-test("standard Code execution awaits sync/async functions and passes exact input and access", async () => {
+test("standard Code execution awaits sync/async functions and passes exact access", async () => {
   const effector = createEffector();
   const f = executionAccess();
-  const input = { original: "text" };
   for (const asyncResult of [false, true]) {
-    const result = await effector.executeCode(
-      (actualInput, access) => {
-        assert.equal(actualInput, input);
-        assert.equal(access, f.code);
-        return asyncResult
-          ? Promise.resolve({ outcome: "complete" })
-          : { outcome: "complete" };
-      },
-      input,
-      f.code,
-    );
+    const result = await effector.executeCode((access) => {
+      assert.equal(access, f.code);
+      return asyncResult
+        ? Promise.resolve({ outcome: "complete" })
+        : { outcome: "complete" };
+    }, f.code);
     assert.deepEqual(result, { outcome: "complete" });
   }
 });
@@ -29,14 +23,10 @@ test("Code errors are preserved without retries and invalid result envelopes are
   let calls = 0;
   const cause = new Error("Code failed");
   await assert.rejects(
-    effector.executeCode(
-      () => {
-        calls++;
-        throw cause;
-      },
-      null,
-      f.code,
-    ),
+    effector.executeCode(() => {
+      calls++;
+      throw cause;
+    }, f.code),
     (error) => error === cause,
   );
   assert.equal(calls, 1);
@@ -44,7 +34,6 @@ test("Code errors are preserved without retries and invalid result envelopes are
     effector.executeCode(
       // @ts-expect-error JavaScript implementations may violate the return type.
       () => null,
-      null,
       f.code,
     ),
     { code: "STEP_RESULT_INVALID" },
@@ -57,27 +46,19 @@ test("Code observes pre-call and in-flight cancellation before returning success
   let called = false;
   f.controller.abort(reason);
   await assert.rejects(
-    createEffector().executeCode(
-      () => {
-        called = true;
-        return { outcome: "complete" };
-      },
-      null,
-      f.code,
-    ),
+    createEffector().executeCode(() => {
+      called = true;
+      return { outcome: "complete" };
+    }, f.code),
     (error) => error === reason,
   );
   assert.equal(called, false);
   const running = executionAccess();
   await assert.rejects(
-    createEffector().executeCode(
-      async () => {
-        running.controller.abort(reason);
-        return { outcome: "complete" };
-      },
-      null,
-      running.code,
-    ),
+    createEffector().executeCode(async () => {
+      running.controller.abort(reason);
+      return { outcome: "complete" };
+    }, running.code),
     (error) => error === reason,
   );
 });

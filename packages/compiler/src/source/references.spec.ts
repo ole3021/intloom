@@ -9,49 +9,60 @@ import { isPathWithin, resolveReference } from "./references.ts";
 describe("resource references", () => {
   const root = resolve(tmpdir(), "reference-package");
   for (const [reference, path, kind, exportName] of [
-    ["@stages/main", "stages/main.yaml", "stage", "default"],
-    ["@stages/main.yaml", "stages/main.yaml", "stage", "default"],
-    ["@agents/reviewer", "agents/reviewer.md", "agent", "default"],
-    ["@skills/review", "skills/review/SKILL.md", "skill", "default"],
-    ["@skills/review/SKILL.md", "skills/review/SKILL.md", "skill", "default"],
-    ["@codes/nested/run", "codes/nested/run.ts", "code", "default"],
-    ["@codes/run.ts:execute", "codes/run.ts", "code", "execute"],
-    ["@schemas/state:stateSchema", "schemas/state.ts", "schema", "stateSchema"],
-    ["@tools/search", "tools/search.ts", "tool", "default"],
+    ["./stages/main.yaml", "stages/main.yaml", "stage", "default"],
+    ["./agents/reviewer.md", "agents/reviewer.md", "agent", "default"],
+    ["./skills/review/SKILL.md", "skills/review/SKILL.md", "skill", "default"],
+    ["./codes/nested/run.ts", "codes/nested/run.ts", "code", "default"],
+    ["./codes/run.ts#execute", "codes/run.ts", "code", "execute"],
     [
-      "@initializers/state:seed",
+      "./schemas/state.ts#stateSchema",
+      "schemas/state.ts",
+      "schema",
+      "stateSchema",
+    ],
+    ["./tools/search.ts", "tools/search.ts", "tool", "default"],
+    [
+      "./initializers/state.ts#seed",
       "initializers/state.ts",
       "initializer",
       "seed",
     ],
-  ] as const) {
+  ] as const)
     test(`resolves ${reference}`, () => {
-      assert.deepEqual(resolveReference(root, reference), {
+      assert.deepEqual(resolveReference(root, reference, kind), {
         file: resolve(root, path),
         kind,
         exportName,
       });
     });
-  }
-
   for (const reference of [
-    "@unknown/run",
-    "codes/run",
-    "@codes/../outside",
-    "@codes/nested\\run",
-    "@codes/run.d.ts",
-    "@codes/run:bad-name",
-    "@agents/reviewer:default",
-    "@skills/review:default",
-    "@stages/main:default",
-  ] as const) {
-    test(`rejects invalid reference ${reference}`, () => {
+    "@codes/run",
+    "codes/run.ts",
+    "../outside.ts",
+    "./codes/run.d.ts",
+    "./codes/run.ts#bad-name",
+    "./codes/run.ts#",
+    "./codes/a\\b.ts",
+  ])
+    test(`rejects ${reference}`, () =>
       assert.throws(
-        () => resolveReference(root, reference),
-        (error) => LoomError.is(error) && error.code === "INVALID_REFERENCE",
-      );
-    });
-  }
+        () => resolveReference(root, reference, "code"),
+        (e) => LoomError.is(e) && e.code === "INVALID_REFERENCE",
+      ));
+  test("resolves resources relative to their declaring Stage, independently of folder names", () => {
+    assert.equal(
+      resolveReference(
+        root,
+        "./schema/value.ts",
+        "tool",
+        resolve(root, "stages/main/stage.yaml"),
+      ).file,
+      resolve(root, "stages/main/schema/value.ts"),
+    );
+    assert.throws(() =>
+      resolveReference(root, "./agents/a.md#default", "agent"),
+    );
+  });
 
   test("isPathWithin distinguishes descendants from parents and sibling prefixes", () => {
     assert.equal(isPathWithin(root, root), true);

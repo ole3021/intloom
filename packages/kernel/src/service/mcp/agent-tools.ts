@@ -76,7 +76,7 @@ export function registerAgentTools(
   );
   register(
     "complete_agent_call",
-    "Submit the raw final JSON matching the task outputSchema AFTER all Tools finish. The host validates once and continues the original Run. Follow its next pendingAgentCall or pendingAction; never create another flow to continue.",
+    "Submit the raw final JSON matching the task outputSchema AFTER all Tools finish. The host validates once and continues the original Run. Follow its next pendingAgentCall or pendingAction; never create another run to continue.",
     owner.extend({ result: z.json() }),
     false,
     async (request) => ({ run: await application.completeAgentCall(request) }),

@@ -1,6 +1,6 @@
 import { createTool } from "@mastra/core/tools";
 import { toStandardSchema, type PublicSchema } from "@mastra/core/schema";
-import type { AgentTool } from "@intloom/workflow-sdk";
+import type { AgentTool } from "@intloom/loom-sdk";
 import { getAgentExecutionAccess } from "../agent-context.ts";
 import {
   agentJsonSchema,

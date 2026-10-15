@@ -141,7 +141,7 @@ function ask<T>(
   const serialized: unknown = JSON.parse(JSON.stringify(request));
   const action: PendingUserAction = {
     id: generateId("ASK"),
-    flowName: entry.state.flowName,
+    loomName: entry.state.loomName,
     cursor: { ...entry.state.cursor },
     kind,
     request: z.json().parse(serialized),

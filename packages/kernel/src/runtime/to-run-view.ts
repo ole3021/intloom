@@ -24,7 +24,7 @@ export function toRunView(run: RunState): RunView {
       : {}),
     ...(run.control ? { control: structuredClone(run.control) } : {}),
     runId: run.id,
-    flowName: run.flowName,
+    loomName: run.loomName,
     execution: { ...run.execution },
     cursor: { ...run.cursor },
     status: run.status,

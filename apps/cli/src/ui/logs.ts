@@ -43,13 +43,13 @@ export function formatLog(
   };
   switch (record.event) {
     case "run_started":
-      field("flowName", "flow");
+      field("loomName", "loom");
       break;
     case "run_resumed":
       field("waitDurationMs", "waitMs");
       break;
-    case "workflow_ready":
-    case "workflow_load_failed":
+    case "loom_ready":
+    case "loom_load_failed":
       field("packageName", "package");
       field("phase");
       break;

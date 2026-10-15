@@ -35,12 +35,12 @@ test("defined startup credentials win, including invalid empty or encrypted valu
     assert.equal(credentials(config.llms.default.secret), value);
     if (value === "startup credential")
       assert.equal(
-        resolveModelConfig("reasoning", config, "test", credentials).apiKey,
+        resolveModelConfig("thinking", config, "test", credentials).apiKey,
         value,
       );
     else
       assert.throws(
-        () => resolveModelConfig("reasoning", config, "test", credentials),
+        () => resolveModelConfig("thinking", config, "test", credentials),
         {
           code: "INVALID_REQUEST",
           message: /Missing decrypted credential/u,

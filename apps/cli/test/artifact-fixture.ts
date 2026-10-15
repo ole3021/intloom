@@ -6,7 +6,7 @@ export const blueprint = { flowName: "fixture", entryStageName: "first", stages:
   first: { stageName: "first", initializeState: ({ runId, intent }) => ({ id: runId, intent }), stateSchema: z.strictObject({ id: z.string(), intent: z.string() }), entryStepName: "save",
     steps: { save: { stepName: "save", execution: { kind: "code", codeId: "CODE-123456789012345678901" }, on: { complete: { kind: "stage_end" } } } }, on: { complete: { kind: "workflow_end" } } }
 } };
-export const codes = { "CODE-123456789012345678901": async (_input, access) => {
+export const codes = { "CODE-123456789012345678901": async (access) => {
   const { id, intent } = access.state.value;
   const old = await access.storage.getArtifact("fixture", "first");
   const payload = { flowName: "fixture", stageName: "first", data: { title: intent, requirements: ["Add tasks", "Browser persistence"], note: "  original\\ncontent  " } };

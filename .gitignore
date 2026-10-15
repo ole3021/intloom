@@ -3,6 +3,8 @@ dist/
 .turbo/
 coverage/
 .intloom/
+.intloom-build-*/
+.intloom-build.lock
 *.tsbuildinfo
 .env
 .env.*

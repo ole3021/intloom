@@ -1,3 +1,5 @@
+import { validateLoomInput } from "./loom-input.ts";
+import type { LoomInput } from "@intloom/loom-sdk";
 import type { RunView } from "./run-view.ts";
 import { isDeepStrictEqual } from "node:util";
 import { randomUUID } from "node:crypto";
@@ -29,7 +31,7 @@ import {
 } from "./recovery/restore.ts";
 
 /**
- * Runtime owns execution tasks; flow waits only for a stable state, and waiting preserves the original Code call.
+ * Runtime owns execution tasks; run waits only for a stable state, and waiting preserves the original Code call.
  * The host answers by action ID or stops execution; resumption continues the original call without replaying Code from the cursor.
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
@@ -50,17 +52,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     return entry;
   }
   async function admitRun(
-    blueprint: Parameters<Runtime["flow"]>[0],
-    intent: string,
-    source: NonNullable<Parameters<Runtime["flow"]>[2]>,
+    blueprint: Parameters<Runtime["run"]>[0],
+    input: LoomInput,
+    source: NonNullable<Parameters<Runtime["run"]>[2]>,
     waitForStable: boolean,
   ) {
     if (suspended) throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE");
     options.mirror?.assertOpen();
-    if (typeof intent !== "string" || !intent.trim())
-      throw KERNEL_ERRORS.create("INVALID_REQUEST", {
-        message: "Workflow intent must be nonblank text.",
-      });
+    const parsedInput = validateLoomInput(blueprint, input);
     options.signal?.throwIfAborted();
     const execution = options.prepareExecution
       ? await options.prepareExecution(blueprint, source)
@@ -80,12 +79,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       )
     )
       throw KERNEL_ERRORS.create("BUSY", {
-        message:
-          "An exclusive project Workflow conflicts with another active Run.",
+        message: "An exclusive project Loom conflicts with another active Run.",
       });
     const entry = createRunEntry(
       blueprint,
-      createRun(blueprint, intent, execution),
+      createRun(blueprint, parsedInput, execution),
       options.logger ?? silentLogger,
     );
     if (options.mirror)
@@ -93,21 +91,20 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         traceId: randomUUID(),
         stageVisitId: 0,
         stepVisitId: 0,
-        scope: { kind: "workflow", completed: false },
+        scope: { kind: "loom", completed: false },
       };
     options.observation?.attach(entry, false, (reason) =>
       cancelRun(entry, reason),
     );
     if (options.recovery) {
-      const workflowIdentity =
-        options.recovery.workflowIdentities[blueprint.flowName];
-      if (!workflowIdentity)
+      const loomIdentity = options.recovery.loomIdentities[blueprint.loomName];
+      if (!loomIdentity)
         throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE", {
-          message: "Workflow recovery identity is missing.",
+          message: "Loom recovery identity is missing.",
         });
       entry.recovery = {
         store: options.recovery.store,
-        workflowIdentity,
+        loomIdentity,
         phase: "stage_pending",
       };
       saveCheckpoint(entry, "stage_pending");
@@ -116,7 +113,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     const requestLog = getLogger();
     if (requestLog !== silentLogger && requestLog !== options.logger)
       requestLog.debug("run_requested", { runId: entry.state.id });
-    entry.logger.info("run_started", { flowName: blueprint.flowName });
+    entry.logger.info("run_started", { loomName: blueprint.loomName });
     const stable = waitForStable ? waitUntilStable(entry) : undefined;
     const accepted = toRunView(entry.state);
     launchRunLoop(entry, options);
@@ -169,11 +166,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     async failAgentCall(request) {
       return agentCalls.failAgentCall(requireRun(request.runId), request);
     },
-    async startFlow(blueprint, intent, source = "cli") {
-      return (await admitRun(blueprint, intent, source, false)).accepted;
+    async startRun(blueprint, input, source = "cli") {
+      return (await admitRun(blueprint, input, source, false)).accepted;
     },
-    async flow(blueprint, intent, source = "cli") {
-      const result = await admitRun(blueprint, intent, source, true);
+    async run(blueprint, input, source = "cli") {
+      const result = await admitRun(blueprint, input, source, true);
       if (!result.stable) throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE");
       return result.stable;
     },
@@ -234,11 +231,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           if (
             request.abandonMirror &&
             (control.pauseReason !== "mirror_capture_failed" ||
-              request.scope !== "workflow")
+              request.scope !== "loom")
           )
             throw KERNEL_ERRORS.create("INVALID_REQUEST", {
               message:
-                "Explicit abandonment requires mirror_capture_failed and an explicit workflow scope; step/stage scope boundary guarantees remain enforced.",
+                "Explicit abandonment requires mirror_capture_failed and an explicit loom scope; step/stage scope boundary guarantees remain enforced.",
             });
           const boundary =
             control.capturePending?.boundary.kind ?? control.boundary?.kind;
@@ -307,7 +304,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             ...(kind === "stage"
               ? {
                   stageVisitId:
-                    boundary === "workflow_start"
+                    boundary === "loom_start"
                       ? control.stageVisitId + 1
                       : control.stageVisitId,
                 }
@@ -336,11 +333,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     async getRun(runId) {
       return toRunView(requireRun(runId).state);
     },
-    async listRuns(flowName) {
+    async listRuns(loomName) {
       return Array.from(runs.values())
         .filter(
           (entry) =>
-            flowName === undefined || entry.state.flowName === flowName,
+            loomName === undefined || entry.state.loomName === loomName,
         )
         .map((entry) => toRunView(entry.state));
     },

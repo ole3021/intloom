@@ -4,35 +4,35 @@ title: 理解 Intent 结果
 
 # 理解 Intent 结果
 
-结合 Run 的真实提交引用阅读保存对象。
+## 四个 Record，三个 Artifact
 
-| 对象 | 应查看的内容 |
+**Record** 保存某次 Run 中一个阶段的不可变事实。**Artifact** 保存当前快照或累计视图。Stage State 是临时工作状态，不能作为正式交接。
+
+| 结果 | 含义 |
 | --- | --- |
-| Specification Artifact | 已确认需求、目标和验收条件 |
-| Specification Record | 变更、反馈及真实问题和确认历史 |
-| Solution Artifact | 已确认设计、决策、风险和场景 |
-| Solution Record | 设计变更、反馈和约定检查 |
-| Implementation Record | 实际变更文件、来源、哈希和命令证据 |
-| Validation Artifact | 目标评估、发现、证据及计算统计 |
+| Specification Record | 完整需求、本轮工作、Coverage、roundCriteria、变化和真实确认 |
+| Specification Artifact | 最新正式需求，不证明已实现 |
+| Solution Record | 固定需求引用、完整设计、实施与验证计划、目标定义和确认 |
+| Solution Artifact | 最新意图设计，不代表所有代码现状 |
+| Implementation Record | 实际变化、操作来源、候选 manifest、验证回执及完整/部分交付 |
+| Validation Record | 固定上游链、候选、完整目标判断、问题、证据和取证决定 |
+| Validation Artifact | 有序 Record 索引、最新轮次、按定义版本区分的目标结果及历史问题更新 |
 
-```sh
-intloom artifacts --flow intent
-intloom records --flow intent
-intloom artifact --flow intent --stage validation
-```
+不设置 Implementation Artifact，也不设置脱离版本的全项目通过标记。文件摘要用于识别候选，不是备份，也不能证明正在运行的服务使用了该候选。
 
-使用实际 ID 查看 Record 详情。它们是独立业务 ID，不应根据 Run ID 推测。
+## 验收结论
 
-## 理解完成
+每个目标为 `passed`、`failed` 或 `unverified`，Code 派生本轮汇总：
 
-`completed` 表示 Validation 报告已经提交，Workflow 到达终点。阅读哪些目标被检查、哪些通过、由什么证据支持，以及哪些检查不可用或未完成。
+- `failed`：至少一个目标失败。
+- `passed`：全部目标通过，空范围不能通过。
+- `partial`：部分目标通过，其余尚未验证。
+- `undone`：没有目标形成明确通过或失败判断。
 
-构建成功不能证明运行行为、模型质量、部署或发布。Agent 声明需要证据支持；Validation 统计由 Code 计算，不直接接受提案中的总数。
+Run 完成表示报告已保存。命令退出码只是待解释证据；部分交付和结束取证都不等于用户批准验收。
 
-后续 Run 可能替换当前 Artifacts。评估原 Run 时使用其 revision 识别结果。后续失败会保留之前成功提交的阶段结果和项目修改。
+## 跨 Run 累积
 
-参见[结果查询与导出](../usage/results.md)。
+未触及目标保留原候选与定义版本的历史结论。最新未知不回退到旧通过；定义变化产生独立索引。本轮专属条件只保存在 Record。
 
-接口、场景步骤等嵌套对象的变更归入所属模块或场景验收；引用嵌套对象不会绕过必查范围。
-
-Validation 报告记录本轮验收范围及选取原因。范围外的历史对象未在本轮重新验证；历史通过结果属于原 Run 和原版本，不能作为当前代码已通过的证据。
+历史问题仅通过明确更新变成 `present`、`resolved`、`no_longer_applicable`、`unverified` 或 `invalidated`。后续未知可以保留最后一次确定判断作为历史，但不宣称它验证了新候选。遗漏不等于关闭问题。

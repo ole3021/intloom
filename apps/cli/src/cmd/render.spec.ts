@@ -78,17 +78,17 @@ test("admission status remains visible with or without a Run snapshot", () => {
   }
 });
 
-test("Workflow and Run lists expose empty states and loading diagnostics", () => {
+test("Loom and Run lists expose empty states and loading diagnostics", () => {
   assert.match(
-    formatResult(success([]), { command: "flows" }),
-    /No Workflows loaded/u,
+    formatResult(success([]), { command: "looms" }),
+    /No Looms loaded/u,
   );
   assert.match(formatResult(success([]), { command: "runs" }), /No Runs/u);
   const text = formatResult(
     success([
       {
         packageName: "good",
-        flowName: "ready",
+        loomName: "ready",
         isAvailable: true,
         readiness: { status: "available" },
       },
@@ -97,16 +97,16 @@ test("Workflow and Run lists expose empty states and loading diagnostics", () =>
         isAvailable: false,
         phase: "load",
         error: {
-          code: "WORKFLOW_LOAD_FAILED",
+          code: "LOOM_LOAD_FAILED",
           message: "Cannot load package.",
         },
       },
     ]),
-    { command: "flows" },
+    { command: "looms" },
   );
-  assert.match(text, /WORKFLOW\s+READINESS\s+PACKAGE/u);
+  assert.match(text, /LOOM\s+READINESS\s+PACKAGE/u);
   assert.match(text, /ready\s+available\s+good/u);
-  assert.match(text, /broken: WORKFLOW_LOAD_FAILED — Cannot load package/u);
+  assert.match(text, /broken: LOOM_LOAD_FAILED — Cannot load package/u);
 });
 
 test("data text preserves nested arrays, multiline text, zero, false and null without mutating the result", () => {
@@ -177,4 +177,30 @@ test("read and follow logs use the same readable lines", () => {
   assert.match(text, /INFO\s+model step completed/u);
   assert.match(text, /in=0.*out=12/u);
   assert.doesNotMatch(text, /"event"|"level"/u);
+});
+
+test("build output includes located compiler warnings", () => {
+  const text = formatResult(
+    success({
+      packageName: "example",
+      packageVersion: "1.0.0",
+      loomName: "example",
+      packageRoot: "/source",
+      outputPath: "/source/dist",
+      diagnostics: [
+        {
+          severity: "warning",
+          code: "UNREACHABLE_STEP",
+          message: "Step unused is unreachable",
+          location: { file: "/source/stage.yaml", line: 8, column: 3 },
+        },
+      ],
+    }),
+    { command: "build" },
+  );
+  assert.match(text, /Built example@1.0.0/);
+  assert.match(
+    text,
+    /Warning UNREACHABLE_STEP: \/source\/stage.yaml:8:3: Step unused is unreachable/,
+  );
 });

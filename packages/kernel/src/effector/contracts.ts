@@ -10,7 +10,6 @@ import type {
 export interface Effector {
   executeCode(
     code: ExecutableCode,
-    input: ReadonlyJsonValue,
     access: CodeExecutionAccess<JsonValue>,
   ): Promise<StepResult>;
 

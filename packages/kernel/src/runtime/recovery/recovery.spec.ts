@@ -24,7 +24,7 @@ function fixture(t: TestContext) {
   const recovery = () => ({
     store: openRunCheckpointStore(directory),
     blueprints: { fixture: f.blueprint },
-    workflowIdentities: { fixture: "fixture-version-one" },
+    loomIdentities: { fixture: "fixture-version-one" },
   });
   function runtime() {
     const runtime = createRuntime({ ...f.options, recovery: recovery() });
@@ -51,7 +51,7 @@ test("reopens the same question and uses explicit recovery without repeating Cod
   const f = fixture(t);
   let originalCalls = 0;
   let recoveryCalls = 0;
-  const code: ExecutableCode = async (_input, access) => {
+  const code: ExecutableCode = async (access) => {
     originalCalls++;
     await access.state.update({ intent: "persisted draft", value: 7 });
     await access.interaction.confirm("Save the draft?");
@@ -59,6 +59,15 @@ test("reopens the same question and uses explicit recovery without repeating Cod
   };
   code.recover = async (saved, access) => {
     recoveryCalls++;
+    assert.equal(saved.kind, "user_ask_confirmation");
+    assert.deepEqual(saved.request, { context: "Save the draft?" });
+    assert.equal(typeof saved.actionId, "string");
+    assert.deepEqual(Object.keys(saved).sort(), [
+      "actionId",
+      "answer",
+      "kind",
+      "request",
+    ]);
     assert.deepEqual(saved.answer, { isConfirmed: true });
     assert.deepEqual(access.state.value, {
       intent: "persisted draft",
@@ -68,7 +77,7 @@ test("reopens the same question and uses explicit recovery without repeating Cod
   };
   f.codes.start = code;
   const first = f.runtime();
-  const waiting = await first.flow(f.blueprint, "original");
+  const waiting = await first.run(f.blueprint, { prompt: "original" });
   assert.ok(waiting.pendingAction);
   const persisted = openRunCheckpointStore(f.directory).read()[0];
   assert.ok(persisted);
@@ -113,7 +122,7 @@ test("reopens the same question and uses explicit recovery without repeating Cod
 
 test("accepted answer survives failure before its handler starts", async (t) => {
   const f = fixture(t);
-  const code: ExecutableCode = async (_input, access) => {
+  const code: ExecutableCode = async (access) => {
     await access.interaction.confirm("Accept?");
     throw new Error("Original answer handler must not run.");
   };
@@ -134,7 +143,7 @@ test("accepted answer survives failure before its handler starts", async (t) => 
     write(input);
   };
   const first = createRuntime({ ...f.options, recovery });
-  const waiting = await first.flow(f.blueprint, "answer");
+  const waiting = await first.run(f.blueprint, { prompt: "answer" });
   assert.ok(waiting.pendingAction);
   interrupt = true;
   await assert.rejects(
@@ -173,7 +182,7 @@ test("a persisted Step result advances routing without repeating its effect", as
     write(input);
   };
   const first = createRuntime({ ...f.options, recovery });
-  const failed = await first.flow(f.blueprint, "effect");
+  const failed = await first.run(f.blueprint, { prompt: "effect" });
   assert.equal(failed.lastError?.code, "RUN_CHECKPOINT_FAILED");
   assert.equal(
     openRunCheckpointStore(f.directory).read()[0]?.phase,
@@ -195,7 +204,7 @@ test("in-flight effects are not replayed and their diagnostic checkpoint is reta
     return { outcome: "complete" };
   };
   const first = f.runtime();
-  const pending = first.flow(f.blueprint, "uncertain");
+  const pending = first.run(f.blueprint, { prompt: "uncertain" });
   while (!effects) await setImmediate();
   const [running] = await first.listRuns();
   assert.ok(running);
@@ -219,14 +228,14 @@ test("in-flight effects are not replayed and their diagnostic checkpoint is reta
 
 test("disk changes do not replace live memory and explicit deletion opts out of recovery", async (t) => {
   const f = fixture(t);
-  const code: ExecutableCode = async (_input, access) => {
+  const code: ExecutableCode = async (access) => {
     await access.interaction.confirm("Original question");
     return { outcome: "complete" };
   };
   code.recover = () => ({ outcome: "complete" });
   f.codes.start = code;
   const first = f.runtime();
-  const waiting = await first.flow(f.blueprint, "original intent");
+  const waiting = await first.run(f.blueprint, { prompt: "original intent" });
   const savedName = readdirSync(f.directory).find((file) =>
     file.endsWith(".json"),
   );
@@ -247,15 +256,15 @@ test("disk changes do not replace live memory and explicit deletion opts out of 
 
 test("Workflow mismatch and corrupted snapshots fail restoration without executing or deleting evidence", async (t) => {
   const f = fixture(t);
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("Wait");
     return { outcome: "complete" };
   };
   const first = f.runtime();
-  await first.flow(f.blueprint, "version");
+  await first.run(f.blueprint, { prompt: "version" });
   await first.suspend();
   const recovery = f.recovery();
-  recovery.workflowIdentities.fixture = "changed";
+  recovery.loomIdentities.fixture = "changed";
   await assert.rejects(createRuntime({ ...f.options, recovery }).restore(), {
     code: "KERNEL_UNAVAILABLE",
   });
@@ -279,7 +288,7 @@ test("Stage transforms validate original inputs on recovery without transforming
     }),
     initializeState: () => ({ intent: "transform", value: "4" }),
   });
-  const code: ExecutableCode = async (_input, access) => {
+  const code: ExecutableCode = async (access) => {
     await access.interaction.confirm("Transform");
     return { outcome: "complete" };
   };
@@ -289,7 +298,7 @@ test("Stage transforms validate original inputs on recovery without transforming
   };
   f.codes.start = code;
   const first = f.runtime();
-  const waiting = await first.flow(f.blueprint, "transform");
+  const waiting = await first.run(f.blueprint, { prompt: "transform" });
   assert.ok(waiting.pendingAction);
   await first.suspend();
   const second = f.runtime();
@@ -306,15 +315,15 @@ test("Stage transforms validate original inputs on recovery without transforming
 
 test("explicit cancellation is terminal while another Run's waiting checkpoint survives", async (t) => {
   const f = fixture(t);
-  const code: ExecutableCode = async (_input, access) => {
+  const code: ExecutableCode = async (access) => {
     await access.interaction.confirm("Wait");
     return { outcome: "complete" };
   };
   code.recover = () => ({ outcome: "complete" });
   f.codes.start = code;
   const first = f.runtime();
-  const cancelled = await first.flow(f.blueprint, "cancel");
-  const retained = await first.flow(f.blueprint, "retain");
+  const cancelled = await first.run(f.blueprint, { prompt: "cancel" });
+  const retained = await first.run(f.blueprint, { prompt: "retain" });
   await first.cancelRun(cancelled.runId);
   await first.suspend();
   const second = f.runtime();
@@ -325,7 +334,7 @@ test("explicit cancellation is terminal while another Run's waiting checkpoint s
 
 test("a waiting checkpoint failure is surfaced before exposing the question", async (t) => {
   const f = fixture(t);
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("Must be durable");
     return { outcome: "complete" };
   };
@@ -337,7 +346,9 @@ test("a waiting checkpoint failure is surfaced before exposing the question", as
     write(input);
   };
   const runtime = createRuntime({ ...f.options, recovery });
-  const failed = await runtime.flow(f.blueprint, "checkpoint failure");
+  const failed = await runtime.run(f.blueprint, {
+    prompt: "checkpoint failure",
+  });
   assert.equal(failed.status, "failed");
   assert.equal(failed.lastError?.code, "RUN_CHECKPOINT_FAILED");
   assert.equal(failed.pendingAction, undefined);
@@ -347,7 +358,7 @@ test("cancellation revokes the original continuation even when its terminal chec
   const f = fixture(t);
   let signal: AbortSignal | undefined;
   let finished = false;
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     signal = access.signal;
     try {
       await access.interaction.confirm("Wait");
@@ -364,7 +375,7 @@ test("cancellation revokes the original continuation even when its terminal chec
     write(input);
   };
   const runtime = createRuntime({ ...f.options, recovery });
-  const waiting = await runtime.flow(f.blueprint, "cancel failure");
+  const waiting = await runtime.run(f.blueprint, { prompt: "cancel failure" });
   await assert.rejects(runtime.cancelRun(waiting.runId), {
     code: "RUN_CHECKPOINT_FAILED",
   });

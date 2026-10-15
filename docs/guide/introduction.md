@@ -22,6 +22,6 @@ A Workflow defines the process; a Run executes that process for one intent. Code
 
 The CLI supplies the project Service and user interfaces. Business Workflows are installed separately. `@intloom/workflow-intent` provides Specification → Solution → Implementation → Validation; these four stages belong to that package, rather than every IntLoom Workflow.
 
-Workflow authors use `@intloom/workflow-sdk` at runtime and `@intloom/compiler` at build time. The private Kernel ships inside the CLI.
+Workflow authors use `@intloom/loom-sdk` at runtime and `@intloom/compiler` at build time. The private Kernel ships inside the CLI.
 
 Continue with [why IntLoom exists](./about/why.md) or [choose a usage mode](./about/choose.md).

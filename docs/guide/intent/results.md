@@ -1,38 +1,38 @@
 ---
-title: Understand Intent results
+title: Read Intent results
 ---
 
-# Understand Intent results
+# Read Intent results
 
-Read the saved objects alongside the Run's actual commit references.
+## Four Records, three Artifacts
 
-| Object | What to inspect |
+A **Record** preserves immutable facts from a stage in one Run. An **Artifact** is a current snapshot or accumulated view. Stage State is temporary and is not a formal handoff.
+
+| Result | Interpretation |
 | --- | --- |
-| Specification Artifact | Confirmed requirements, targets and acceptance |
-| Specification Record | Changes, feedback and actual question/confirmation history |
-| Solution Artifact | Confirmed design, decisions, risks and scenarios |
-| Solution Record | Design changes, feedback and agreed checks |
-| Implementation Record | Actual changed files, origins/hashes and command evidence |
-| Validation Artifact | Target assessments, findings, evidence and computed statistics |
+| Specification Record | Full requirements, round work, coverage, round criteria, changes and actual confirmation |
+| Specification Artifact | Latest formally confirmed requirements; not proof of implementation |
+| Solution Record | Fixed requirement reference, full design, implementation and verification plans, target definitions and confirmation |
+| Solution Artifact | Latest intended design; not a description of all existing code |
+| Implementation Record | Actual changes, operation origins, candidate manifest, verification receipts and complete/partial handoff |
+| Validation Record | Fixed source chain, candidate, full target assessments, findings, evidence and collection decisions |
+| Validation Artifact | Ordered Record index, latest round, versioned target results and explicit historical finding updates |
 
-```sh
-intloom artifacts --flow intent
-intloom records --flow intent
-intloom artifact --flow intent --stage validation
-```
+There is no Implementation Artifact or versionless project-wide pass flag. File hashes identify a candidate; they are not a file backup or proof that a running service uses that candidate.
 
-Use actual IDs to inspect detailed Records. They are separate business IDs and should not be inferred from the Run ID.
+## Assessment outcomes
 
-## Interpret completion
+Each target is `passed`, `failed` or `unverified`. Code derives the round summary:
 
-`completed` means the Validation report was committed and the Workflow reached its end. Read which targets were checked, which passed, what evidence supports them, and which checks were unavailable or incomplete.
+- `failed`: at least one target failed.
+- `passed`: every target passed; an empty scope cannot pass.
+- `partial`: some targets passed and the rest remain unverified.
+- `undone`: no target has a conclusive pass/fail judgment.
 
-A successful build does not establish runtime behavior, model quality, a deployment, or publication. An Agent claim needs supporting evidence. Validation statistics are computed by Code rather than accepted as proposal totals.
+Run completion means the report was saved. A command exit code is evidence to interpret, not an automatic business verdict. Partial delivery and stopping collection do not approve acceptance.
 
-Later Runs may replace current Artifacts. Use revisions from the original Run to identify the result you are assessing. Failure after earlier stages preserves their successful commits and project changes.
+## Across Runs
 
-See [result queries and export](../usage/results.md).
+Untouched targets retain their historical candidate and definition. A new unverified result does not fall back to an older pass. Changed definitions have separate index entries. Round-only criteria remain in Records.
 
-Interface and scenario-step changes are assessed under their owning module or scenario; references to nested objects do not escape required coverage.
-
-Validation reports identify this Run’s scope and selection reasons. Unchanged historical targets outside that scope have not been revalidated. A previous passing result is tied to its original Run and source versions; it is not evidence for the current code.
+Historical findings change only through explicit updates: `present`, `resolved`, `no_longer_applicable`, `unverified` or `invalidated`. Later uncertainty preserves the last definite assessment as history without claiming it verifies the new candidate. Omission does not close findings.

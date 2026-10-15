@@ -2,7 +2,7 @@ import { jsonCopy } from "../mirror/contracts.ts";
 import { isDeepStrictEqual } from "node:util";
 import type { SavedStage } from "./recovery/store.ts";
 import { getLogger } from "@intloom/utils";
-import type { BlueprintStage } from "../workflow/blueprint.ts";
+import type { BlueprintStage } from "../loom/blueprint.ts";
 import type { JsonValue, ReadonlyJsonValue } from "../shared/json.ts";
 import type { StateAccess } from "../effector/state-access.ts";
 import { RUNTIME_ERRORS } from "../errors/runtime.ts";

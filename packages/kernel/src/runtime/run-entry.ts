@@ -1,4 +1,4 @@
-import type { Blueprint } from "../workflow/blueprint.ts";
+import type { Blueprint } from "../loom/blueprint.ts";
 import { silentLogger, type Logger } from "@intloom/utils";
 import type { PendingUserAction, RunView } from "./run-view.ts";
 import type { ReadonlyJsonValue } from "../shared/json.ts";

@@ -24,12 +24,12 @@ test("installs root-layout tarballs and loads Intent without repository sources 
 }, async (t) => {
   const temporary = await mkdtemp(resolve(tmpdir(), "intent-install-"));
   t.after(() => rm(temporary, { recursive: true, force: true }));
-  const project = resolve(temporary, "consumer/.intloom/workflows");
+  const project = resolve(temporary, "consumer/.intloom/looms");
   await mkdir(project, { recursive: true });
   const packages = await testArchives([
-    "@intloom/workflow-intent",
+    "@intloom/intent",
     "@intloom/cli",
-    "@intloom/workflow-sdk",
+    "@intloom/loom-sdk",
     "@intloom/utils",
   ]);
   await writeFile(
@@ -76,23 +76,23 @@ test("installs root-layout tarballs and loads Intent without repository sources 
         file.startsWith("migrations/storage-sqlite/") && file.endsWith(".sql"),
     ),
   );
-  const installed = resolve(project, "node_modules/@intloom/workflow-intent");
+  const installed = resolve(project, "node_modules/@intloom/intent");
   const manifest = JSON.parse(
     await readFile(resolve(installed, "package.json"), "utf8"),
   );
-  assert.equal(manifest.exports["."].default, "./workflow.generated.js");
+  assert.equal(manifest.exports["."].default, "./loom.generated.js");
   const utilsManifest = JSON.parse(
     await readFile(resolve(root, "../utils/package.json"), "utf8"),
   );
   assert.equal(manifest.dependencies["@intloom/utils"], utilsManifest.version);
-  assert.ok(manifest.dependencies["@intloom/workflow-sdk"]);
+  assert.ok(manifest.dependencies["@intloom/loom-sdk"]);
   assert.equal(manifest.dependencies["@intloom/kernel"], undefined);
   assert.equal(manifest.peerDependencies?.["@intloom/kernel"], undefined);
   for (const field of ["private", "scripts", "devDependencies"])
     assert.equal(Object.hasOwn(manifest, field), false);
   const files = await readdir(installed, { recursive: true });
   assert.equal(files.includes("dist"), false);
-  assert.equal(files.includes("workflow.yaml"), false);
+  assert.equal(files.includes("loom.yaml"), false);
   assert.equal(
     files.some((file) => /(?:\.spec\.|\.intg\.|^test\/|^build\/)/.test(file)),
     false,
@@ -101,7 +101,7 @@ test("installs root-layout tarballs and loads Intent without repository sources 
     files.some((file) => file.endsWith(".ts") && !file.endsWith(".d.ts")),
     false,
   );
-  assert.ok(files.includes("workflow.generated.d.ts"));
+  assert.ok(files.includes("loom.generated.d.ts"));
   const consumer = `
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -110,34 +110,34 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 const require = createRequire(import.meta.resolve("@intloom/cli"));
 const kernel = specifier => import(pathToFileURL(require.resolve(specifier)).href);
-const { discoverWorkflows, initializeWorkflows, loadWorkflow } = await kernel("@intloom/kernel/workflow");
+const { discoverLooms, initializeLooms, loadLoom } = await kernel("@intloom/kernel/loom");
 process.env.INTLOOM_PACKED_TEST_KEY = "fixture-credential";
 globalThis.fetch = async () => { throw new Error("Initialization must not call the model"); };
 const config = ${JSON.stringify(modelConfig(manifest.version))};
-const { sources, failures } = await discoverWorkflows(process.cwd(), config.workflows);
+const { sources, failures } = await discoverLooms(process.cwd(), config.looms);
 assert.deepEqual(failures, []);
 assert.equal(sources.length, 1);
 const source = sources[0];
 assert.equal(source.assetRoot, source.packageRoot);
-const workflow = await loadWorkflow(source);
-assert.equal(workflow.blueprint.flowName, "intent");
-const stage = workflow.blueprint.stages.specification;
-const seed = await stage.initializeState({ runId: "RUN-packed", flowName: "intent", stageName: "specification", intent: "  packed input  " });
+const loom = await loadLoom(source);
+assert.equal(loom.blueprint.loomName, "intent");
+const stage = loom.blueprint.stages.specification;
+const seed = await stage.initializeState({ runId: "RUN-packed", loomName: "intent", stageName: "specification", input: { prompt: "  packed input  " } });
 const state = stage.stateSchema.parse(seed);
 assert.equal(state.id, "RUN-packed");
-assert.deepEqual(state.changes, []);
-assert.equal(state.intent, "  packed input  ");
-assert.ok(Object.values(workflow.codes).every(code => typeof code === "function"));
-for (const agent of Object.values(workflow.agentSpecs)) {
+assert.deepEqual(state.edits, []);
+assert.equal(state.prompt, "  packed input  ");
+assert.ok(Object.values(loom.codes).every(code => typeof code === "function"));
+for (const agent of Object.values(loom.agentSpecs)) {
   assert.ok(agent.tools.length >= 2);
   for (const skill of agent.skills) for (const asset of skill.assets) assert.ok((await readFile(resolve(source.assetRoot, asset))).length);
 }
-const result = await initializeWorkflows({ projectRoot: resolve(process.cwd(), "../.."), config });
-assert.deepEqual(result.workflows, [{ packageName: "@intloom/workflow-intent", flowName: "intent", isAvailable: true }]);
-assert.deepEqual(Object.keys(result.registries.codes), Object.keys(workflow.codes));
-assert.deepEqual(Object.keys(result.registries.agents), Object.keys(workflow.agentSpecs));
+const result = await initializeLooms({ projectRoot: resolve(process.cwd(), "../.."), config });
+assert.deepEqual(result.looms, [{ packageName: "@intloom/intent", loomName: "intent", isAvailable: true }]);
+assert.deepEqual(Object.keys(result.registries.codes), Object.keys(loom.codes));
+assert.deepEqual(Object.keys(result.registries.agents), Object.keys(loom.agentSpecs));
 for (const agent of Object.values(result.registries.agents)) {
-  assert.equal(agent.spec.skills.length, agent.spec.name === "intent-analyst" ? 3 : 0);
+  assert.equal(agent.spec.skills.length, 1);
   assert.ok(agent.spec.tools.length >= 2);
 }
 const { openFileStorage } = await kernel("@intloom/kernel/storage/file");
@@ -147,13 +147,13 @@ for (const handle of [
   await openSqliteStorage({ filename: resolve(process.cwd(), "store.sqlite"), projectId: "packed" }),
 ]) {
   try {
-    await handle.access.commit([{ type: "append_record", id: "packed", payload: { flowName: "intent", stageName: "specification", data: "installed" } }]);
+    await handle.access.commit([{ type: "append_record", id: "packed", payload: { loomName: "intent", stageName: "specification", data: "installed" } }]);
     assert.equal((await handle.access.getRecordById("packed")).data, "installed");
   } finally { await handle.dispose(); }
 }
 await assert.rejects(import("@intloom/kernel"), { code: "ERR_MODULE_NOT_FOUND" });
 await assert.rejects(import("@intloom/compiler"), { code: "ERR_MODULE_NOT_FOUND" });
-console.log("PACKED_WORKFLOW_OK");
+console.log("PACKED_LOOM_OK");
 `;
   await writeFile(resolve(project, "consumer.mjs"), consumer);
   const { stdout } = await run(
@@ -161,19 +161,19 @@ console.log("PACKED_WORKFLOW_OK");
     [resolve(project, "consumer.mjs")],
     { cwd: project },
   );
-  assert.match(stdout, /PACKED_WORKFLOW_OK/);
+  assert.match(stdout, /PACKED_LOOM_OK/);
   // Consume installed declarations without source paths mappings.
   await writeFile(
     resolve(project, "consumer.ts"),
-    `import { blueprint, codes } from "@intloom/workflow-intent";
-import type { Blueprint, BlueprintStep, BlueprintStepExecution, CodeExecutionAccess, ExecutableCode, JsonValue, StageStateInitializer, StepResult, UserAnswerQuestions, WorkflowModule } from "@intloom/workflow-sdk";
+    `import { blueprint, codes } from "@intloom/intent";
+import type { Blueprint, BlueprintStep, BlueprintStepExecution, CodeExecutionAccess, ExecutableCode, JsonValue, StageStateInitializer, StepResult, UserAnswerQuestions, LoomModule } from "@intloom/loom-sdk";
 import type { ProjectHost } from "@intloom/cli";
 blueprint satisfies Blueprint;
 codes satisfies Readonly<Record<string, ExecutableCode>>;
 declare const access: CodeExecutionAccess<JsonValue>;
 declare const host: ProjectHost;
 host.execution.runtime satisfies object;
-const initializeState: StageStateInitializer = ({ runId, intent }) => ({ id: runId, intent });
+const initializeState: StageStateInitializer = ({ runId, input }) => ({ id: runId, prompt: input.prompt ?? "" });
 // @ts-expect-error Code access must provide interaction.
 const missingInteraction: CodeExecutionAccess<JsonValue> = { state: access.state, storage: access.storage };
 // @ts-expect-error Business data belongs in Stage State.
@@ -189,8 +189,8 @@ const answers: UserAnswerQuestions = [{ questionId: "Q1", isSkipped: false, answ
 const code = Object.values(codes)[0]!;
 // @ts-expect-error Code input must be JSON and access must provide State/Storage.
 code(() => null, {});
-declare const workflow: WorkflowModule;
-workflow.blueprint satisfies Blueprint;
+declare const loom: LoomModule;
+loom.blueprint satisfies Blueprint;
 `,
   );
   const repository = resolve(root, "../..");

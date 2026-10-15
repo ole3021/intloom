@@ -60,7 +60,7 @@
       "outputs": [],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/publication.ts"]
     },
-    "@intloom/workflow-intent#typecheck": {
+    "@intloom/intent#typecheck": {
       "dependsOn": ["^build", "build"],
       "outputs": []
     },
@@ -69,13 +69,8 @@
       "outputs": [],
       "cache": false
     },
-    "@intloom/workflow-intent#test:package": {
+    "@intloom/intent#test:package": {
       "dependsOn": ["pack", "^pack", "@intloom/cli#pack"],
-      "outputs": [],
-      "cache": false
-    },
-    "@intloom/cli#test:package": {
-      "dependsOn": ["pack", "^pack", "@intloom/workflow-intent#pack"],
       "outputs": [],
       "cache": false
     }

@@ -157,7 +157,7 @@ test("two Runs share an Agent but isolate contexts and answers across an explici
     effector: createEffector(),
     agents: { analyst: executable },
     codes: {
-      question: async (_input, access) => {
+      question: async (access) => {
         const state = stateSchema.parse(access.state.value);
         effects.push(state.intent);
         const answers = await access.interaction.askQuestions([
@@ -295,11 +295,11 @@ test("stop cancels a live model request without allowing its late result to repl
 test("ending one Code call revokes its signal but never cancels the following call", async () => {
   const f = runtimeFixture();
   let previous: AbortSignal | undefined;
-  f.codes.start = (_input, access) => {
+  f.codes.start = (access) => {
     previous = access.signal;
     return { outcome: "complete" };
   };
-  f.codes.review = (_input, access) => {
+  f.codes.review = (access) => {
     assert.equal(previous?.aborted, true);
     assert.equal(access.signal.aborted, false);
     assert.notEqual(access.signal, previous);

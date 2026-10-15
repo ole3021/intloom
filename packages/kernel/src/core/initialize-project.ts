@@ -1,6 +1,6 @@
 import { createMirrorCoordinator } from "../mirror/coordinator.ts";
 import {
-  protectedWorkflowPaths,
+  protectedLoomPaths,
   safePath,
   exists,
   readBytes,
@@ -13,8 +13,8 @@ import { getLogger, withLogger } from "@intloom/utils";
 import { createRuntime } from "../runtime/create-runtime.ts";
 import { checkProject } from "./check-project.ts";
 import { openRunCheckpointStore } from "../runtime/recovery/store.ts";
-import { workflowIdentity } from "../runtime/recovery/workflow-identity.ts";
-import { initializeWorkflows } from "../workflow/initialize-workflows.ts";
+import { loomIdentity } from "../runtime/recovery/loom-identity.ts";
+import { initializeLooms } from "../loom/initialize-looms.ts";
 import type {
   InitializeProjectOptions,
   ProjectExecution,
@@ -28,13 +28,13 @@ export async function initializeProject(
   const project = await checkProject(projectRoot);
   const logger = options.logger ?? getLogger();
   const initialization = await withLogger(logger, () =>
-    initializeWorkflows({
+    initializeLooms({
       projectRoot: project.projectRoot,
       config: project.config,
     }),
   ).catch((cause: unknown) => {
     throw KERNEL_ERRORS.wrap("KERNEL_UNAVAILABLE", cause, {
-      message: "Cannot initialize Workflows from the project dependencies.",
+      message: "Cannot initialize Looms from the project dependencies.",
     });
   });
 
@@ -78,7 +78,7 @@ export async function initializeProject(
     ? createMirrorCoordinator(project.projectRoot, mirror, {
         include: project.config.mirror?.files?.include ?? [],
         exclude: project.config.mirror?.files?.exclude ?? [],
-        protectedPaths: await protectedWorkflowPaths(
+        protectedPaths: await protectedLoomPaths(
           project.projectRoot,
           registries.sources,
         ),
@@ -96,7 +96,7 @@ export async function initializeProject(
         await Promise.all(
           Object.entries(registries.sources).map(async ([name, source]) => [
             name,
-            await workflowIdentity(source),
+            await loomIdentity(source),
           ]),
         ),
       )
@@ -132,7 +132,7 @@ export async function initializeProject(
           recovery: {
             store: checkpointStore as NonNullable<typeof checkpointStore>,
             blueprints: registries.blueprints,
-            workflowIdentities: identities,
+            loomIdentities: identities,
           },
         }
       : {}),
@@ -155,6 +155,6 @@ export async function initializeProject(
     executionStatus: preparation.status,
     registries,
     runtime,
-    workflows: Object.freeze(initialization.workflows),
+    looms: Object.freeze(initialization.looms),
   });
 }

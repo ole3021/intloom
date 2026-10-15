@@ -1,3 +1,4 @@
+import { loomInputsSchema } from "@intloom/loom-sdk";
 import {
   runMetricsSchema,
   runLimitsSchema,
@@ -6,7 +7,7 @@ import {
 } from "../runtime/run-observation.ts";
 import { controlSchema } from "../mirror/contracts.ts";
 import * as z from "zod";
-import type { RunView, WorkflowView } from "../index.ts";
+import type { RunView, LoomView } from "../index.ts";
 
 export const errorViewSchema = z.strictObject({
   code: z.string(),
@@ -37,7 +38,7 @@ export const runViewDataSchema = z.strictObject({
   control: controlSchema.optional(),
   runId: z.string().min(1),
   execution: executionSchema,
-  flowName: z.string().min(1),
+  loomName: z.string().min(1),
   cursor: cursorSchema,
   status: z.enum(["running", "waiting", "paused", "completed", "failed"]),
   pendingAgentCall: z
@@ -51,7 +52,7 @@ export const runViewDataSchema = z.strictObject({
   pendingAction: z
     .strictObject({
       id: z.string().min(1),
-      flowName: z.string().min(1),
+      loomName: z.string().min(1),
       cursor: cursorSchema,
       kind: z.enum(["user_ask_questions", "user_ask_confirmation"]),
       request: z.json(),
@@ -94,23 +95,24 @@ export const runViewSchema = runViewDataSchema.transform((value): RunView => {
     ...(lastError === undefined ? {} : { lastError }),
   };
 });
-export const workflowViewSchema: z.ZodType<WorkflowView> = z
+export const loomViewSchema: z.ZodType<LoomView> = z
   .discriminatedUnion("isAvailable", [
     z.strictObject({
       packageName: z.string(),
-      flowName: z.string(),
+      loomName: z.string(),
       isAvailable: z.literal(true),
+      inputs: loomInputsSchema,
       readiness: readinessSchema.optional(),
     }),
     z.strictObject({
       packageName: z.string(),
-      flowName: z.string().optional(),
+      loomName: z.string().optional(),
       isAvailable: z.literal(false),
       phase: z.enum(["discover", "load", "agent", "register"]),
       error: errorViewSchema,
     }),
   ])
-  .transform((value): WorkflowView => {
+  .transform((value): LoomView => {
     if (value.isAvailable) {
       const { readiness, ...required } = value;
       if (!readiness) return required;
@@ -120,8 +122,8 @@ export const workflowViewSchema: z.ZodType<WorkflowView> = z
         readiness: { ...policy, ...(error === undefined ? {} : { error }) },
       };
     }
-    const { flowName, ...required } = value;
-    return { ...required, ...(flowName === undefined ? {} : { flowName }) };
+    const { loomName, ...required } = value;
+    return { ...required, ...(loomName === undefined ? {} : { loomName }) };
   });
 
 export const serviceInfoSchema = z.strictObject({
@@ -152,8 +154,8 @@ export const serviceStatusSchema = serviceInfoSchema.extend({
     })
     .optional(),
   logError: errorViewSchema.optional(),
-  workflowCount: z.number().int().nonnegative(),
-  availableWorkflowCount: z.number().int().nonnegative(),
+  loomCount: z.number().int().nonnegative(),
+  availableLoomCount: z.number().int().nonnegative(),
   runningRuns: z.number().int().nonnegative(),
   waitingRuns: z.number().int().nonnegative(),
   pausedRuns: z.number().int().nonnegative().optional(),

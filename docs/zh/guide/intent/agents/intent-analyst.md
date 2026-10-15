@@ -1,23 +1,13 @@
 ---
-title: Intent Analyst：需求分析
+title: 需求分析师
 ---
 
-# Intent Analyst：需求分析
+# 需求分析师
 
-`intent-analyst` 是 Specification 阶段的 Agent，使用 `reasoning` 模型角色或外部 MCP 任务执行环境。
+澄清功能意图，区分目标、事实、假设与未知。
 
-## 输入与职责
+角色由 Specification 的 `analyze / draft` Step 复用；`requirements-analysis` Skill 描述方法。Step 只绑定当前任务需要的工具能力。
 
-读取原始意图、当前 Specification 草稿、基线和反馈。按对象编辑本轮需求变更，检查一致性，并识别未解决问题。声明的三个 Skill 分别负责需求分析、澄清和审核。
+Agent 通过类型明确的 Tool 提交业务判断；Code 负责真实交互、确定性检查、ID 和正式发布。角色说明不包含存储结构或整套阶段状态机。
 
-## Tools 与输出
-
-`readSpecification` 读取上下文，`editSpecification` 校验并保存本次修改的对象，`submitSpecification` 提交新问题或结束分析。最终 Step 结果为 `clarification_required` 或 `ready`，之后由 Code 控制提问、检查与确认。
-
-编辑 Schema 不包含系统历史字段；工具维护累计变更，并拒绝基于过期草稿版本的修改。真实答案、跳过决策、确认和正式持久化由 Code 管理。
-
-## 如何与该角色协作
-
-提供具体目标、影响应用、场景和验收条件。在确认之前，通过反馈补齐或纠正需求。参见 [Specification 行为](../stages.md)和[人工交互](../interaction.md)。
-
-草稿版本标识由 Schema 校验；过期提交返回当前版本，不消耗业务提案次数。
+参见[阶段](../stages.md)和 [Loom 设计原则](../../development/design-principles.md)。

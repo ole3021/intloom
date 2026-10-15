@@ -50,7 +50,7 @@ test("module functions observe and restore the same Runtime without adding a Ker
   const f = fixture();
   t.after(() => cancelAllRuns(f.execution));
   let calls = 0;
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     calls++;
     await access.interaction.confirm("Continue?");
     return { outcome: "complete" };
@@ -177,7 +177,7 @@ test("module cancelRun cancels the same Run and leaves borrowed resource disposa
       disposals++;
     },
   });
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     assert.equal("dispose" in access.storage, false);
     await access.interaction.confirm("Continue?");
     return { outcome: "complete" };

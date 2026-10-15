@@ -4,7 +4,7 @@ import type {
   Blueprint,
   BlueprintStage,
   BlueprintStep,
-} from "../src/workflow/blueprint.ts";
+} from "../src/loom/blueprint.ts";
 import type { RuntimeErrorCode } from "../src/errors/runtime.ts";
 import { resolveCurrentExecution } from "../src/runtime/resolve-current-execution.ts";
 import type { RunState } from "../src/runtime/run-state.ts";
@@ -42,7 +42,7 @@ export function routingFixture() {
       complete: { kind: "stage", stageName: "second" },
       end: { kind: "stage", stageName: "second" },
       reenter: { kind: "stage", stageName: "first" },
-      finish: { kind: "workflow_end" },
+      finish: { kind: "loom_end" },
     },
   };
   const launch: BlueprintStep = {
@@ -55,18 +55,19 @@ export function routingFixture() {
     stageName: "second",
     entryStepName: "launch",
     steps: { unused: { ...launch, stepName: "unused" }, launch },
-    on: { done: { kind: "workflow_end" } },
+    on: { done: { kind: "loom_end" } },
   };
   const blueprint: Blueprint = {
-    flowName: "flow",
+    loomName: "flow",
+    inputs: ["prompt"],
     entryStageName: "first",
     stages: { second, first },
   };
   const run: RunState = {
     id: "RUN-1",
     execution: { source: "cli", agentExecutor: "service" },
-    flowName: blueprint.flowName,
-    intent: "original text",
+    loomName: blueprint.loomName,
+    input: { prompt: "original text" },
     cursor: {
       stageName: blueprint.entryStageName,
       stepName: first.entryStepName,

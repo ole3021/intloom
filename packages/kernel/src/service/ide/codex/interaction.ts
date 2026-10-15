@@ -7,7 +7,7 @@ export const codexAdapter: IdeAdapter = Object.freeze({
     const form = actionForm(action);
     return {
       ...form,
-      message: `IntLoom · ${action.flowName}\n\n${form.message}`,
+      message: `IntLoom · ${action.loomName}\n\n${form.message}`,
     };
   },
 });

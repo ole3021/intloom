@@ -26,6 +26,6 @@ JSON operations, snapshot SSE and MCP are Service adapters over shared project o
 
 ## Public development boundary
 
-Use `@intloom/workflow-sdk` to author Workflows and `@intloom/compiler` to build them. Kernel internals are private and are not a separately installed public dependency.
+Use `@intloom/loom-sdk` to author Workflows and `@intloom/compiler` to build them. Kernel internals are private and are not a separately installed public dependency.
 
 See [execution resources](./execution.md), [lifecycle](./lifecycle.md), and [ProjectClient](../reference/project-client.md).

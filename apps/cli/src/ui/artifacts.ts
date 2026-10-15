@@ -15,9 +15,9 @@ export function artifactListCommand(
 ) {
   return [
     "intloom artifacts",
-    ...(query.flowName === undefined
+    ...(query.loomName === undefined
       ? []
-      : [`--flow ${argument(query.flowName)}`]),
+      : [`--loom ${argument(query.loomName)}`]),
     ...(query.stageName === undefined
       ? []
       : [`--stage ${argument(query.stageName)}`]),
@@ -41,7 +41,7 @@ export function renderArtifacts(
   return [
     "Current committed artifacts at query time",
     ...page.data.flatMap((artifact) => [
-      `${artifact.id} · ${artifact.flowName} / ${artifact.stageName} · revision ${artifact.revision}`,
+      `${artifact.id} · ${artifact.loomName} / ${artifact.stageName} · revision ${artifact.revision}`,
       `Updated ${artifact.updatedAt}`,
       `View ${artifactCommand(artifact.id, projectRoot)}`,
     ]),
@@ -59,7 +59,7 @@ export function renderArtifact(
 ) {
   if (artifact === null) return "Committed Artifact not found.";
   return [
-    `${artifact.id} · ${artifact.flowName} / ${artifact.stageName} · revision ${artifact.revision}`,
+    `${artifact.id} · ${artifact.loomName} / ${artifact.stageName} · revision ${artifact.revision}`,
     `Created ${artifact.createdAt}\nUpdated ${artifact.updatedAt}`,
     JSON.stringify(artifact.data, null, 2),
     `Export ${artifactCommand(artifact.id, projectRoot)} --output ./artifact.json`,

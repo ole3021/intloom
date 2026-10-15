@@ -1,0 +1,94 @@
+stage:
+  name: solution
+  state:
+    schema: ./schema/state.ts
+    initialize: ../../src/initialize.ts
+  entry: prepare
+  steps:
+    prepare:
+      type: code
+      code: ./codes/prepare.ts
+      on:
+        ready:
+          target: analyze
+        complete:
+          end: true
+    analyze:
+      type: agent
+      agent: ./agents/solution-designer.md
+      llm: thinking
+      outputSchema: ./schema/result.ts
+      skills:
+        - ./skills/solution-design/SKILL.md
+      tools:
+        - ./tools/index.ts#readSolutionContext
+        - ../../src/tools/project.ts#listProject
+        - ../../src/tools/project.ts#readProject
+        - ../../src/tools/project.ts#readEvidence
+        - ../../src/tools/project.ts#readHistory
+        - ../../src/tools/questions.ts#requestClarification
+        - ./tools/index.ts#submitSolutionAnalysis
+      on:
+        ready:
+          target: check_analysis
+        needs_input:
+          target: resolve
+    check_analysis:
+      type: code
+      code: ./codes/check_analysis.ts
+      on:
+        ready:
+          target: design
+        analyze:
+          target: analyze
+    design:
+      type: agent
+      agent: ./agents/solution-designer.md
+      llm: thinking
+      outputSchema: ./schema/result.ts
+      skills:
+        - ./skills/solution-design/SKILL.md
+      tools:
+        - ./tools/index.ts#readSolutionContext
+        - ../../src/tools/project.ts#listProject
+        - ../../src/tools/project.ts#readProject
+        - ../../src/tools/project.ts#readEvidence
+        - ../../src/tools/project.ts#readHistory
+        - ../../src/tools/questions.ts#requestClarification
+        - ./tools/index.ts#editSolution
+        - ./tools/index.ts#submitSolution
+      on:
+        ready:
+          target: check
+        needs_input:
+          target: resolve
+    check:
+      type: code
+      code: ./codes/check.ts
+      on:
+        ready:
+          target: confirm
+        design:
+          target: design
+        analyze:
+          target: analyze
+    confirm:
+      type: code
+      code: ./codes/confirm.ts
+      on:
+        confirmed:
+          target: commit
+        feedback:
+          target: design
+    resolve:
+      type: code
+      code: ./codes/resolve.ts
+      on:
+        ready:
+          target: analyze
+    commit:
+      type: code
+      code: ./codes/commit.ts
+      on:
+        complete:
+          end: true

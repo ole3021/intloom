@@ -12,23 +12,24 @@ title: 人工交互与可恢复等待
 
 ```ts
 import {
-  userAnswerConfirmationSchema,
   type ExecutableCode,
   type UserAnswerConfirmation,
-} from "@intloom/workflow-sdk";
+} from "@intloom/loom-sdk";
 
 const finish = (answer: UserAnswerConfirmation) => ({
   outcome: answer.isConfirmed ? "confirmed" : "feedback",
 });
 
-const confirm: ExecutableCode = async (_input, access) => {
+const confirm: ExecutableCode = async (access) => {
   access.signal.throwIfAborted();
   return finish(await access.interaction.confirm("Review the current draft."));
 };
 
 confirm.recover = (saved, access) => {
   access.signal.throwIfAborted();
-  return finish(userAnswerConfirmationSchema.parse(saved.answer));
+  if (saved.kind !== "user_ask_confirmation")
+    throw new Error("Expected a confirmation reply.");
+  return finish(saved.answer);
 };
 
 export default confirm;
@@ -43,3 +44,5 @@ export default confirm;
 没有恢复入口的 Code 仍可执行，但不支持的重启等待会进入 `RUN_INTERRUPTED`。过期回答保留等待，不影响后续调用。
 
 参见[交互契约](../reference/sdk.md)和[操作恢复](../usage/recovery.md)。
+
+`CodeRecovery` 包含 `actionId`、`kind`、`request`、`answer`。按 `kind` 收窄后即可访问对应的请求和回答类型。宿主检查结构和操作归属，Loom 检查请求是否仍对应当前业务版本。

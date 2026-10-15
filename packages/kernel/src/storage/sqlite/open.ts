@@ -79,9 +79,9 @@ export async function openSqliteStorage(
         return toPage(rows.map(readRecord), query);
       });
     const access: StorageAccess = Object.freeze<StorageAccess>({
-      getArtifact: (flowName, stageName) =>
+      getArtifact: (loomName, stageName) =>
         lifecycle.run(() => {
-          parseInput(nameSchema, flowName);
+          parseInput(nameSchema, loomName);
           parseInput(nameSchema, stageName);
           const row = db
             .select()
@@ -89,7 +89,7 @@ export async function openSqliteStorage(
             .where(
               and(
                 eq(artifacts.projectId, projectId),
-                eq(artifacts.flowName, flowName),
+                eq(artifacts.loomName, loomName),
                 eq(artifacts.stageName, stageName),
               ),
             )
@@ -105,11 +105,11 @@ export async function openSqliteStorage(
             .get();
           return row ? readArtifact(row) : undefined;
         }),
-      getLatestRecord: (flowName, stageName) =>
+      getLatestRecord: (loomName, stageName) =>
         lifecycle.run(() => {
-          parseInput(nameSchema, flowName);
+          parseInput(nameSchema, loomName);
           parseInput(nameSchema, stageName);
-          return listRecords({ flowName, stageName, limit: 1 }).then(
+          return listRecords({ loomName, stageName, limit: 1 }).then(
             (page) => page.data[0],
           );
         }),

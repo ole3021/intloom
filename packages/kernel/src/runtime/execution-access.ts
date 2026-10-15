@@ -1,6 +1,6 @@
 import { recordRunCommit, sampleRunObservation } from "./run-observation.ts";
 import { bindProjectAccess } from "../project/access.ts";
-import type { ProjectAccess } from "@intloom/workflow-sdk";
+import type { ProjectAccess } from "@intloom/loom-sdk";
 import type { JsonValue } from "../shared/json.ts";
 import type {
   AgentExecutionAccess,
@@ -89,11 +89,11 @@ function createStorageReadAccess(
   assertScope: () => void = () => {},
 ): StorageReadAccess {
   return Object.freeze({
-    getArtifact: (flow, stage) =>
+    getArtifact: (loom, stage) =>
       storageOperation(
         entry,
         call,
-        () => storage.getArtifact(flow, stage),
+        () => storage.getArtifact(loom, stage),
         false,
         assertScope,
       ),
@@ -105,11 +105,11 @@ function createStorageReadAccess(
         false,
         assertScope,
       ),
-    getLatestRecord: (flow, stage) =>
+    getLatestRecord: (loom, stage) =>
       storageOperation(
         entry,
         call,
-        () => storage.getLatestRecord(flow, stage),
+        () => storage.getLatestRecord(loom, stage),
         false,
         assertScope,
       ),

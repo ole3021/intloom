@@ -1,10 +1,10 @@
-import type { JsonValue } from "@intloom/workflow-sdk";
+import type { JsonValue } from "@intloom/loom-sdk";
 export type {
   CodeExecutionAccess,
   AgentExecutionAccess,
   ExecutableCode,
   StepResult,
-} from "@intloom/workflow-sdk";
+} from "@intloom/loom-sdk";
 
 /** Optional host policy; no business State, model content, or provider credentials are exposed. */
 export interface ServiceModelObserver {
@@ -20,7 +20,7 @@ export interface ServiceModelObserver {
 }
 
 export interface EffectorOptions {
-  /** Maximum model iterations per Agent call, independent of the Workflow Step count; defaults to 10. */
+  /** Maximum model iterations per Agent call, independent of the Loom Step count; defaults to 10. */
   readonly maxAgentSteps?: number;
   readonly serviceModelObserver?: ServiceModelObserver;
 }
@@ -30,7 +30,7 @@ export interface ExecutableAgent {
   readonly outputSchema: import("zod").ZodType<JsonValue>;
   execute(
     input: import("../shared/json.ts").ReadonlyJsonValue,
-    access: import("@intloom/workflow-sdk").AgentExecutionAccess<JsonValue>,
+    access: import("@intloom/loom-sdk").AgentExecutionAccess<JsonValue>,
     maxSteps: number,
     observer?: ServiceModelObserver,
   ): Promise<unknown>;

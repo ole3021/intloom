@@ -3,8 +3,8 @@ import { Agent } from "@mastra/core/agent";
 import { noopLogger } from "@mastra/core/logger";
 import { Mastra } from "@mastra/core/mastra";
 import type { Tool } from "@mastra/core/tools";
-import { fail, workflowError } from "../../workflow/errors.ts";
-import type { AgentSpec } from "../../workflow/module.ts";
+import { fail, loomError } from "../../loom/errors.ts";
+import type { AgentSpec } from "../../loom/module.ts";
 import type { CreateAgentOptions, InitializedAgent } from "./types.ts";
 import { resolveModelConfig, createModelOptions } from "./agent-model.ts";
 import { createAgentSkills } from "./agent-skills.ts";
@@ -26,10 +26,7 @@ export async function createAgent(
     const tools: Record<string, Tool> = Object.create(null);
     for (const tool of spec.tools) {
       if (Object.hasOwn(tools, tool.id))
-        fail(
-          "WORKFLOW_AGENT_FAILED",
-          `${label}: Duplicate Tool ID: ${tool.id}`,
-        );
+        fail("LOOM_AGENT_FAILED", `${label}: Duplicate Tool ID: ${tool.id}`);
       tools[tool.id] = serviceTool(tool);
     }
     const skills = createAgentSkills(
@@ -38,7 +35,7 @@ export async function createAgent(
       label,
     );
     const modelOptions = createModelOptions(config, apiKey, label);
-    // Pinned Mastra 1.67 uses its attached instance for internal stream Workflow logging.
+    // Pinned Mastra 1.67 uses its attached instance for internal stream Loom logging.
     // Match its private standalone context; ephemeral skips global scorer-hook retention.
     const mastra = new Mastra({ logger: false, __ephemeral: true });
     const agent = new Agent({
@@ -67,7 +64,7 @@ export async function createAgent(
           ),
       )
     ) {
-      fail("WORKFLOW_AGENT_FAILED", `${label}: Incomplete Skill assembly`);
+      fail("LOOM_AGENT_FAILED", `${label}: Incomplete Skill assembly`);
     }
     return {
       agentId: options.agentId,
@@ -83,9 +80,9 @@ export async function createAgent(
       },
     };
   } catch (cause) {
-    throw workflowError(
+    throw loomError(
       cause,
-      "WORKFLOW_AGENT_FAILED",
+      "LOOM_AGENT_FAILED",
       `Cannot assemble Agent: ${label}`,
     );
   }

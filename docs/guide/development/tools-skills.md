@@ -6,10 +6,10 @@ title: Author Tools and Skills
 
 ## Typed Tools
 
-Create a named export in `tools/draft.ts`:
+Create a named export in `stages/review/tools/draft.ts`:
 
 ```ts
-import { defineAgentTool } from "@intloom/workflow-sdk";
+import { defineAgentTool } from "@intloom/loom-sdk";
 import * as z from "zod";
 
 export const readDraft = defineAgentTool({
@@ -21,7 +21,7 @@ export const readDraft = defineAgentTool({
 });
 ```
 
-Reference it from Step YAML as `@tools/draft:readDraft` and include `tools/**/*.ts` in the build configuration.
+Reference it from Step YAML as `./tools/draft.ts#readDraft`; Compiler follows the reference automatically.
 
 Host input parsing occurs before `execute`; output parsing occurs after it. Tools receive State, read-only Storage, cancellation and optional Project access. They have no formal commit or human-interaction capability. Await writes and other asynchronous work before returning.
 
@@ -29,11 +29,11 @@ Project commands that cannot start return nonzero results: 126 for unavailable r
 
 For transforms, `execute` returns the output parser's input; `AgentTool<Input, Output, RawOutput>` describes that distinction. Advertise concrete transformed result shapes with an explicit output Schema.
 
-For a final draft submission, optionally define `endsAgent: (output) => output.saved`. The host evaluates it after validating the Tool's parsed JSON result. A `true` closes further Tools for that invocation; a `false` leaves a rejected draft correctable. The Agent still returns a valid final outcome, and Workflow Code still owns Check, confirmation and commit. Client receipt readback remains available after closure. Keep the predicate synchronous and free of side effects.
+For a final draft submission, optionally define `endsAgent: (output) => output.saved`. The host evaluates it after validating the Tool's parsed JSON result. A `true` closes further Tools for that invocation; a `false` leaves a rejected draft correctable. The Agent still returns a valid final outcome, and Loom Code still owns Check, confirmation and commit. Client receipt readback remains available after closure. Keep the predicate synchronous and free of side effects.
 
 ## Skills and assets
 
-Create `skills/review/SKILL.md`:
+Create `stages/review/skills/review/SKILL.md`:
 
 ```md
 ---
@@ -45,6 +45,6 @@ Read the draft and connect each conclusion to evidence.
 Use references/criteria.md when applying the review criteria.
 ```
 
-Add the actual `references/criteria.md` attachment and bind `@skills/review` in the Agent Step. Compiler packages referenced Skill assets; external clients read declared asset IDs, not arbitrary host paths.
+Add the actual `references/criteria.md` attachment and bind `./skills/review/SKILL.md` in the Agent Step. Compiler packages referenced Skill assets; external clients read declared asset IDs, not arbitrary host paths.
 
 A Skill describes a method; Tools provide callable operations. Neither creates an additional execution engine. See [YAML resources](../reference/workflow-yaml.md).

@@ -1,4 +1,4 @@
-import { cursorSchema } from "../workflow/schemas/cursor.ts";
+import { cursorSchema } from "../loom/schemas/cursor.ts";
 import { RUNTIME_ERRORS } from "../errors/runtime.ts";
 import { pendingUserActionSchema } from "./schemas/pending-user-action.ts";
 import type { RunState } from "./run-state.ts";
@@ -44,12 +44,12 @@ export function assertRunState(run: Readonly<RunState>): void {
         invalid("A waiting Run must have one valid pending action.");
       }
       if (
-        action.flowName !== run.flowName ||
+        action.loomName !== run.loomName ||
         action.cursor.stageName !== run.cursor.stageName ||
         action.cursor.stepName !== run.cursor.stepName
       ) {
         invalid(
-          "The pending action must belong to the current Workflow and cursor.",
+          "The pending action must belong to the current Loom and cursor.",
         );
       }
       break;

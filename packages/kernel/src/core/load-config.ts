@@ -34,12 +34,12 @@ export async function loadConfig(projectRoot: string): Promise<LoomConfig> {
     const config = loomConfigSchema.parse(value);
     return {
       ...config,
-      workflows: config.workflows ?? [],
+      looms: config.looms ?? [],
       localStorage: config.localStorage ?? "file",
     };
   } catch (cause) {
     throw KERNEL_ERRORS.wrap("INVALID_REQUEST", cause, {
-      message: `Invalid project configuration: ${file}. Check intent.apps, useMcpAgent, localStorage, and any supplied llms.default configuration.`,
+      message: `Invalid project configuration: ${file}. Check looms, useMcpAgent, localStorage, and any supplied llms.default configuration.`,
     });
   }
 }

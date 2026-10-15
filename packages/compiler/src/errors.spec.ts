@@ -6,7 +6,7 @@ import type { SourceLocation } from "./source/types.ts";
 
 for (const [label, location, prefix] of [
   ["no location", undefined, ""],
-  ["file only", { file: "workflow.yaml" }, "workflow.yaml: "],
+  ["file only", { file: "loom.yaml" }, "loom.yaml: "],
   [
     "line and column",
     { file: "stage.yaml", line: 4, column: 7 },
@@ -17,12 +17,23 @@ for (const [label, location, prefix] of [
   test(`fail preserves code, location and original cause: ${label}`, () => {
     const cause = new Error("original parser error");
     assert.throws(
-      () => fail("INVALID_WORKFLOW", "Invalid route", location, cause),
+      () => fail("INVALID_LOOM", "Invalid route", location, cause),
       (error) => {
         assert.ok(LoomError.is(error));
-        assert.equal(error.code, "INVALID_WORKFLOW");
+        assert.equal(error.code, "INVALID_LOOM");
         assert.equal(error.message, `${prefix}Invalid route`);
-        assert.deepEqual(error.cause, { location, cause });
+        assert.deepEqual(error.cause, {
+          location,
+          cause,
+          diagnostics: [
+            {
+              severity: "error",
+              code: "INVALID_LOOM",
+              message: "Invalid route",
+              ...(location ? { location } : {}),
+            },
+          ],
+        });
         assert.equal((error.cause as { cause: unknown }).cause, cause);
         return true;
       },

@@ -41,11 +41,11 @@ export function applyOperations(
           existing ||
           store.artifacts.some(
             (entry) =>
-              entry.flowName === operation.payload.flowName &&
+              entry.loomName === operation.payload.loomName &&
               entry.stageName === operation.payload.stageName,
           )
         )
-          conflict("Artifact ID or Workflow/Stage already exists.");
+          conflict("Artifact ID or Loom/Stage already exists.");
       } else {
         if (!existing) missing(operation.id);
         if (existing.revision !== operation.expectedRevision)
@@ -56,10 +56,10 @@ export function applyOperations(
           continue;
         }
         if (
-          existing.flowName !== operation.payload.flowName ||
+          existing.loomName !== operation.payload.loomName ||
           existing.stageName !== operation.payload.stageName
         )
-          conflict("Artifact Workflow/Stage cannot change.");
+          conflict("Artifact Loom/Stage cannot change.");
       }
       if (store.revision === Number.MAX_SAFE_INTEGER)
         throw KERNEL_ERRORS.create("STORAGE_ERROR", {

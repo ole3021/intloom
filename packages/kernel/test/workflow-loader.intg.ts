@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { test, type TestContext } from "node:test";
-import { discoverWorkflows, loadWorkflow } from "@intloom/kernel/workflow";
+import { discoverLooms, loadLoom } from "@intloom/kernel/loom";
 import { getLogger, silentLogger, withLogger } from "@intloom/utils";
 
 async function fixture(
@@ -39,7 +39,7 @@ async function fixture(
       name: "@test/flow",
       version: "1.0.0",
       type: "module",
-      intloom: { type: "workflow", version: "2026-10-08" },
+      loom: { type: "loom", version: "2026-10-15" },
       exports: {
         ".": {
           types: local ? "./dist/flow.d.ts" : "./flow.d.ts",
@@ -54,14 +54,14 @@ async function fixture(
   await symlink(dirname(zodFile), resolve(root, "node_modules/zod"), "dir");
   const module = `
 import * as z from "zod";
-export const blueprint = { flowName: "fixture", entryStageName: "first", stages: {
+export const blueprint = { loomName: "fixture", inputs: ["prompt"], entryStageName: "first", stages: {
   first: { stageName: "first", initializeState: () => ({ value: "initial" }), stateSchema: z.object({ value: z.string() }), entryStepName: "run",
     steps: { run: { stepName: "run", execution: { kind: "code", codeId: "CODE-abcdefghijklmnopqrstu" }, on: { complete: { kind: "stage_end" } } } },
-    on: { complete: { kind: "workflow_end" } } }
+    on: { complete: { kind: "loom_end" } } }
 } };
 export const codes = { "CODE-abcdefghijklmnopqrstu": () => { throw new Error("loader must not invoke Code"); } };
 export const agentSpecs = { "AGENT-abcdefghijklmnopqrstu": {
-  name: "review", description: "", instructions: "review", llm: "reasoning", outputSchema: z.object({ outcome: z.string() }),
+  name: "review", description: "", instructions: "review", llm: "thinking", outputSchema: z.object({ outcome: z.string() }),
   skills: [{ name: "review", description: "", content: "review", assets: ["skills/SKILL.md", ${JSON.stringify(asset)}] }], tools: [{
     id: "probe", description: "loader boundary probe", inputSchema: z.json(), outputSchema: z.json(),
     execute: function () { throw new Error("loader must not invoke Tool"); }
@@ -77,7 +77,7 @@ export const agentSpecs = { "AGENT-abcdefghijklmnopqrstu": {
   const {
     sources: [source],
     failures,
-  } = await discoverWorkflows(root);
+  } = await discoverLooms(root);
   assert.deepEqual(failures, []);
   assert.ok(source);
   return { source, assetRoot, packageRoot, root };
@@ -87,8 +87,8 @@ for (const local of [true, false]) {
   test(`loads ${local ? "local dist" : "published root"} through package exports`, async (t) => {
     const { source, assetRoot } = await fixture(t, local);
     assert.equal(source.assetRoot, assetRoot);
-    const workflow = await loadWorkflow(source);
-    assert.equal(workflow.blueprint.flowName, "fixture");
+    const workflow = await loadLoom(source);
+    assert.equal(workflow.blueprint.loomName, "fixture");
     assert.equal(
       workflow.blueprint.stages.first?.stateSchema.safeParse({ value: "ok" })
         .success,
@@ -117,7 +117,7 @@ test("leaves Code and Tool functions unchanged when Workflow resolves the host U
     resolve(root, "node_modules/@intloom/utils"),
     "dir",
   );
-  const loaded = await loadWorkflow(source);
+  const loaded = await loadLoom(source);
   const original = await import(source.entryUrl);
   assert.equal(
     loaded.codes["CODE-abcdefghijklmnopqrstu"],
@@ -176,7 +176,7 @@ test("bridges a physically separate Workflow Utils logger only when Code, recove
         oldCode,
         `
 import { getLogger } from "@intloom/utils";
-const code = function (_input, access) {
+const code = function (access) {
   if (access.expectedThis !== undefined && this !== access.expectedThis) throw new Error("Code this changed");
   if (access.marker === "sync-throw") throw new Error("fixture synchronous failure");
   if (access.marker === "sync") {
@@ -221,14 +221,14 @@ export const codes = { "CODE-abcdefghijklmnopqrstu": code };`,
       });
     },
   });
-  const loaded = await withLogger(logger("load"), () => loadWorkflow(source));
+  const loaded = await withLogger(logger("load"), () => loadLoom(source));
   assert.deepEqual(rows, []);
   const code = loaded.codes["CODE-abcdefghijklmnopqrstu"];
   assert.ok(code?.recover);
   assert.equal(separate.getLogger(), separate.silentLogger);
   const [first, second] = await Promise.all([
-    withLogger(logger("A"), () => code(null, { marker: "first" } as never)),
-    withLogger(logger("B"), () => code(null, { marker: "second" } as never)),
+    withLogger(logger("A"), () => code({ marker: "first" } as never)),
+    withLogger(logger("B"), () => code({ marker: "second" } as never)),
   ]);
   assert.deepEqual(
     [first, second],
@@ -239,8 +239,10 @@ export const codes = { "CODE-abcdefghijklmnopqrstu": code };`,
     await withLogger(logger("R"), () =>
       recover(
         {
-          action: { id: "A", kind: "user_ask_confirmation", request: null },
-          answer: true,
+          actionId: "A",
+          kind: "user_ask_confirmation",
+          request: { context: "Continue?" },
+          answer: { isConfirmed: true },
         },
         { marker: "restore" } as never,
       ),
@@ -249,17 +251,17 @@ export const codes = { "CODE-abcdefghijklmnopqrstu": code };`,
   );
   await assert.rejects(
     async () =>
-      withLogger(logger("E"), () => code(null, { marker: "throw" } as never)),
+      withLogger(logger("E"), () => code({ marker: "throw" } as never)),
     /fixture Code failure/,
   );
   const synchronous = withLogger(logger("S"), () =>
-    code(null, { marker: "sync" } as never),
+    code({ marker: "sync" } as never),
   );
   assert.deepEqual(synchronous, { outcome: "complete" });
   const receiver = { name: "receiver" };
   assert.deepEqual(
     await withLogger(logger("T"), () =>
-      code.call(receiver, null, {
+      code.call(receiver, {
         marker: "receiver",
         expectedThis: receiver,
       } as never),
@@ -271,8 +273,10 @@ export const codes = { "CODE-abcdefghijklmnopqrstu": code };`,
       recover.call(
         receiver,
         {
-          action: { id: "A", kind: "user_ask_confirmation", request: null },
-          answer: false,
+          actionId: "A",
+          kind: "user_ask_confirmation",
+          request: { context: "Continue?" },
+          answer: { isConfirmed: false },
         },
         { marker: "recover-receiver", expectedThis: receiver } as never,
       ),
@@ -281,9 +285,7 @@ export const codes = { "CODE-abcdefghijklmnopqrstu": code };`,
   );
   assert.throws(
     () =>
-      withLogger(logger("X"), () =>
-        code(null, { marker: "sync-throw" } as never),
-      ),
+      withLogger(logger("X"), () => code({ marker: "sync-throw" } as never)),
     /fixture synchronous failure/,
   );
   const tool = loaded.agentSpecs["AGENT-abcdefghijklmnopqrstu"]?.tools[0];
@@ -349,7 +351,7 @@ export const codes = { "CODE-abcdefghijklmnopqrstu": code };`,
       owner: "R",
       event: "workflow_code_recovered",
       marker: "restore",
-      answer: true,
+      answer: { isConfirmed: true },
     },
     { owner: "E", event: "workflow_code_called", marker: "throw" },
     { owner: "S", event: "workflow_code_called", marker: "sync" },
@@ -358,7 +360,7 @@ export const codes = { "CODE-abcdefghijklmnopqrstu": code };`,
       owner: "U",
       event: "workflow_code_recovered",
       marker: "recover-receiver",
-      answer: false,
+      answer: { isConfirmed: false },
     },
     { owner: "TA", event: "workflow_tool_called", marker: "tool-first" },
     { owner: "TB", event: "workflow_tool_called", marker: "tool-second" },
@@ -385,8 +387,8 @@ test("rejects a resolved Workflow Utils without the logger context API", async (
     resolve(copyRoot, "index.js"),
     "export const getLogger = () => undefined;\n",
   );
-  await assert.rejects(loadWorkflow(source), {
-    code: "WORKFLOW_LOAD_FAILED",
+  await assert.rejects(loadLoom(source), {
+    code: "LOOM_LOAD_FAILED",
   });
 });
 
@@ -402,7 +404,7 @@ test("rejects an installed Workflow Utils with a missing entry target", async (t
       exports: { ".": "./missing.js" },
     }),
   );
-  await assert.rejects(loadWorkflow(source), { code: "WORKFLOW_LOAD_FAILED" });
+  await assert.rejects(loadLoom(source), { code: "LOOM_LOAD_FAILED" });
 });
 
 test("rejects malformed metadata for an installed Workflow Utils copy", async (t) => {
@@ -410,18 +412,18 @@ test("rejects malformed metadata for an installed Workflow Utils copy", async (t
   const copyRoot = resolve(root, "node_modules/@intloom/utils");
   await mkdir(copyRoot, { recursive: true });
   await writeFile(resolve(copyRoot, "package.json"), "{malformed");
-  await assert.rejects(loadWorkflow(source), { code: "WORKFLOW_LOAD_FAILED" });
+  await assert.rejects(loadLoom(source), { code: "LOOM_LOAD_FAILED" });
 });
 
 test("rejects missing attachments", async (t) => {
   const { source } = await fixture(t, false, "skills/missing.txt");
-  await assert.rejects(loadWorkflow(source), { code: "WORKFLOW_LOAD_FAILED" });
+  await assert.rejects(loadLoom(source), { code: "LOOM_LOAD_FAILED" });
 });
 
 test("rejects attachment traversal and symlink escape", async (t) => {
   const first = await fixture(t, false, "../outside.txt");
-  await assert.rejects(loadWorkflow(first.source), {
-    code: "INVALID_WORKFLOW",
+  await assert.rejects(loadLoom(first.source), {
+    code: "INVALID_LOOM",
   });
   const second = await fixture(t, true);
   await rm(resolve(second.assetRoot, "skills/attachment.txt"));
@@ -430,7 +432,7 @@ test("rejects attachment traversal and symlink escape", async (t) => {
     resolve(second.root, "outside.txt"),
     resolve(second.assetRoot, "skills/attachment.txt"),
   );
-  await assert.rejects(loadWorkflow(second.source), /escapes resource root/);
+  await assert.rejects(loadLoom(second.source), /escapes resource root/);
 });
 
 test("rejects broken module exports without reporting a loaded Workflow", async (t) => {
@@ -439,5 +441,5 @@ test("rejects broken module exports without reporting a loaded Workflow", async 
     resolve(assetRoot, "flow.js"),
     "export const blueprint = {};",
   );
-  await assert.rejects(loadWorkflow(source), { code: "INVALID_WORKFLOW" });
+  await assert.rejects(loadLoom(source), { code: "INVALID_LOOM" });
 });

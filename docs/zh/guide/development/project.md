@@ -7,9 +7,9 @@ title: 操作项目文件与命令
 宿主可以为 Code 或 Agent Tool 调用绑定可选 `ProjectAccess`。使用前检查是否可用。
 
 ```ts
-import type { ExecutableCode } from "@intloom/workflow-sdk";
+import type { ExecutableCode } from "@intloom/loom-sdk";
 
-const check: ExecutableCode = async (_input, access) => {
+const check: ExecutableCode = async (access) => {
   if (!access.project) throw new Error("Project access is required.");
   access.signal.throwIfAborted();
   const result = await access.project.run({

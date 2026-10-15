@@ -24,9 +24,9 @@ function fixture(t: TestContext) {
     JSON.parse(
       JSON.stringify({
         version: 1,
-        workflowIdentity: "one",
+        loomIdentity: "one",
         phase: "stage_pending",
-        run: createRun(runtimeFixture().blueprint, "intent"),
+        run: createRun(runtimeFixture().blueprint, { prompt: "intent" }),
       }),
     ),
   );
@@ -39,7 +39,10 @@ test("atomic replacement reopens a complete checkpoint with private file permiss
   const [filename] = readdirSync(f.directory);
   assert.ok(filename);
   assert.equal(statSync(join(f.directory, filename)).mode & 0o777, 0o600);
-  const updated = { ...f.saved, run: { ...f.saved.run, intent: "new intent" } };
+  const updated = {
+    ...f.saved,
+    run: { ...f.saved.run, input: { prompt: "new intent" } },
+  };
   f.store.write(updated);
   assert.deepEqual(openRunCheckpointStore(f.directory).read(), [updated]);
   assert.deepEqual(readdirSync(f.directory), [filename]);

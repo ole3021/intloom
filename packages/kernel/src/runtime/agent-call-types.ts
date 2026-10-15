@@ -1,5 +1,5 @@
 import type { JsonValue, ReadonlyJsonValue } from "../shared/json.ts";
-import type { Cursor } from "../workflow/blueprint.ts";
+import type { Cursor } from "./cursor.ts";
 import type { RunView } from "./run-view.ts";
 
 export interface PendingAgentCall {

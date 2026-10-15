@@ -1,6 +1,6 @@
 # @intloom/kernel
 
-`@intloom/kernel` is IntLoom's private execution layer. It loads compiled Workflow artifacts, creates an in-process Runtime, and coordinates Code, Agents, interaction, and formal Storage. It is shipped inside the CLI; application and Workflow authors should use the [`intloom` CLI](../../apps/cli/README.md) and [`@intloom/workflow-sdk`](../workflow-sdk/README.md), not install Kernel directly.
+`@intloom/kernel` is IntLoom's private execution layer. It loads compiled Workflow artifacts, creates an in-process Runtime, and coordinates Code, Agents, interaction, and formal Storage. It is shipped inside the CLI; application and Workflow authors should use the [`intloom` CLI](../../apps/cli/README.md) and [`@intloom/loom-sdk`](../loom-sdk/README.md), not install Kernel directly.
 
 ## Project Service
 
@@ -53,7 +53,7 @@ Project configuration lives in `intloom.yaml`; compiled Workflow packages are de
 
 | Concern | Owner |
 | --- | --- |
-| Workflow authoring contracts, State, Storage capability types, and Agent Tools | [`@intloom/workflow-sdk`](../workflow-sdk/README.md) |
+| Workflow authoring contracts, State, Storage capability types, and Agent Tools | [`@intloom/loom-sdk`](../loom-sdk/README.md) |
 | Workflow source compilation and generated ESM artifacts | [`@intloom/compiler`](../compiler/README.md) |
 | Project service, configuration, CLI, and MCP presentation | [`@intloom/cli`](../../apps/cli/README.md) |
 | Project initialization and coordination functions | [Core](./src/core/README.md) |

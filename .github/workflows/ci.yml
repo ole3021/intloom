@@ -40,7 +40,7 @@ jobs:
             apps/cli/.publish/
             apps/cli/.publish-intloom/
             packages/utils/dist/
-            packages/workflow-sdk/dist/
+            packages/loom-sdk/dist/
             packages/compiler/dist/
             packages/intent/dist/
             .release/*.tgz

@@ -25,8 +25,8 @@ export function queryConditions(
   query: PreparedQuery,
 ): SQL | undefined {
   const conditions = [eq(table.projectId, projectId)];
-  if (query.flowName !== undefined)
-    conditions.push(eq(table.flowName, query.flowName));
+  if (query.loomName !== undefined)
+    conditions.push(eq(table.loomName, query.loomName));
   if (query.stageName !== undefined)
     conditions.push(eq(table.stageName, query.stageName));
   if (query.ids !== undefined) conditions.push(inArray(table.id, query.ids));

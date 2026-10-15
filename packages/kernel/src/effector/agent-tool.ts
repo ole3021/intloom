@@ -3,7 +3,7 @@ import type {
   AgentTool,
   AgentExecutionAccess,
   JsonValue,
-} from "@intloom/workflow-sdk";
+} from "@intloom/loom-sdk";
 import { KERNEL_ERRORS } from "../errors/kernel.ts";
 import { RUNTIME_ERRORS } from "../errors/runtime.ts";
 import { toolError } from "./errors.ts";
@@ -154,7 +154,7 @@ export function guardAgentAccess(
             write: (path: string, content: string) =>
               invoke(() => project.write(path, content)),
             remove: (path: string) => invoke(() => project.remove(path)),
-            run: (command: import("@intloom/workflow-sdk").ProjectCommand) =>
+            run: (command: import("@intloom/loom-sdk").ProjectCommand) =>
               invoke(() => project.run(command, access.signal)),
           }),
         }
@@ -168,11 +168,11 @@ export function guardAgentAccess(
       clear: () => invoke(() => access.state.clear()),
     }),
     storage: Object.freeze({
-      getArtifact: (flow, stage) =>
-        invoke(() => access.storage.getArtifact(flow, stage)),
+      getArtifact: (loom, stage) =>
+        invoke(() => access.storage.getArtifact(loom, stage)),
       getArtifactById: (id) => invoke(() => access.storage.getArtifactById(id)),
-      getLatestRecord: (flow, stage) =>
-        invoke(() => access.storage.getLatestRecord(flow, stage)),
+      getLatestRecord: (loom, stage) =>
+        invoke(() => access.storage.getLatestRecord(loom, stage)),
       getRecordById: (id) => invoke(() => access.storage.getRecordById(id)),
       listArtifacts: (query) =>
         invoke(() => access.storage.listArtifacts(query)),

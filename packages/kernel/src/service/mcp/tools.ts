@@ -1,3 +1,4 @@
+import { loomInputSchema } from "@intloom/loom-sdk";
 import { packageVersion } from "../version.ts";
 import { getLogger } from "@intloom/utils";
 import {
@@ -27,7 +28,7 @@ import { registerAgentTools } from "./agent-tools.ts";
 
 const text = z.string().refine((value) => value.trim().length > 0);
 const instructions =
-  "Use flow once to create a Run and retain its returned runId. A running result is an accepted Run, not a terminal result; query get_run with that runId for progress. If waiting with pendingAgentCall, claim_agent_call using its id and a stable unique claimId. Execute the task instructions and Skills using only its declared call_agent_tool operations and read_agent_asset. Keep ownerToken private. Then complete_agent_call with raw output matching outputSchema, or fail_agent_call if unable. Follow the returned Run until terminal. Client reasoning stays in the IDE; never configure or call a service model as a fallback. If waiting with pendingAction, call interact with the existing runId and pendingAction.id. If native forms are unavailable, ask the human and submit their exact answer via answer_ask. Agent execution does not authorize answering human questions or confirmation. Never invent answers or confirmations. Cancelling a form leaves the Run waiting; cancel_run explicitly stops it. Retry queries/claims/Tool calls/completion with their original identities and inputs, never flow creation. Completed/failed are terminal; failed does not prove a transaction was uncommitted.";
+  "Use run once to create a Run and retain its returned runId. A running result is an accepted Run, not a terminal result; query get_run with that runId for progress. If waiting with pendingAgentCall, claim_agent_call using its id and a stable unique claimId. Execute the task instructions and Skills using only its declared call_agent_tool operations and read_agent_asset. Keep ownerToken private. Then complete_agent_call with raw output matching outputSchema, or fail_agent_call if unable. Follow the returned Run until terminal. Client reasoning stays in the IDE; never configure or call a service model as a fallback. If waiting with pendingAction, call interact with the existing runId and pendingAction.id. If native forms are unavailable, ask the human and submit their exact answer via answer_ask. Agent execution does not authorize answering human questions or confirmation. Never invent answers or confirmations. Cancelling a form leaves the Run waiting; cancel_run explicitly stops it. Retry queries/claims/Tool calls/completion with their original identities and inputs, never run creation. Completed/failed are terminal; failed does not prove a transaction was uncommitted.";
 
 /** All IDEs share Tool definitions and business entry points; protocol objects may be rebuilt while the application is reused. */
 export function createToolServer(
@@ -56,11 +57,14 @@ export function createToolServer(
       }
     };
   server.registerTool(
-    "flow",
+    "run",
     {
       description:
-        "Create one Workflow Run from the user's intent. Returns an admitted Run promptly, often with status running. Query get_run with its runId for later status; do not call flow again to wait or answer a pending question.",
-      inputSchema: z.strictObject({ flowName: text, intent: text }),
+        "Create one Loom Run from the user's input. Returns an admitted Run promptly, often with status running. Query get_run with its runId for later status; do not call run again to wait or answer a pending question.",
+      inputSchema: z.strictObject({
+        loomName: text,
+        input: loomInputSchema,
+      }),
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -68,20 +72,18 @@ export function createToolServer(
         openWorldHint: true,
       },
     },
-    guard(async ({ flowName, intent }) =>
-      toolResult({ run: await application.flow(flowName, intent) }),
+    guard(async ({ loomName, input }) =>
+      toolResult({ run: await application.run(loomName, input) }),
     ),
   );
   server.registerTool(
-    "list_workflows",
+    "list_looms",
     {
-      description: "List available Workflows and initialization diagnostics.",
+      description: "List available Looms and initialization diagnostics.",
       inputSchema: z.strictObject({}),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    guard(async () =>
-      toolResult({ workflows: await application.listWorkflows() }),
-    ),
+    guard(async () => toolResult({ looms: await application.listLooms() })),
   );
   server.registerTool(
     "get_run",
@@ -98,11 +100,11 @@ export function createToolServer(
     "list_runs",
     {
       description: "List this service's in-process Runs.",
-      inputSchema: z.strictObject({ flowName: text.optional() }),
+      inputSchema: z.strictObject({ loomName: text.optional() }),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    guard(async ({ flowName }) =>
-      toolResult({ runs: await application.listRuns(flowName) }),
+    guard(async ({ loomName }) =>
+      toolResult({ runs: await application.listRuns(loomName) }),
     ),
   );
   server.registerTool(
@@ -177,7 +179,7 @@ export function createToolServer(
   server.registerTool(
     "status",
     {
-      description: "Read service identity and projected Workflow/Run counts.",
+      description: "Read service identity and projected Loom/Run counts.",
       inputSchema: z.strictObject({}),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -187,7 +189,7 @@ export function createToolServer(
     "get_artifact",
     {
       description:
-        "Read the current committed Artifact using exactly one selector: {artifactId} alone, or {flowName, stageName} together. Never combine the two selectors. This is the latest value at query time, not a historical Run version. Missing values return null.",
+        "Read the current committed Artifact using exactly one selector: {artifactId} alone, or {loomName, stageName} together. Never combine the two selectors. This is the latest value at query time, not a historical Run version. Missing values return null.",
       inputSchema: artifactSelectorSchema,
       annotations: {
         readOnlyHint: true,
@@ -205,7 +207,7 @@ export function createToolServer(
     "list_artifacts",
     {
       description:
-        "List current committed Artifact metadata without business data. Optional Workflow/Stage filters and pagination; default limit 50, maximum 200. Does not advance Runs.",
+        "List current committed Artifact metadata without business data. Optional Loom/Stage filters and pagination; default limit 50, maximum 200. Does not advance Runs.",
       inputSchema: artifactQuerySchema,
       annotations: {
         readOnlyHint: true,
@@ -236,7 +238,7 @@ export function createToolServer(
   server.registerTool(
     "mirror_list",
     {
-      description: "List local immutable mirrors without Workflow execution.",
+      description: "List local immutable mirrors without Loom execution.",
       inputSchema: z.strictObject({}),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },

@@ -1,6 +1,6 @@
 import { isLoomError } from "@intloom/utils";
-import type { Blueprint } from "../workflow/blueprint.ts";
-import type { AgentRegistry } from "../workflow/registries.ts";
+import type { Blueprint } from "../loom/blueprint.ts";
+import type { AgentRegistry } from "../loom/registries.ts";
 import { createServicePreparation } from "../effector/service/prepare.ts";
 import {
   resolveRunExecution,

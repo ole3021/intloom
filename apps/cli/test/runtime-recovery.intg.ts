@@ -24,7 +24,7 @@ const finish = async (saved, access) => {
   await access.storage.commit([{type:'append_record',id,payload:{flowName:'fixture',stageName:'first',data:{intent}}}]);
   return {outcome:'complete'};
 };
-const recoverable = async (_input, access) => {
+const recoverable = async (access) => {
   const {id,intent}=access.state.value;
   await access.storage.commit([{type:'append_record',id:'once-'+id,payload:{flowName:'fixture',stageName:'first',data:{intent}}}]);
   return finish({answer:await access.interaction.confirm('Save?')},access);

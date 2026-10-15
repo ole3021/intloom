@@ -3,8 +3,8 @@ import type * as z from "zod";
 import type { JsonValue } from "../../shared/json.ts";
 import type { ExecutableAgent } from "../execution.ts";
 import type { LoomConfig } from "../../core/schemas/loom-config.ts";
-import type { AgentId } from "../../workflow/blueprint.ts";
-import type { WorkflowPackage } from "../../workflow/types.ts";
+import type { AgentId } from "../../loom/blueprint.ts";
+import type { LoomPackage } from "../../loom/types.ts";
 import type { CredentialResolver } from "./credentials.ts";
 
 export interface ServiceAgent extends ExecutableAgent {
@@ -14,7 +14,7 @@ export interface ServiceAgent extends ExecutableAgent {
 }
 export interface CreateAgentOptions {
   readonly agentId: AgentId;
-  readonly source: WorkflowPackage;
+  readonly source: LoomPackage;
   readonly config: LoomConfig;
   readonly credentials?: CredentialResolver;
 }

@@ -1,3 +1,4 @@
+import type { LoomInput } from "@intloom/kernel";
 import {
   listMirrors,
   inspectMirror,
@@ -20,7 +21,7 @@ import {
   projectEventSchema,
   admissionSchema,
   operationReceiptSchema,
-  workflowViewSchema,
+  loomViewSchema,
   type CoreResult,
   type CoreMeta,
   type ServiceRunView,
@@ -39,11 +40,9 @@ import {
   readServiceResponse,
   requestTransportFailure,
 } from "./service-response.ts";
-import {
-  addWorkflow,
-  removeWorkflow,
-  listInstalledWorkflows,
-} from "./workflow-packages.ts";
+import { addLoom, removeLoom, listInstalledLooms } from "./loom-packages.ts";
+import { buildLoom } from "./build.ts";
+export type { BuildInput, BuildResult } from "./build.ts";
 import {
   diagnoseProject,
   recoverProject,
@@ -85,11 +84,11 @@ export interface ProjectInput {
 export interface RunInput extends ProjectInput {
   readonly runId: string;
 }
-export interface FlowInput extends ProjectInput {
+export interface StartRunInput extends ProjectInput {
   readonly serviceInstanceId: string;
   readonly operationId: string;
-  readonly flowName: string;
-  readonly intent: string;
+  readonly loomName: string;
+  readonly input: LoomInput;
 }
 export interface AnswerInput extends RunInput {
   readonly serviceInstanceId: string;
@@ -341,6 +340,7 @@ export function createCliCore() {
     }
   }
   const core = {
+    buildLoom,
     initProject: scaffoldProject,
     inspectProject(input: ProjectInput) {
       return local(input, (meta) => diagnoseProject(meta.projectRoot));
@@ -359,17 +359,15 @@ export function createCliCore() {
         ),
       );
     },
-    listWorkflowPackages(input: ProjectInput) {
-      return local(input, (meta) => listInstalledWorkflows(meta.projectRoot));
+    listLoomPackages(input: ProjectInput) {
+      return local(input, (meta) => listInstalledLooms(meta.projectRoot));
     },
-    addWorkflowPackage(input: ProjectInput & { source: string }) {
-      return local(input, (meta) =>
-        addWorkflow(meta.projectRoot, input.source),
-      );
+    addLoomPackage(input: ProjectInput & { source: string }) {
+      return local(input, (meta) => addLoom(meta.projectRoot, input.source));
     },
-    removeWorkflowPackage(input: ProjectInput & { packageName: string }) {
+    removeLoomPackage(input: ProjectInput & { packageName: string }) {
       return local(input, (meta) =>
-        removeWorkflow(meta.projectRoot, input.packageName),
+        removeLoom(meta.projectRoot, input.packageName),
       );
     },
     doctor(
@@ -437,11 +435,11 @@ export function createCliCore() {
         stopService(meta.projectRoot, input.serviceInstanceId),
       );
     },
-    flow(input: FlowInput) {
+    run(input: StartRunInput) {
       return request(input, "/api/v1/cli/runs", admissionSchema, {
         operationId: input.operationId,
-        flowName: input.flowName,
-        intent: input.intent,
+        loomName: input.loomName,
+        input: input.input,
       });
     },
     answerAsk(input: AnswerInput) {
@@ -523,19 +521,15 @@ export function createCliCore() {
         serviceRunViewSchema,
       );
     },
-    listRuns(input: ProjectInput & { readonly flowName?: string }) {
+    listRuns(input: ProjectInput & { readonly loomName?: string }) {
       return request(
         input,
-        `/api/v1/cli/runs${input.flowName ? `?flowName=${encodeURIComponent(input.flowName)}` : ""}`,
+        `/api/v1/cli/runs${input.loomName ? `?loomName=${encodeURIComponent(input.loomName)}` : ""}`,
         z.array(serviceRunViewSchema),
       );
     },
-    listWorkflows(input: ProjectInput) {
-      return request(
-        input,
-        "/api/v1/cli/workflows",
-        z.array(workflowViewSchema),
-      );
+    listLooms(input: ProjectInput) {
+      return request(input, "/api/v1/cli/looms", z.array(loomViewSchema));
     },
     getOperation(input: ProjectInput & { readonly operationId: string }) {
       return request(
@@ -549,12 +543,12 @@ export function createCliCore() {
         (
           | {
               readonly artifactId: string;
-              readonly flowName?: never;
+              readonly loomName?: never;
               readonly stageName?: never;
             }
           | {
               readonly artifactId?: never;
-              readonly flowName: string;
+              readonly loomName: string;
               readonly stageName: string;
             }
         ),
@@ -562,7 +556,7 @@ export function createCliCore() {
       const selector =
         input.artifactId !== undefined
           ? { artifactId: input.artifactId }
-          : { flowName: input.flowName, stageName: input.stageName };
+          : { loomName: input.loomName, stageName: input.stageName };
       return request(
         input,
         `/api/v1/cli/artifact?${new URLSearchParams(selector)}`,

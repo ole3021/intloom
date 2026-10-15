@@ -9,7 +9,7 @@ export interface CheckedProject {
   readonly config: LoomConfig;
 }
 
-/** Normalizes the path and validates the fixed project configuration before Workflow loading. */
+/** Normalizes the path and validates the fixed project configuration before Loom loading. */
 export async function checkProject(
   projectRoot: string,
 ): Promise<CheckedProject> {

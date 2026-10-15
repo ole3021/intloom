@@ -8,22 +8,22 @@ import {
 } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fail } from "../errors.ts";
-import { entryName, generateEntry } from "./generate-entry.ts";
+import { entryName, generateEntry } from "../emit/generate-entry.ts";
 import { isPathWithin } from "../source/references.ts";
-import type { LinkedWorkflow } from "../analyze/model.ts";
-import { verifyArtifacts } from "./verify-artifacts.ts";
-import { exists, relocateSourceMaps } from "./output-files.ts";
-import { compileTypeScript } from "./compile-typescript.ts";
+import type { LinkedLoom } from "../analyze/model.ts";
+import { verifyArtifacts } from "../package/verify-artifacts.ts";
+import { exists, relocateSourceMaps } from "../package/output-files.ts";
+import { compileTypeScript } from "../emit/compile-typescript.ts";
 import { publishOutput } from "./publish-output.ts";
 import { cleanupBuild } from "./cleanup-build.ts";
+import { relocateEntry } from "../emit/relocate-entry.ts";
+import { preparePackage } from "../package/prepare-package.ts";
 
-export async function buildExportFiles(
-  workflow: LinkedWorkflow,
-): Promise<void> {
-  const root = workflow.model.options.packageRoot;
+export async function buildExportFiles(loom: LinkedLoom): Promise<void> {
+  const root = loom.model.options.packageRoot;
   const config = resolve(
     root,
-    workflow.model.options.tsconfigFile ?? "tsconfig.build.json",
+    loom.model.options.tsconfigFile ?? "tsconfig.build.json",
   );
   if (!isPathWithin(root, config))
     fail("INVALID_BUILD_CONFIG", "tsconfigFile must be inside packageRoot", {
@@ -39,28 +39,18 @@ export async function buildExportFiles(
       cause,
     );
   }
-  const entry = resolve(root, `${entryName}.ts`);
   const destination = resolve(root, "dist");
   if ((await exists(destination)) && !(await lstat(destination)).isDirectory())
     fail("INVALID_BUILD_CONFIG", "dist must be a regular directory", {
       file: destination,
     });
-  // The exclusive generated entry also locks builds for the same package; author-owned files are not overwritten.
-  try {
-    await writeFile(entry, generateEntry(workflow), { flag: "wx" });
-  } catch (cause) {
-    fail(
-      "BUILD_FAILED",
-      "Cannot create generated entry; remove a stale entry or wait for the active build",
-      { file: entry },
-      cause,
-    );
-  }
-  let temporary: string | undefined;
+  const temporary = await mkdtemp(resolve(root, ".intloom-build-"));
+  const entry = resolve(temporary, `${entryName}.ts`);
   let preserveRecovery = false;
   let failure: { cause: unknown } | undefined;
   try {
-    temporary = await mkdtemp(resolve(root, ".intloom-build-"));
+    const generated = generateEntry(loom, temporary);
+    await writeFile(entry, generated.text, { flag: "wx" });
     const output = resolve(temporary, "output");
     await compileTypeScript({
       root,
@@ -69,8 +59,9 @@ export async function buildExportFiles(
       output,
       destination,
       generatedConfig: resolve(temporary, "tsconfig.json"),
+      generated,
     });
-    for (const asset of workflow.model.assets) {
+    for (const asset of loom.model.assets) {
       const target = resolve(output, asset.outputPath);
       if (!isPathWithin(output, target) || (await exists(target)))
         fail(
@@ -81,7 +72,9 @@ export async function buildExportFiles(
       await copyFile(asset.sourceFile, target);
     }
     await relocateSourceMaps(output, destination);
-    await verifyArtifacts(root, output, workflow);
+    await relocateEntry(output, temporary);
+    await preparePackage(root, output, loom.model.manifest);
+    await verifyArtifacts(root, output, loom);
     await publishOutput(
       output,
       destination,

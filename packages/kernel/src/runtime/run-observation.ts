@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import * as z from "zod";
-import type { StorageCommitResult } from "@intloom/workflow-sdk";
+import type { StorageCommitResult } from "@intloom/loom-sdk";
 import type { ServiceModelObserver } from "../effector/execution.ts";
 import type { RunEntry } from "./run-entry.ts";
 import type { RunState } from "./run-state.ts";

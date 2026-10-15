@@ -92,10 +92,10 @@ export function commitOperations(
               continue;
             }
             if (
-              existing.flowName !== operation.payload.flowName ||
+              existing.loomName !== operation.payload.loomName ||
               existing.stageName !== operation.payload.stageName
             )
-              conflict("Artifact Workflow/Stage cannot change.");
+              conflict("Artifact Loom/Stage cannot change.");
           }
           if (revision === Number.MAX_SAFE_INTEGER)
             throw KERNEL_ERRORS.create("STORAGE_ERROR", {

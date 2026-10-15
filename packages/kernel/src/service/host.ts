@@ -1,3 +1,4 @@
+import type { LoomInput } from "@intloom/loom-sdk";
 import { exists, safePath } from "../mirror/files.ts";
 import { createRuntimeObservation } from "../runtime/run-observation.ts";
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
@@ -11,11 +12,11 @@ import { openLog, withLogger, type LogHandle } from "@intloom/utils";
 import { stat } from "node:fs/promises";
 import {
   initializeProject,
-  flow,
+  run,
   createEffector,
   cancelAllRuns,
   listRuns,
-  listWorkflows,
+  listLooms,
   loadConfig,
   type ProjectExecution,
   type StorageHandle,
@@ -45,16 +46,16 @@ import {
 } from "./contracts.ts";
 import { readExecutionLimits } from "./execution-limits.ts";
 import { createServiceApi } from "./http-api.ts";
-import { ensureWorkflows } from "./workflows/install.ts";
+import { ensureLooms } from "./looms/install.ts";
 
 export interface ProjectHost {
   readonly execution: ProjectExecution;
   readonly storage: StorageHandle;
   readonly info: ServiceInfo;
   assertOpen(): void;
-  startFlow(
-    flowName: string,
-    intent: string,
+  startRun(
+    loomName: string,
+    input: LoomInput,
     source: RunSource,
   ): Promise<RunView>;
   presentRun(run: RunView): RunView;
@@ -130,7 +131,7 @@ export async function startProjectHost(
           "Existing project data uses the other localStorage backend. Restore the original setting; automatic data migration is not supported.",
         );
     }
-    await withLogger(log, () => ensureWorkflows(root, config.workflows ?? []));
+    await withLogger(log, () => ensureLooms(root, config.looms ?? []));
     const token = previous?.token ?? randomBytes(32).toString("base64url");
     storage = await withLogger(log, async () =>
       backend === "file"
@@ -336,30 +337,30 @@ export async function startProjectHost(
             "The project service is closing.",
           );
       },
-      async startFlow(flowName: string, intent: string, source: RunSource) {
+      async startRun(loomName: string, input: LoomInput, source: RunSource) {
         host.assertOpen();
         const blueprint = Object.hasOwn(
           ownedExecution.registries.blueprints,
-          flowName,
+          loomName,
         )
-          ? ownedExecution.registries.blueprints[flowName]
+          ? ownedExecution.registries.blueprints[loomName]
           : undefined;
-        if (typeof flowName !== "string" || !flowName.trim() || !blueprint)
-          return flow(ownedExecution, flowName, intent, source);
-        return ownedExecution.runtime.startFlow(blueprint, intent, source);
+        if (typeof loomName !== "string" || !loomName.trim() || !blueprint)
+          return run(ownedExecution, loomName, input, source);
+        return ownedExecution.runtime.startRun(blueprint, input, source);
       },
       presentRun: (run: RunView) => run,
       async status() {
-        const [allRuns, allFlows] = await Promise.all([
+        const [allRuns, allLooms] = await Promise.all([
           listRuns(ownedExecution),
-          listWorkflows(ownedExecution),
+          listLooms(ownedExecution),
         ]);
         return {
           ...info,
           execution: ownedExecution.executionStatus(),
           ...(logFailure ? { logError: errorView(logFailure) } : {}),
-          workflowCount: allFlows.length,
-          availableWorkflowCount: allFlows.filter((flow) => flow.isAvailable)
+          loomCount: allLooms.length,
+          availableLoomCount: allLooms.filter((loom) => loom.isAvailable)
             .length,
           runningRuns: allRuns.filter((item) => item.status === "running")
             .length,

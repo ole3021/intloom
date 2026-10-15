@@ -1,10 +1,10 @@
 export { runCli, type CliIo } from "./commands/program.ts";
 export {
-  addWorkflow,
-  removeWorkflow,
-  listInstalledWorkflows,
-  type InstalledWorkflowList,
-} from "./workflows/manage.ts";
+  addLoom,
+  removeLoom,
+  listInstalledLooms,
+  type InstalledLoomList,
+} from "./looms/manage.ts";
 export { doctorProject, type ProjectDoctorResult } from "./commands/doctor.ts";
 export {
   startProjectHost,
@@ -45,7 +45,7 @@ export type {
   RunView,
   PendingUserAction,
   RunErrorView,
-  WorkflowView,
+  LoomView,
   StoredRecord,
   StoredArtifact,
   ListPage,
@@ -63,6 +63,8 @@ export {
   type WaitRunResult,
   type ProjectInput,
   type RunInput,
-  type FlowInput,
+  type StartRunInput,
   type AnswerInput,
+  type BuildInput,
+  type BuildResult,
 } from "./core/index.ts";

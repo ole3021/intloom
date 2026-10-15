@@ -31,7 +31,7 @@ export function validateResult(entry: RunEntry): void {
   };
   if (entry.savedRoute && !isDeepStrictEqual(entry.savedRoute, route))
     throw new Error(
-      "Saved Step outcome has a different route in the current Workflow.",
+      "Saved Step outcome has a different route in the current Loom.",
     );
   entry.savedRoute = route;
 }

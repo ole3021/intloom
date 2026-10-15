@@ -32,7 +32,7 @@ export function presentRun(run: RunView): RunPresentation {
     details:
       run.status === "paused"
         ? [
-            `${run.control?.pauseReason ?? "paused"}: explicit intloom run resume required.`,
+            `${run.control?.pauseReason ?? "paused"}: explicit intloom resume required.`,
             ...(run.control?.pauseCause ? [run.control.pauseCause] : []),
           ]
         : run.lastError

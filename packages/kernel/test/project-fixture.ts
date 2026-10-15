@@ -16,7 +16,7 @@ export async function projectFixture(t: TestContext) {
 }
 
 export function askingCode(codeId: string) {
-  return `export const codes = { [${JSON.stringify(codeId)}]: async (_input, access) => {
+  return `export const codes = { [${JSON.stringify(codeId)}]: async (access) => {
     await access.storage.getArtifact("fixture", "first");
     const answer = await access.interaction.confirm("Continue?");
     await access.state.update({ value: answer.isConfirmed ? "accepted" : "rejected" });

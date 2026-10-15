@@ -116,7 +116,7 @@ Cancellation is cooperative. stop returns immediately without waiting for or rol
 - service/create-agent.ts, agent-model.ts, agent-skills.ts: Mastra-specific assembly.
 - service/execute-agent.ts: model calls, transport shape checks, errors and cleanup; original Agent output validation lives in execute-agent.ts.
 - errors.ts and service/errors.ts: generic Tool/result errors and service model/Agent errors, respectively.
-- service/agent-context.ts: framework bindings; agent-context.ts re-exports the stateless SDK accessor.
+- service/agent-context.ts: framework bindings; agent-context.ts owns the private stateless binding accessor and its validation.
 - contracts.ts / execution.ts: interfaces, executable resources, access, StepResult.
 - state-access.ts / interaction.ts: business capabilities bound by Runtime without scheduling state.
 - schemas/: strict StepResult and question/confirmation request/reply Schemas.

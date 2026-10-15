@@ -23,7 +23,7 @@ export const timestampSchema = z.iso
   .datetime({ precision: 3 })
   .refine((value) => new Date(value).toISOString() === value);
 export const payloadSchema = z.strictObject({
-  flowName: nameSchema,
+  loomName: nameSchema,
   stageName: nameSchema,
   data: z.json(),
 });
@@ -63,7 +63,7 @@ const operationSchema = z.discriminatedUnion("type", [
 ]);
 export const querySchema = z
   .strictObject({
-    flowName: nameSchema.optional(),
+    loomName: nameSchema.optional(),
     stageName: nameSchema.optional(),
     ids: z.array(nameSchema).optional(),
     createdAfter: timestampSchema.optional(),

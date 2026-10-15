@@ -1,1 +1,1 @@
-export type * from "@intloom/workflow-sdk";
+export type { StateAccess } from "@intloom/loom-sdk";

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setImmediate } from "node:timers/promises";
 import * as z from "zod";
-import { defineAgentTool } from "@intloom/workflow-sdk";
+import { defineAgentTool } from "@intloom/loom-sdk";
 import {
   agentRef,
   clientAgentFixture,
@@ -28,7 +28,7 @@ test("terminal client Tools keep receipts replayable but reject new effects befo
   );
   const runtime = f.create();
   const ref = agentRef(
-    await runtime.flow(f.blueprint, "terminal", "agent_ide"),
+    await runtime.run(f.blueprint, { prompt: "terminal" }, "agent_ide"),
   );
   const { ownerToken } = await runtime.claimAgentCall({
     ...ref,
@@ -75,14 +75,18 @@ test("terminal client Tools keep receipts replayable but reject new effects befo
 test("client Agent calls continue through human confirmation and multiple Stages without replay", async () => {
   const f = clientAgentFixture();
   let confirmations = 0;
-  f.codes.review = async (_input, access) => {
+  f.codes.review = async (access) => {
     confirmations++;
     const answer = await access.interaction.confirm("Save this value?");
     assert.equal(answer.isConfirmed, true);
     return { outcome: "complete" };
   };
   const runtime = f.create();
-  const run = await runtime.flow(f.blueprint, "original intent", "agent_ide");
+  const run = await runtime.run(
+    f.blueprint,
+    { prompt: "original intent" },
+    "agent_ide",
+  );
   const ref = agentRef(run);
   const claim = await runtime.claimAgentCall({ ...ref, claimId: "client-a" });
   assert.deepEqual(
@@ -158,7 +162,9 @@ test("single ownership, serial Tool calls and in-flight receipts prevent duplica
     }),
   );
   const runtime = f.create();
-  const ref = agentRef(await runtime.flow(f.blueprint, "task", "agent_ide"));
+  const ref = agentRef(
+    await runtime.run(f.blueprint, { prompt: "task" }, "agent_ide"),
+  );
   const claims = await Promise.allSettled([
     runtime.claimAgentCall({ ...ref, claimId: "a" }),
     runtime.claimAgentCall({ ...ref, claimId: "b" }),
@@ -199,8 +205,12 @@ test("single ownership, serial Tool calls and in-flight receipts prevent duplica
 test("invalid Tool inputs and undeclared Tools preserve waiting; old call IDs and cross-Run tokens cannot write", async () => {
   const f = clientAgentFixture();
   const runtime = f.create();
-  const a = agentRef(await runtime.flow(f.blueprint, "a", "agent_ide"));
-  const b = agentRef(await runtime.flow(f.blueprint, "b", "agent_ide"));
+  const a = agentRef(
+    await runtime.run(f.blueprint, { prompt: "a" }, "agent_ide"),
+  );
+  const b = agentRef(
+    await runtime.run(f.blueprint, { prompt: "b" }, "agent_ide"),
+  );
   const ca = await runtime.claimAgentCall({ ...a, claimId: "a" });
   const cb = await runtime.claimAgentCall({ ...b, claimId: "b" });
   const owner = { ...a, ownerToken: ca.ownerToken };
@@ -290,7 +300,7 @@ test("Tool input/output and Agent output transforms run once; completion retries
     agentResources: { [resource.agentId]: resource },
   });
   const ref = agentRef(
-    await runtime.flow(f.blueprint, "transform", "agent_ide"),
+    await runtime.run(f.blueprint, { prompt: "transform" }, "agent_ide"),
   );
   const { ownerToken, task } = await runtime.claimAgentCall({
     ...ref,
@@ -349,7 +359,9 @@ for (const mode of ["throw", "caught_access", "invalid_output"] as const) {
       }),
     );
     const runtime = f.create();
-    const ref = agentRef(await runtime.flow(f.blueprint, mode, "agent_ide"));
+    const ref = agentRef(
+      await runtime.run(f.blueprint, { prompt: mode }, "agent_ide"),
+    );
     const { ownerToken } = await runtime.claimAgentCall({
       ...ref,
       claimId: "one",
@@ -403,8 +415,10 @@ test("cancel revokes an in-flight Tool and late State writes without stopping an
     }),
   );
   const runtime = f.create();
-  const ref = agentRef(await runtime.flow(f.blueprint, "a", "agent_ide"));
-  const b = await runtime.flow(f.blueprint, "b", "agent_ide");
+  const ref = agentRef(
+    await runtime.run(f.blueprint, { prompt: "a" }, "agent_ide"),
+  );
+  const b = await runtime.run(f.blueprint, { prompt: "b" }, "agent_ide");
   const { ownerToken } = await runtime.claimAgentCall({ ...ref, claimId: "a" });
   const pending = runtime.callAgentTool({
     ...ref,
@@ -431,7 +445,9 @@ test("Agent failure and invalid final output fail without implicit retries", asy
   for (const mode of ["failure", "invalid"] as const) {
     const f = clientAgentFixture();
     const runtime = f.create();
-    const ref = agentRef(await runtime.flow(f.blueprint, mode, "agent_ide"));
+    const ref = agentRef(
+      await runtime.run(f.blueprint, { prompt: mode }, "agent_ide"),
+    );
     const { ownerToken } = await runtime.claimAgentCall({
       ...ref,
       claimId: "a",
@@ -484,7 +500,9 @@ test("asset access uses declared IDs, rechecks paths and handles text/binary wit
     ...f.options,
     agentResources: { [resource.agentId]: resource },
   });
-  const ref = agentRef(await runtime.flow(f.blueprint, "assets", "agent_ide"));
+  const ref = agentRef(
+    await runtime.run(f.blueprint, { prompt: "assets" }, "agent_ide"),
+  );
   const claim = await runtime.claimAgentCall({ ...ref, claimId: "a" });
   const owner = { ...ref, ownerToken: claim.ownerToken };
   assert.equal(JSON.stringify(claim.task).includes(root), false);
@@ -514,7 +532,9 @@ test("asset access uses declared IDs, rechecks paths and handles text/binary wit
 test("a bounded receipt table never evicts old IDs and re-executes their effects", async () => {
   const f = clientAgentFixture();
   const runtime = f.create();
-  const ref = agentRef(await runtime.flow(f.blueprint, "limit", "agent_ide"));
+  const ref = agentRef(
+    await runtime.run(f.blueprint, { prompt: "limit" }, "agent_ide"),
+  );
   const { ownerToken } = await runtime.claimAgentCall({ ...ref, claimId: "a" });
   const request = { ...ref, ownerToken, toolId: "add", input: { amount: 1 } };
   for (let i = 0; i < 256; i++)
@@ -534,7 +554,9 @@ test("a bounded receipt table never evicts old IDs and re-executes their effects
 test("host suspension revokes a claimed Agent task and rejects late tools and results", async () => {
   const f = clientAgentFixture();
   const runtime = f.create();
-  const ref = agentRef(await runtime.flow(f.blueprint, "stop", "agent_ide"));
+  const ref = agentRef(
+    await runtime.run(f.blueprint, { prompt: "stop" }, "agent_ide"),
+  );
   const { ownerToken } = await runtime.claimAgentCall({
     ...ref,
     claimId: "client",

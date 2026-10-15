@@ -14,7 +14,7 @@ import type {
   ProjectAccess,
   ProjectCommand,
   ProjectCommandResult,
-} from "@intloom/workflow-sdk";
+} from "@intloom/loom-sdk";
 
 const excluded = new Set([
   ".git",

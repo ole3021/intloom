@@ -129,14 +129,14 @@ export async function openFileStorage(
       });
     }
     const access: StorageAccess = Object.freeze<StorageAccess>({
-      getArtifact: (flowName, stageName) =>
+      getArtifact: (loomName, stageName) =>
         lifecycle.run(() => {
-          parseInput(nameSchema, flowName);
+          parseInput(nameSchema, loomName);
           parseInput(nameSchema, stageName);
           return structuredClone(
             store.artifacts.find(
               (entry) =>
-                entry.flowName === flowName && entry.stageName === stageName,
+                entry.loomName === loomName && entry.stageName === stageName,
             ),
           );
         }),
@@ -147,12 +147,12 @@ export async function openFileStorage(
             store.artifacts.find((entry) => entry.id === id),
           );
         }),
-      getLatestRecord: (flowName, stageName) =>
+      getLatestRecord: (loomName, stageName) =>
         lifecycle.run(() => {
-          parseInput(nameSchema, flowName);
+          parseInput(nameSchema, loomName);
           parseInput(nameSchema, stageName);
           return list("records", store.records, {
-            flowName,
+            loomName,
             stageName,
             limit: 1,
           }).then((page) => page.data[0]);

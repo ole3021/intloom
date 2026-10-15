@@ -39,7 +39,7 @@ function contentTextBytes(content: unknown): number {
 }
 
 const instruction =
-  "Execute the current Workflow step according to your instructions. Read current business State using your assigned Tools and save business changes through those Tools. After the required submissions succeed, supply only the declared outcome through the host completion Tool. Do not use drafts, business Tool arguments/results or a summary as the outcome. User interaction belongs to Workflow Code steps.";
+  "Execute the current Loom step according to your instructions. Read current business State using your assigned Tools and save business changes through those Tools. After the required submissions succeed, supply only the declared outcome through the host completion Tool. Do not use drafts, business Tool arguments/results or a summary as the outcome. User interaction belongs to Loom Code steps.";
 
 export async function executeServiceAgent(
   executable: ServiceAgent,
@@ -120,7 +120,7 @@ export async function executeServiceAgent(
       },
     });
     const stream = await executable.agent.stream(
-      `${instruction}\nComplete by calling ${completionName} once with the declared outcome. This host completion Tool remains available after business Tools close; returning an outcome in Workflow instructions means supplying its arguments. Do not infer success from a saved draft.`,
+      `${instruction}\nComplete by calling ${completionName} once with the declared outcome. This host completion Tool remains available after business Tools close; returning an outcome in Loom instructions means supplying its arguments. Do not infer success from a saved draft.`,
       {
         requestContext: context,
         abortSignal: signal,

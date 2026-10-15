@@ -22,7 +22,7 @@ test("built package entry executes a Blueprint and queries the same Run", async 
 test("built package entry restores its original Code through the serialized action identity", async () => {
   const f = runtimeFixture();
   let returned = false;
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("continue?");
     returned = true;
     return { outcome: "complete" };
@@ -53,7 +53,7 @@ test("built package entry restores its original Code through the serialized acti
 
 test("built package entry stops a waiting Run and rejects its old reply", async () => {
   const f = runtimeFixture();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("continue?");
     return { outcome: "complete" };
   };

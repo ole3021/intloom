@@ -1,6 +1,6 @@
-import type { Blueprint } from "../../workflow/blueprint.ts";
-import type { AgentRegistry } from "../../workflow/registries.ts";
-import { referencedAgentIds } from "../../workflow/agent-ids.ts";
+import type { Blueprint } from "../../loom/blueprint.ts";
+import type { AgentRegistry } from "../../loom/registries.ts";
+import { referencedAgentIds } from "../../loom/agent-ids.ts";
 import type { LoomConfig } from "../../core/schemas/loom-config.ts";
 import type { ExecutableAgent } from "../execution.ts";
 import { KERNEL_ERRORS } from "../../errors/kernel.ts";

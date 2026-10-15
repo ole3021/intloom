@@ -1,3 +1,5 @@
+export type { Cursor } from "./runtime/cursor.ts";
+export type { LoomInput, LoomInputKind } from "@intloom/loom-sdk";
 export type { LocalStorageSnapshot } from "./storage/snapshot.ts";
 export type {
   MirrorScope,
@@ -15,23 +17,23 @@ export { isLoomError, LoomError } from "@intloom/utils";
 export type {
   InitializeProjectOptions,
   ProjectExecution,
-  WorkflowView,
+  LoomView,
 } from "./core/contracts.ts";
 export { initializeProject } from "./core/initialize-project.ts";
 export { loadConfig } from "./core/load-config.ts";
 export {
-  workflowDependenciesSchema,
-  workflowDependencySchema,
+  loomDependenciesSchema,
+  loomDependencySchema,
 } from "./core/schemas/loom-config.ts";
-export type { WorkflowDependency } from "./core/schemas/loom-config.ts";
+export type { LoomDependency } from "./core/schemas/loom-config.ts";
 export {
-  flow,
+  run,
   getRun,
   listRuns,
   answerAsk,
   cancelRun,
   cancelAllRuns,
-  listWorkflows,
+  listLooms,
 } from "./core/execution.ts";
 export { loomConfigSchema } from "./core/schemas/loom-config.ts";
 export type { LoomConfig } from "./core/schemas/loom-config.ts";
@@ -44,8 +46,7 @@ export type {
   BlueprintStepExecution,
   BlueprintStepNext,
   CodeId,
-  Cursor,
-} from "./workflow/blueprint.ts";
+} from "./loom/blueprint.ts";
 export type {
   JsonValue,
   ReadonlyJsonValue,
@@ -73,7 +74,7 @@ export type { KernelError, KernelErrorCode } from "./errors/kernel.ts";
 export type { RuntimeError, RuntimeErrorCode } from "./errors/runtime.ts";
 export { createRuntime } from "./runtime/create-runtime.ts";
 export type { Runtime } from "./runtime/contracts.ts";
-export type { AgentRegistry, CodeRegistry } from "./workflow/registries.ts";
+export type { AgentRegistry, CodeRegistry } from "./loom/registries.ts";
 export type {
   PendingUserAction,
   PendingUserActionKind,
@@ -84,7 +85,7 @@ export type { Resolution, Transition } from "./runtime/routing.ts";
 export type {
   StageStateContext,
   StageStateInitializer,
-} from "./workflow/blueprint.ts";
+} from "./loom/blueprint.ts";
 export type {
   StorageAccess,
   StorageHandle,
@@ -92,9 +93,7 @@ export type {
 } from "./storage/contracts.ts";
 export type {
   ListPage,
-  Query,
   StorageQuery,
-  SnapshotCategory,
   StorageCategory,
   SnapshotResult,
   StorageCommitResult,
@@ -121,6 +120,6 @@ export type {
   RunExecution,
   AgentExecutorKind,
 } from "./runtime/execution-policy.ts";
-export type { LoadedAgent } from "./workflow/types.ts";
+export type { LoadedAgent } from "./loom/types.ts";
 export type { ExecutionReadiness } from "./core/contracts.ts";
 export type * from "./runtime/agent-call-types.ts";

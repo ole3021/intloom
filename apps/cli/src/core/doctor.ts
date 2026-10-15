@@ -1,9 +1,9 @@
-import { loadConfig, type RunSource, type WorkflowView } from "@intloom/kernel";
+import { loadConfig, type RunSource, type LoomView } from "@intloom/kernel";
 import { errorView, failure } from "../errors.ts";
 import { connectProjectClient } from "../client/mcp-client.ts";
 import { discoverProjectConnection } from "../client/service-client.ts";
 import { diagnoseProject, type ProjectDiagnosis } from "../service/recovery.ts";
-import { listInstalledWorkflows } from "./workflow-packages.ts";
+import { listInstalledLooms } from "./loom-packages.ts";
 
 export interface ProjectDoctorResult extends ProjectDiagnosis {
   readonly source: RunSource;
@@ -13,10 +13,10 @@ export interface ProjectDoctorResult extends ProjectDiagnosis {
     readonly message: string;
     readonly nextStep?: string;
   }[];
-  readonly workflows?: readonly WorkflowView[];
+  readonly looms?: readonly LoomView[];
 }
 
-/** Reads configuration/installations and queries an existing host; never imports Workflows, installs packages, or calls a model. */
+/** Reads configuration/installations and queries an existing host; never imports Looms, installs packages, or calls a model. */
 export async function doctorProject(
   directory: string,
   source: RunSource = "cli",
@@ -47,13 +47,13 @@ export async function doctorProject(
             ? "This entry requires llms.default before creating a Run."
             : service
               ? "Model configuration is present; required roles and credentials are checked by the host before Run creation. Remote model behavior is not verified."
-              : "This entry selects the client Agent executor. The running host reports Workflow readiness; client task support requires separate acceptance.",
+              : "This entry selects the client Agent executor. The running host reports Loom readiness; client task support requires separate acceptance.",
         nextStep:
           diagnosis.status !== "offline"
             ? "Resolve the service and lock diagnosis above before starting the project."
             : service && !config.llms
               ? "Configure llms.default and provide its referenced environment credential, then run intloom start."
-              : `Run intloom start, then intloom doctor --execution ${source} to inspect loaded Workflows.`,
+              : `Run intloom start, then intloom doctor --execution ${source} to inspect loaded Looms.`,
       });
     }
   } catch (cause) {
@@ -66,21 +66,21 @@ export async function doctorProject(
     });
   }
   try {
-    const installed = await listInstalledWorkflows(root);
+    const installed = await listInstalledLooms(root);
     const ready = installed.installation === "ready";
     checks.push({
       name: "installation",
       status: ready ? "ok" : "attention",
       message: ready
-        ? `${installed.workflows.length} declared Workflow packages match the installed tree. Loading is checked separately by the host.`
+        ? `${installed.looms.length} declared Loom packages match the installed tree. Loading is checked separately by the host.`
         : installed.installation === "empty"
-          ? "No Workflow packages are installed."
+          ? "No Loom packages are installed."
           : "The installed tree is missing, damaged, or differs from the declarations.",
       ...(!ready
         ? {
-            nextStep: installed.workflows.length
+            nextStep: installed.looms.length
               ? "Stop and start the service to restore declared packages. Keep local source archives accessible."
-              : "Stop any running service, then run intloom workflow add <package-or-tgz>.",
+              : "Stop any running service, then run intloom loom add <package-or-tgz>.",
           }
         : {}),
     });
@@ -91,7 +91,7 @@ export async function doctorProject(
       message: errorView(cause).message,
     });
   }
-  let workflows: readonly WorkflowView[] | undefined;
+  let looms: readonly LoomView[] | undefined;
   if (diagnosis.service) {
     try {
       const connection = await discoverProjectConnection(
@@ -104,17 +104,17 @@ export async function doctorProject(
           : connection,
       );
       try {
-        workflows = await client.listWorkflows();
+        looms = await client.listLooms();
       } finally {
         await client.close();
       }
-      const ready = workflows.filter(
+      const ready = looms.filter(
         (item) => item.isAvailable && item.readiness?.status === "available",
       ).length;
       checks.push({
         name: "execution",
         status: ready ? "ok" : "attention",
-        message: `${ready} of ${workflows.length} Workflows are ready for ${source}. This does not call or verify a remote model.`,
+        message: `${ready} of ${looms.length} Looms are ready for ${source}. This does not call or verify a remote model.`,
         ...(!ready
           ? {
               nextStep:
@@ -132,5 +132,5 @@ export async function doctorProject(
       });
     }
   }
-  return { ...diagnosis, source, checks, ...(workflows ? { workflows } : {}) };
+  return { ...diagnosis, source, checks, ...(looms ? { looms } : {}) };
 }

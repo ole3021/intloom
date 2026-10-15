@@ -20,7 +20,7 @@ test("independent Node processes restore an exact waiting action and commit once
     compiledWorkflow("fixture", codeId).replace(
       /export const codes = .*;/u,
       `import { appendFileSync } from 'node:fs';
-const code = async (_input, access) => {
+const code = async (access) => {
   appendFileSync(${JSON.stringify(effects)}, 'before\\n');
   await access.state.update({value:'saved draft'});
   const answer = await access.interaction.confirm('Save this draft?');

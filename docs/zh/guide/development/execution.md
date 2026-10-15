@@ -6,12 +6,12 @@ title: 实现 Code 与 Agent
 
 ## Code
 
-在引用源文件中默认导出 `ExecutableCode`。业务输入位于 Stage State；Runtime 当前以 `null` 作为调用输入执行 Step。
+在引用源文件中默认导出 `ExecutableCode`。业务输入位于 Stage State；Code 只接收 `access`；声明的 Loom 输入由 Stage 初始化器接收。
 
 ```ts
-import type { ExecutableCode } from "@intloom/workflow-sdk";
+import type { ExecutableCode } from "@intloom/loom-sdk";
 
-const complete: ExecutableCode = (_input, access) => {
+const complete: ExecutableCode = (access) => {
   access.signal.throwIfAborted();
   return { outcome: "complete" };
 };
@@ -40,9 +40,9 @@ Identify missing evidence and return the required structured outcome.
 ```yaml
 review:
   type: agent
-  agent: "@agents/reviewer"
-  llm: review
-  outputSchema: "@schemas/review-result"
+  agent: "./agents/reviewer.md"
+  llm: thinking
+  outputSchema: "./schema/review-result.ts"
   tools: []
   skills: []
   on:
@@ -50,7 +50,7 @@ review:
       end: true
 ```
 
-创建 `schemas/review-result.ts` 并默认导出 Zod Schema，例如 `z.strictObject({ outcome: z.literal("complete") })`。将资源文件加入生产 TypeScript include。Agent 需要业务上下文时声明 Tools。
+创建 `schema/review-result.ts` 并默认导出 Zod Schema，例如 `z.strictObject({ outcome: z.literal("complete") })`。Compiler 检查入口依赖图。Agent 需要业务上下文时声明 Tools。
 
 宿主在运行时构建或转交 Agent；Compiler 打包规范，不创建模型。最终输出必须满足公开 Schema 的输入形状，由原始解析器验证一次。
 

@@ -14,12 +14,12 @@ import { deferred } from "../../../test/runtime-fixture.ts";
 import { createAgent } from "./create-agent.ts";
 import { createServicePreparation } from "./prepare.ts";
 import { createExecutionPreparation } from "../../core/prepare-execution.ts";
-import { validateWorkflow } from "../../workflow/validate-workflow.ts";
+import { validateLoom } from "../../loom/validate-loom.ts";
 
 function fixture() {
   const spec = agentSpec();
   const module = workflowModule();
-  const blueprint = validateWorkflow(source, {
+  const blueprint = validateLoom(source, {
     ...module,
     agentSpecs: { [agentId]: spec },
     blueprint: {
@@ -97,7 +97,7 @@ test("client preparation never reads llms and an unused role never blocks servic
     },
     f.resources,
   );
-  const codeOnly = validateWorkflow(source, workflowModule()).blueprint;
+  const codeOnly = validateLoom(source, workflowModule()).blueprint;
   assert.equal(
     (await client.prepare(codeOnly, "agent_ide")).agentExecutor,
     "mcp_client",

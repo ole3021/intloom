@@ -1,4 +1,4 @@
-import type { RunView, WorkflowView } from "@intloom/kernel";
+import type { RunView, LoomView } from "@intloom/kernel";
 import type { ServiceStatus } from "../service/contracts.ts";
 import type { ProjectDiagnosis } from "../service/recovery.ts";
 import { presentRun } from "./run-presentation.ts";
@@ -10,7 +10,7 @@ export function renderRunProgress(run: RunView) {
 export function renderRun(run: RunView) {
   const presentation = presentRun(run);
   const lines = [
-    `${presentation.title} · ${run.flowName}`,
+    `${presentation.title} · ${run.loomName}`,
     `Run  ${run.runId}`,
     `Status ${run.status}`,
     `Cursor ${run.cursor.stageName} / ${run.cursor.stepName}`,
@@ -39,7 +39,7 @@ export function renderStatus(status: ServiceStatus) {
     ...(status.logError
       ? [`${status.logError.code}: ${status.logError.message}`]
       : []),
-    `Workflows ${status.availableWorkflowCount} / ${status.workflowCount} available`,
+    `Looms ${status.availableLoomCount} / ${status.loomCount} available`,
     `Runs running ${status.runningRuns} · waiting ${status.waitingRuns} · paused ${status.pausedRuns ?? 0} · completed ${status.completedRuns} · failed or stopped ${status.failedRuns}`,
   ].join("\n");
 }
@@ -63,14 +63,14 @@ export function renderDiagnosis(diagnosis: ProjectDiagnosis) {
       : []),
   ].join("\n");
 }
-export function renderWorkflows(views: readonly WorkflowView[]) {
+export function renderLooms(views: readonly LoomView[]) {
   return views.length
     ? views
         .map((view) =>
           view.isAvailable
-            ? `Available · ${view.flowName} (${view.packageName})${view.readiness ? ` · ${view.readiness.agentExecutor}: ${view.readiness.status}${view.readiness.error ? ` · ${view.readiness.error.message}` : ""}` : ""}`
+            ? `Available · ${view.loomName} (${view.packageName})${view.readiness ? ` · ${view.readiness.agentExecutor}: ${view.readiness.status}${view.readiness.error ? ` · ${view.readiness.error.message}` : ""}` : ""}`
             : `Unavailable · ${view.packageName} · ${view.phase}: ${view.error.message}`,
         )
         .join("\n")
-    : "This project has no Workflow dependencies.";
+    : "This project has no Loom dependencies.";
 }

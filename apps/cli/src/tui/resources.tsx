@@ -6,7 +6,7 @@ import { useActivity, useTransitionAccent } from "./motion.ts";
 
 interface ResourceRow {
   id: string;
-  flowName: string;
+  loomName: string;
   stageName: string;
   revision?: number;
   removed?: boolean;
@@ -29,7 +29,7 @@ export function Resources(props: {
   const [rows, setRows] = createSignal<ResourceRow[]>([]);
   const [cursor, setCursor] = createSignal<string>();
   const [text, setText] = createSignal("");
-  const [flow, setFlow] = createSignal("");
+  const [loom, setLoom] = createSignal("");
   const [stage, setStage] = createSignal("");
   const [filter, setFilter] = createSignal<number>();
   const [actions, setActions] = createSignal(false);
@@ -50,7 +50,7 @@ export function Resources(props: {
   const filtered = () =>
     rows().filter(
       (row) =>
-        (!flow() || row.flowName === flow()) &&
+        (!loom() || row.loomName === loom()) &&
         (!stage() || row.stageName === stage()) &&
         `${row.id} ${row.description}`
           .toLowerCase()
@@ -73,7 +73,7 @@ export function Resources(props: {
           )
           .map((item) => ({
             id: item.id,
-            flowName: run?.flowName ?? "",
+            loomName: run?.loomName ?? "",
             stageName: item.stageName,
             ...(item.revision === undefined ? {} : { revision: item.revision }),
             removed: item.kind.startsWith("removed_"),
@@ -87,7 +87,7 @@ export function Resources(props: {
     const nextCursor = cursor();
     const query = {
       limit: 50,
-      ...(flow() ? { flowName: flow() } : {}),
+      ...(loom() ? { loomName: loom() } : {}),
       ...(stage() ? { stageName: stage() } : {}),
       ...(more && nextCursor ? { cursor: nextCursor } : {}),
     };
@@ -106,10 +106,10 @@ export function Resources(props: {
       ...(more ? previous : []),
       ...result.data.data.map((item) => ({
         id: item.id,
-        flowName: item.flowName,
+        loomName: item.loomName,
         stageName: item.stageName,
         ...("revision" in item ? { revision: item.revision } : {}),
-        description: `${item.flowName}/${item.stageName} · ${item.createdAt}${"revision" in item ? ` · revision ${item.revision}` : ""}`,
+        description: `${item.loomName}/${item.stageName} · ${item.createdAt}${"revision" in item ? ` · revision ${item.revision}` : ""}`,
       })),
     ]);
   }
@@ -249,7 +249,7 @@ export function Resources(props: {
             {
               name: "Filter resources",
               value: "filter",
-              description: "Workflow, Stage and text",
+              description: "Loom, Stage and text",
             },
             { name: "Refresh resources", value: "refresh", description: "" },
           ]}
@@ -267,14 +267,14 @@ export function Resources(props: {
       </Show>
       <Show when={filter() !== undefined}>
         <text flexShrink={0}>
-          Filters · Flow and Stage require exact names · Text searches loaded
+          Filters · Loom and Stage require exact names · Text searches loaded
           entries
         </text>
         <input
-          value={flow()}
+          value={loom()}
           focused={props.focused && filter() === 0}
-          placeholder="Workflow (empty = all)"
-          onInput={setFlow}
+          placeholder="Loom (empty = all)"
+          onInput={setLoom}
         />
         <input
           value={stage()}
@@ -309,7 +309,7 @@ export function Resources(props: {
         <text
           flexShrink={0}
           fg="#9299a5"
-        >{`Flow: ${flow() || "all"} · Stage: ${stage() || "all"} · Text: ${text() || "all"} · ${filtered().length}/${rows().length} loaded`}</text>
+        >{`Loom: ${loom() || "all"} · Stage: ${stage() || "all"} · Text: ${text() || "all"} · ${filtered().length}/${rows().length} loaded`}</text>
         <Show when={!busy() && !filtered().length}>
           <text flexShrink={0}>No resources match this scope and filters.</text>
         </Show>

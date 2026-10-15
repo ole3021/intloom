@@ -1,6 +1,6 @@
 export * from "../core/doctor.ts";
 import type { ProjectDoctorResult } from "../core/doctor.ts";
-import { renderDiagnosis, renderWorkflows } from "../ui/render.ts";
+import { renderDiagnosis, renderLooms } from "../ui/render.ts";
 export function renderDoctor(result: ProjectDoctorResult) {
   return [
     renderDiagnosis(result),
@@ -9,6 +9,6 @@ export function renderDoctor(result: ProjectDoctorResult) {
       `${c.name} · ${c.status}: ${c.message}`,
       ...(c.nextStep ? [c.nextStep] : []),
     ]),
-    ...(result.workflows ? [renderWorkflows(result.workflows)] : []),
+    ...(result.looms ? [renderLooms(result.looms)] : []),
   ].join("\n");
 }

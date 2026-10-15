@@ -7,9 +7,9 @@ title: Operate on project files and commands
 The host can bind optional `ProjectAccess` to a Code or Agent Tool call. Check availability before use.
 
 ```ts
-import type { ExecutableCode } from "@intloom/workflow-sdk";
+import type { ExecutableCode } from "@intloom/loom-sdk";
 
-const check: ExecutableCode = async (_input, access) => {
+const check: ExecutableCode = async (access) => {
   if (!access.project) throw new Error("Project access is required.");
   access.signal.throwIfAborted();
   const result = await access.project.run({

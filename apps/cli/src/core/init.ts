@@ -13,7 +13,7 @@ import {
 import { join, resolve } from "node:path";
 import { failure } from "../errors.ts";
 import { parseDocument } from "yaml";
-import { installWorkflows } from "../workflows/install.ts";
+import { installLooms } from "../looms/install.ts";
 
 const directories = [
   "intloom",
@@ -21,16 +21,14 @@ const directories = [
   "intloom/artifacts",
   "intloom/records",
   ".intloom",
-  ".intloom/workflows",
+  ".intloom/looms",
 ] as const;
 
 const configuration = `# IntLoom project configuration.
-# Only workflows is maintained by the CLI. Other fields are user-managed.
+# Only looms is maintained by the CLI. Other fields are user-managed.
 localStorage: file
 useMcpAgent: true
-workflows: []
-intent:
-  apps: []
+looms: []
 # Before CLI/Studio or service Agent execution, configure llms.default.
 # The shared service can start without model configuration.
 # llms:
@@ -49,7 +47,7 @@ export interface InitResult {
 /** Creates a new scaffold only; it neither loads a project nor starts a service. */
 export async function initProject(
   directory: string,
-  workflows: readonly string[] = [],
+  looms: readonly string[] = [],
 ): Promise<InitResult> {
   if (!directory.trim())
     throw failure("INVALID_REQUEST", "Provide a nonempty project directory.");
@@ -94,11 +92,11 @@ export async function initProject(
       created.push({ path, directory: true });
     }
     await createFile(".gitignore", "/.intloom/\n/intloom/store.lock\n");
-    if (workflows.length) {
-      const installed = await installWorkflows(root, workflows);
+    if (looms.length) {
+      const installed = await installLooms(root, looms);
       const filename = join(root, "intloom.yaml");
       const document = parseDocument(await readFile(filename, "utf8"));
-      document.set("workflows", installed);
+      document.set("looms", installed);
       await writeFile(filename, document.toString());
     }
     return { projectRoot: root, status: "scaffolded" };

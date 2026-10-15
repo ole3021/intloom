@@ -18,7 +18,7 @@ export const executionLimitsSchema = z.strictObject({
     .optional(),
 });
 export type ExecutionLimits = z.infer<typeof executionLimitsSchema>;
-/** Host configuration is separate from frozen Core/Workflow configuration. */
+/** Host configuration is separate from frozen Core/Loom configuration. */
 export async function readExecutionLimits(
   root: string,
 ): Promise<ExecutionLimits> {

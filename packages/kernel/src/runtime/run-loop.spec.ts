@@ -12,14 +12,17 @@ describe("run loop ownership and continuation", () => {
   test("internal continuation resumes the original Code once and removes request observers", async () => {
     const f = runtimeFixture();
     let calls = 0;
-    f.codes.start = async (_input, access) => {
+    f.codes.start = async (access) => {
       calls++;
       const answer = await access.interaction.confirm("continue?");
       assert.equal(answer.isConfirmed, true);
       await access.state.update({ value: 1, intent: "text" });
       return { outcome: "complete" };
     };
-    const entry = createRunEntry(f.blueprint, createRun(f.blueprint, "text"));
+    const entry = createRunEntry(
+      f.blueprint,
+      createRun(f.blueprint, { prompt: "text" }),
+    );
     const waiting = waitUntilStable(entry);
     launchRunLoop(entry, f.options);
     const task = entry.task;
@@ -52,7 +55,10 @@ describe("run loop ownership and continuation", () => {
         if (fail) throw new Error("obsolete failure");
         return { outcome: "complete" };
       };
-      const entry = createRunEntry(f.blueprint, createRun(f.blueprint, "text"));
+      const entry = createRunEntry(
+        f.blueprint,
+        createRun(f.blueprint, { prompt: "text" }),
+      );
       launchRunLoop(entry, f.options);
       const task = entry.task;
       await entered.promise;
@@ -78,7 +84,10 @@ describe("run loop ownership and continuation", () => {
         return release.promise;
       },
     });
-    const entry = createRunEntry(f.blueprint, createRun(f.blueprint, "text"));
+    const entry = createRunEntry(
+      f.blueprint,
+      createRun(f.blueprint, { prompt: "text" }),
+    );
     launchRunLoop(entry, f.options);
     const task = entry.task;
     await entered.promise;

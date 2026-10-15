@@ -1,8 +1,8 @@
 import * as z from "zod";
-import { intentConfigSchema } from "./intent-config.ts";
-import { LlmKind, llmConfigSchema } from "./llm-config.ts";
 
-export const workflowDependencySchema = z.strictObject({
+import { llmConfigSchema } from "./llm-config.ts";
+
+export const loomDependencySchema = z.strictObject({
   name: z.string().regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/),
   version: z
     .string()
@@ -11,16 +11,16 @@ export const workflowDependencySchema = z.strictObject({
   // Local archives must remain accessible when rebuilding the installation.
   source: z.string().min(1).optional(),
 });
-export const workflowDependenciesSchema = z
-  .array(workflowDependencySchema)
+export const loomDependenciesSchema = z
+  .array(loomDependencySchema)
   .refine(
     (items) => new Set(items.map((item) => item.name)).size === items.length,
-    "Workflow package names must be unique",
+    "Loom package names must be unique",
   );
-export type WorkflowDependency = z.infer<typeof workflowDependencySchema>;
+export type LoomDependency = z.infer<typeof loomDependencySchema>;
 
 export const loomConfigSchema = z.strictObject({
-  workflows: workflowDependenciesSchema.optional(),
+  looms: loomDependenciesSchema.optional(),
   mirror: z
     .strictObject({
       enabled: z.boolean().default(false),
@@ -33,17 +33,15 @@ export const loomConfigSchema = z.strictObject({
     })
     .optional(),
   localStorage: z.enum(["file", "sqlite"]).optional(),
-  // workflow specific configs
-  intent: intentConfigSchema,
   useMcpAgent: z.boolean().default(true),
   // Service execution validates credentials before creating a Run.
   llms: z
-    .intersection(
-      z.object({
-        default: llmConfigSchema,
-      }),
-      z.partialRecord(z.enum(LlmKind), llmConfigSchema),
-    )
+    .strictObject({
+      default: llmConfigSchema,
+      thinking: llmConfigSchema.optional(),
+      working: llmConfigSchema.optional(),
+      coding: llmConfigSchema.optional(),
+    })
     .optional(),
 });
 

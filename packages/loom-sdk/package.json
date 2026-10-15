@@ -1,0 +1,44 @@
+{
+  "name": "@intloom/loom-sdk",
+  "version": "0.0.3",
+  "type": "module",
+  "description": "Public contracts and stateless capabilities for compiled IntLoom Looms",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "scripts": {
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"src/**/*.spec.ts\"",
+    "pack": "node ../../scripts/pack-package.ts .",
+    "test:package": "node --test \"test/package/*.intg.ts\""
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ole3021/intloom.git",
+    "directory": "packages/loom-sdk"
+  },
+  "homepage": "https://github.com/ole3021/intloom",
+  "bugs": {
+    "url": "https://github.com/ole3021/intloom/issues"
+  },
+  "engines": {
+    "node": ">=26.4.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

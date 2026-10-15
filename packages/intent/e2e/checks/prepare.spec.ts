@@ -18,7 +18,7 @@ test("prepared file baseline preserves complete commit identity and immutable hi
     layout: "directories",
   });
   const payload = {
-    flowName: "intent",
+    loomName: "intent",
     stageName: "specification",
     data: { title: "Initial scope" },
   };

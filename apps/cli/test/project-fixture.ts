@@ -231,7 +231,7 @@ export const blueprint = { flowName: "fixture", entryStageName: "first", stages:
   first: { stageName: "first", initializeState: ({ runId, intent }) => ({ id: runId, intent }), stateSchema: z.object({ id: z.string(), intent: z.string(), answer: z.string().optional() }), entryStepName: "ask",
     steps: { ask: { stepName: "ask", execution: { kind: "code", codeId: "CODE-123456789012345678901" }, on: { complete: { kind: "stage_end" } } } }, on: { complete: { kind: "workflow_end" } } }
 } };
-export const codes = { "CODE-123456789012345678901": async (_input, access) => {
+export const codes = { "CODE-123456789012345678901": async (access) => {
   const { id, intent } = access.state.value;
   await access.storage.commit([{ type: "append_record", id: "once-" + id, payload: { flowName: "fixture", stageName: "first", data: { intent } } }]);
   const answers = await access.interaction.askQuestions([{ id: "place", question: "Where should it be deployed?", options: [{ id: "local", label: "Local" }, { id: "cloud", label: "Cloud" }], isSkippable: false }, { id: "notes", question: "Any additional notes?", isSkippable: true }]);

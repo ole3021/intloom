@@ -1,6 +1,6 @@
 import { rename } from "node:fs/promises";
 import { fail } from "../errors.ts";
-import { exists } from "./output-files.ts";
+import { exists } from "../package/output-files.ts";
 
 /** On restore failure the caller retains the temporary directory containing the previous output. */
 export async function publishOutput(

@@ -1,3 +1,4 @@
+import { codeRecoverySchema } from "@intloom/loom-sdk";
 import { createAgentAccess, createCodeAccess } from "./execution-access.ts";
 import { RUNTIME_ERRORS } from "../errors/runtime.ts";
 import type { RunEntry } from "./run-entry.ts";
@@ -24,7 +25,13 @@ export async function executeStep(
           message: `Code ${execution.codeId} is unavailable.`,
         });
       if (entry.recoveredAnswer) {
-        const saved = structuredClone(entry.recoveredAnswer);
+        const { action, answer } = entry.recoveredAnswer;
+        const saved = codeRecoverySchema.parse({
+          actionId: action.id,
+          kind: action.kind,
+          request: action.request,
+          answer,
+        });
         const recover = code.recover;
         if (!recover)
           throw RUNTIME_ERRORS.create("RUN_INTERRUPTED", {
@@ -32,14 +39,12 @@ export async function executeStep(
               "This Code does not provide an interaction recovery entry.",
           });
         return options.effector.executeCode(
-          (_input, access) => recover(saved, access),
-          null,
+          (access) => recover(saved, access),
           createCodeAccess(entry, call, options.storage, options.project),
         );
       }
       return options.effector.executeCode(
         code,
-        null,
         createCodeAccess(entry, call, options.storage, options.project),
       );
     }

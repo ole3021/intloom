@@ -6,7 +6,7 @@ import {
 import { sampleRunObservation } from "./run-observation.ts";
 import { setImmediate } from "node:timers/promises";
 import { withLogger } from "@intloom/utils";
-import type { BlueprintStage } from "../workflow/blueprint.ts";
+import type { BlueprintStage } from "../loom/blueprint.ts";
 import { applyStepResult } from "./apply-step-result.ts";
 import { RUNTIME_ERRORS } from "../errors/runtime.ts";
 import { executeStep } from "./execute-step.ts";
@@ -89,7 +89,7 @@ async function enterStage(
       log.error("stage_initialization_failed", { err: cause });
       failRun(entry, runtimeError(cause, "RUN_INITIALIZATION_FAILED"));
       endCall(entry, call);
-      await captureBoundary(entry, options, "workflow_end");
+      await captureBoundary(entry, options, "loom_end");
     }
     return false;
   } finally {
@@ -120,7 +120,7 @@ async function runLoop(
       return;
   }
   if (control && !control.boundary) {
-    if (!(await captureBoundary(entry, options, "workflow_start"))) return;
+    if (!(await captureBoundary(entry, options, "loom_start"))) return;
   }
   if (entry.exitedStage) {
     entry.stageState.leave();
@@ -261,7 +261,7 @@ async function runLoop(
         });
         failRun(entry, runtimeError(cause));
         endCall(entry, call);
-        await captureBoundary(entry, options, "workflow_end");
+        await captureBoundary(entry, options, "loom_end");
       } else log.debug("late_error_ignored");
       return;
     } finally {
@@ -271,7 +271,7 @@ async function runLoop(
     notifyRunObservers(entry);
     if (transition.kind === "complete") {
       entry.logger.info("run_completed");
-      await captureBoundary(entry, options, "workflow_end");
+      await captureBoundary(entry, options, "loom_end");
       return;
     }
     if (

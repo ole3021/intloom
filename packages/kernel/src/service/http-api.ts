@@ -19,7 +19,7 @@ import {
 } from "./application/artifacts.ts";
 import { errorView, failure } from "./errors.ts";
 import {
-  flowRequestSchema,
+  runRequestSchema,
   answerRequestSchema,
   resumeRunSchema,
   type Admission,
@@ -63,7 +63,7 @@ export function createServiceApi(getHost: () => ProjectHost) {
       capabilities: [
         "query",
         "observe",
-        "flow",
+        "run",
         "answer",
         "cancel",
         "operation_receipts",
@@ -100,10 +100,10 @@ export function createServiceApi(getHost: () => ProjectHost) {
     res.end(JSON.stringify({ ok: true, data, meta }));
   }
   async function admit(
-    kind: "flow" | "answer" | "resume",
+    kind: "run" | "answer" | "resume",
     source: RunSource,
     input:
-      | ReturnType<typeof flowRequestSchema.parse>
+      | ReturnType<typeof runRequestSchema.parse>
       | ReturnType<typeof answerRequestSchema.parse>
       | ReturnType<typeof resumeRunSchema.parse>,
     runId?: string,
@@ -134,8 +134,8 @@ export function createServiceApi(getHost: () => ProjectHost) {
     operations.set(operationId, operation);
     try {
       const run =
-        kind === "flow" && "flowName" in input
-          ? await application.flow(input.flowName, input.intent)
+        kind === "run" && "loomName" in input
+          ? await application.run(input.loomName, input.input)
           : kind === "resume" && "expectedRevision" in input && runId
             ? await application.resumeRun(runId, input)
             : "actionId" in input && runId
@@ -247,7 +247,7 @@ export function createServiceApi(getHost: () => ProjectHost) {
             type: "project_snapshot",
             serviceInstanceId: getHost().info.instanceId,
             service,
-            workflows: await application.listWorkflows(),
+            looms: await application.listLooms(),
             runs: views,
           });
           lastService = canonical(service);
@@ -418,9 +418,9 @@ export function createServiceApi(getHost: () => ProjectHost) {
           }
         }
         if (method === "POST" && path === "/runs") {
-          const input = flowRequestSchema.parse(body);
+          const input = runRequestSchema.parse(body);
           meta.operationId = input.operationId;
-          const data = await admit("flow", source, input);
+          const data = await admit("run", source, input);
           if (data.receipt.status === "accepted")
             meta.runId = data.receipt.runId;
           if (data.receipt.status === "rejected")
@@ -444,14 +444,14 @@ export function createServiceApi(getHost: () => ProjectHost) {
           write(
             res,
             (
-              await app.listRuns(url.searchParams.get("flowName") ?? undefined)
+              await app.listRuns(url.searchParams.get("loomName") ?? undefined)
             ).map(snapshot),
             meta,
           );
           return true;
         }
-        if (method === "GET" && path === "/workflows") {
-          write(res, await app.listWorkflows(), meta);
+        if (method === "GET" && path === "/looms") {
+          write(res, await app.listLooms(), meta);
           return true;
         }
         const operationMatch = /^\/operations\/([^/]+)$/u.exec(path);

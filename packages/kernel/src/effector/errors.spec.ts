@@ -158,8 +158,8 @@ test("existing RunView carries diagnostic messages and cursor without Error inte
   const run = toRunView({
     id: "RUN-errors",
     execution: { source: "cli", agentExecutor: "service" },
-    flowName: "intent",
-    intent: privateText,
+    loomName: "intent",
+    input: { prompt: privateText },
     cursor: { stageName: "specification", stepName: "analyze" },
     status: "failed",
     lastError: error,

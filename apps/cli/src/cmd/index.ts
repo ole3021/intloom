@@ -24,7 +24,7 @@ import { errorView, failure } from "../errors.ts";
 import { packageVersion } from "../version.ts";
 import { formatResult } from "./render.ts";
 import { formatLog } from "../ui/logs.ts";
-import { workflowSource } from "../workflows/install.ts";
+import { loomSource } from "../looms/install.ts";
 import { exportArtifact } from "../commands/export-artifact.ts";
 export interface CliIo {
   readonly input: Readable;
@@ -67,11 +67,13 @@ export async function runCmd(
   let exitCode = 0;
   let lastResult: CoreResult<unknown> | undefined;
   const common: Record<string, unknown> = { interactive: true };
-  const workflowInputs: string[] = [];
+  const loomInputs: string[] = [];
+  const pathInputs: { files?: string[]; dirs?: string[]; urls?: string[] } = {};
   const args: string[] = [];
   let literal = false;
   for (let index = 0; index < rawArgs.length; index++) {
-    const item = rawArgs[index];
+    const raw = rawArgs[index];
+    const item = literal ? raw : raw?.replace(/^-l(?:oom)?(?==|$)/u, "--loom");
     if (item === undefined) continue;
     if (item === "--") {
       literal = true;
@@ -80,15 +82,21 @@ export async function runCmd(
     }
     if (
       !literal &&
-      /^--(?:to|scope|intent|intent-file|answer|answer-file|operation-id|instance|port|flow|stage|limit|cursor|output|mcp|ide|execution|until|timeout|revision|file|workflow)(?:=|$)/u.test(
+      /^--(?:to|scope|prompt|prompt-file|answer|answer-file|operation-id|instance|port|loom|stage|limit|cursor|output|mcp|ide|execution|until|timeout|revision|file|dir|url)(?:=|$)/u.test(
         item,
       )
     ) {
       const equals = item.indexOf("=");
       const argument =
         equals >= 0 ? item.slice(equals + 1) : rawArgs[index + 1];
-      if (item === "--workflow" || item.startsWith("--workflow="))
-        workflowInputs.push(argument ?? "");
+      if (item === "--loom" || item.startsWith("--loom="))
+        loomInputs.push(argument ?? "");
+      const slot = /^--(file|dir|url)(?:=|$)/u.exec(item)?.[1];
+      if (slot && rawArgs.includes("run")) {
+        const key = `${slot}s` as "files" | "dirs" | "urls";
+        pathInputs[key] ??= [];
+        pathInputs[key].push(argument ?? "");
+      }
       args.push(item);
       if (equals < 0 && argument !== undefined) {
         args.push(argument);
@@ -109,9 +117,7 @@ export async function runCmd(
     } else args.push(item);
   }
   const machine = common.json === true;
-  const command = ["workflow", "config", "mcp", "mirror", "run"].includes(
-    args[0] ?? "",
-  )
+  const command = ["loom", "config", "mcp", "mirror"].includes(args[0] ?? "")
     ? args.slice(0, 2).join(" ")
     : args[0];
   function print(result: CoreResult<unknown>, exportedTo?: string) {
@@ -242,6 +248,39 @@ export async function runCmd(
       operationId: randomUUID(),
     };
   }
+  function validateArguments(a: Values, flags: ArgsDef): Values {
+    const known = new Set(
+      Object.entries(flags).flatMap(([key, flag]) => [
+        ...["alias" in flag ? (flag.alias ?? []) : []].flat(),
+        key,
+        key.replace(/-([a-z])/gu, (_match, letter: string) =>
+          letter.toUpperCase(),
+        ),
+      ]),
+    );
+    for (const key of Object.keys(a))
+      if (key !== "_" && !known.has(key)) invalid(`Unknown option: --${key}`);
+    if (
+      a._.length >
+      Object.values(flags).filter((flag) => flag.type === "positional").length
+    )
+      invalid("Unexpected extra positional input; quote the complete text.");
+    for (const [name, flag] of Object.entries(flags)) {
+      if (
+        (flag.type === "string" || flag.type === "positional") &&
+        a[name] !== undefined &&
+        !(
+          ["loom", "file", "dir", "url"].includes(name) &&
+          Array.isArray(a[name])
+        )
+      )
+        value(a, name);
+    }
+    if (a.port !== undefined) integer(a, "port", 65535);
+    if (a.limit !== undefined) integer(a, "limit", 200, 1);
+    if (a.timeout !== undefined) integer(a, "timeout", 2147483647, 1);
+    return a;
+  }
   function leaf(
     description: string,
     flags: ArgsDef,
@@ -252,37 +291,7 @@ export async function runCmd(
       meta: { description },
       args: flags,
       async run(context) {
-        const a = context.args as Values;
-        const known = new Set(
-          Object.keys(flags).flatMap((key) => [
-            key,
-            key.replace(/-([a-z])/gu, (_match, letter: string) =>
-              letter.toUpperCase(),
-            ),
-          ]),
-        );
-        for (const key of Object.keys(a))
-          if (key !== "_" && !known.has(key))
-            invalid(`Unknown option: --${key}`);
-        if (
-          a._.length >
-          Object.values(flags).filter((flag) => flag.type === "positional")
-            .length
-        )
-          invalid(
-            "Unexpected extra positional input; quote the complete text.",
-          );
-        for (const [name, flag] of Object.entries(flags)) {
-          if (
-            (flag.type === "string" || flag.type === "positional") &&
-            a[name] !== undefined &&
-            !(name === "workflow" && Array.isArray(a[name]))
-          )
-            value(a, name);
-        }
-        if (a.port !== undefined) integer(a, "port", 65535);
-        if (a.limit !== undefined) integer(a, "limit", 200, 1);
-        if (a.timeout !== undefined) integer(a, "timeout", 2147483647, 1);
+        const a = validateArguments(context.args as Values, flags);
         await action(a, await project(init));
       },
     });
@@ -293,14 +302,14 @@ export async function runCmd(
     "operation-id": str("Original operation UUID"),
   };
   const queryFlags = {
-    flow: str("Workflow filter"),
+    loom: str("Loom filter"),
     stage: str("Stage filter"),
     limit: str("Page size 1–200"),
     cursor: str("Page cursor"),
   };
   function query(a: Values) {
     return parseArtifactQuery({
-      ...(a.flow ? { flowName: a.flow } : {}),
+      ...(a.loom ? { loomName: a.loom } : {}),
       ...(a.stage ? { stageName: a.stage } : {}),
       ...(a.limit ? { limit: integer(a, "limit", 200, 1) } : {}),
       ...(a.cursor ? { cursor: a.cursor } : {}),
@@ -320,6 +329,9 @@ export async function runCmd(
       },
     };
   }
+  const buildFlags = {
+    path: pos("Loom source directory (defaults to current directory)", false),
+  };
   const tree: CommandDef = defineCommand({
     meta: {
       name: "intloom",
@@ -328,11 +340,27 @@ export async function runCmd(
     },
     args: globals as ArgsDef,
     subCommands: {
+      build: defineCommand({
+        meta: { description: "Build a Loom source package into dist" },
+        args: buildFlags,
+        async run(context) {
+          const a = validateArguments(context.args as Values, buildFlags);
+          if (common.project !== undefined)
+            invalid(
+              "Use intloom build [path] to select a Loom source directory.",
+            );
+          print(
+            await core.buildLoom({
+              packagePath: resolve(io.cwd, value(a, "path") ?? "."),
+            }),
+          );
+        },
+      }),
       mirror: defineCommand({
         meta: { description: "Immutable local execution mirrors" },
         subCommands: {
           list: leaf(
-            "List mirror boundaries without loading Workflow",
+            "List mirror boundaries without loading Loom",
             {},
             async (_a, input) => {
               print(await core.listMirrors(input));
@@ -355,13 +383,13 @@ export async function runCmd(
             {
               mirrorId: pos("Mirror UUID"),
               to: str("Prepared target project"),
-              scope: str("step, stage or workflow"),
+              scope: str("step, stage or loom"),
               "dry-run": bool("Validate and show write plan"),
             },
             async (a, input) => {
-              const scope = value(a, "scope") ?? "workflow";
-              if (!["step", "stage", "workflow"].includes(scope))
-                invalid("Scope must be step, stage or workflow.");
+              const scope = value(a, "scope") ?? "loom";
+              if (!["step", "stage", "loom"].includes(scope))
+                invalid("Scope must be step, stage or loom.");
               const to = value(a, "to");
               if (!to) invalid("Restore requires --to.");
               print(
@@ -369,7 +397,7 @@ export async function runCmd(
                   ...input,
                   mirrorId: value(a, "mirrorId") ?? "",
                   targetProject: resolve(io.cwd, to),
-                  scope: scope as "step" | "stage" | "workflow",
+                  scope: scope as "step" | "stage" | "loom",
                   dryRun: a["dry-run"] === true,
                 }),
               );
@@ -392,60 +420,57 @@ export async function runCmd(
           ),
         },
       }),
-      run: defineCommand({
-        meta: { description: "Run controls" },
-        subCommands: {
-          resume: leaf(
-            "Explicitly resume a paused mirror Run",
-            {
-              runId: pos("Run ID"),
-              scope: str("New scope after scope completion"),
-              "abandon-mirror": bool(
-                "Explicitly stop this Run mirror capture after a failure; requires --scope workflow",
-              ),
-              revision: str("Observed Run revision"),
-              ...admissionFlags,
-            },
-            async (a, input) => {
-              const bound = await binding(input, a);
-              if (!bound) return;
-              const runId = value(a, "runId") ?? "";
-              const observed = await core.getRun({ ...bound, runId });
-              if (!observed.ok) {
-                print(observed);
-                return;
-              }
-              if (!observed.data.revision)
-                invalid("Observed Run revision is missing.");
-              const scope = value(a, "scope");
-              if (scope && !["step", "stage", "workflow"].includes(scope))
-                invalid("Invalid scope.");
-              const revision =
-                a.revision === undefined
-                  ? observed.data.revision
-                  : integer(a, "revision", Number.MAX_SAFE_INTEGER, 1);
-              if (revision === undefined)
-                invalid("Resume revision is missing.");
-              print(
-                await core.resumeRun({
-                  ...bound,
-                  runId,
-                  expectedRevision: revision,
-                  ...(a["abandon-mirror"] ? { abandonMirror: true } : {}),
-                  ...(scope
-                    ? { scope: scope as "step" | "stage" | "workflow" }
-                    : {}),
-                }),
-              );
-            },
+      resume: leaf(
+        "Explicitly resume a paused mirror Run",
+        {
+          runId: pos("Run ID"),
+          scope: str("New scope after scope completion"),
+          "abandon-mirror": bool(
+            "Explicitly stop this Run mirror capture after a failure; requires --scope loom",
           ),
+          revision: str("Observed Run revision"),
+          ...admissionFlags,
         },
-      }),
+        async (a, input) => {
+          const bound = await binding(input, a);
+          if (!bound) return;
+          const runId = value(a, "runId") ?? "";
+          const observed = await core.getRun({ ...bound, runId });
+          if (!observed.ok) {
+            print(observed);
+            return;
+          }
+          if (!observed.data.revision)
+            invalid("Observed Run revision is missing.");
+          const scope = value(a, "scope");
+          if (scope && !["step", "stage", "loom"].includes(scope))
+            invalid("Invalid scope.");
+          const revision =
+            a.revision === undefined
+              ? observed.data.revision
+              : integer(a, "revision", Number.MAX_SAFE_INTEGER, 1);
+          if (revision === undefined) invalid("Resume revision is missing.");
+          print(
+            await core.resumeRun({
+              ...bound,
+              runId,
+              expectedRevision: revision,
+              ...(a["abandon-mirror"] ? { abandonMirror: true } : {}),
+              ...(scope ? { scope: scope as "step" | "stage" | "loom" } : {}),
+            }),
+          );
+        },
+      ),
       init: leaf(
-        "Initialize project with optional Workflow, MCP and Service",
+        "Initialize project with optional Loom, MCP and Service",
         {
           directory: pos("New or empty directory", false),
-          workflow: str("Workflow package; repeatable"),
+          loom: {
+            ...str(
+              "Loom package or built-in name; repeatable; also accepts -loom",
+            ),
+            alias: "l",
+          },
           mcp: str("codex"),
           start: bool("Start after setup"),
         },
@@ -455,19 +480,17 @@ export async function runCmd(
           const target = value(a, "directory"),
             ide = value(a, "mcp");
           if (ide && ide !== "codex") invalid("MCP profile must be codex.");
-          const sources = workflowInputs;
+          const sources = loomInputs;
           const result = await core.initProject({
             projectPath: target ? resolve(io.cwd, target) : input.projectPath,
-            workflows: sources.map((item) =>
-              workflowSource(String(item), io.cwd),
-            ),
+            looms: sources.map((item) => loomSource(String(item), io.cwd)),
             ...(ide ? { mcp: "codex" } : {}),
             ...(a.start ? { start: true } : {}),
           });
           print(result);
           if (!machine && result.ok)
             io.output.write(
-              "Configure llms.default in intloom.yaml before model execution. Run intloom start, then intloom flows.\n",
+              "Configure llms.default in intloom.yaml before model execution. Run intloom start, then intloom looms.\n",
             );
         },
         true,
@@ -516,36 +539,44 @@ export async function runCmd(
             await core.recoverProject({ ...p, dryRun: a["dry-run"] === true }),
           ),
       ),
-      flows: leaf("Loaded Workflow readiness", {}, async (_a, p) =>
-        print(await core.listWorkflows(p)),
+      looms: leaf("Loaded Loom readiness", {}, async (_a, p) =>
+        print(await core.listLooms(p)),
       ),
       runs: leaf(
         "Runs in current instance",
-        { flow: str("Workflow"), ...instanceFlag },
+        { loom: str("Loom"), ...instanceFlag },
         async (a, p) =>
           print(
             await core.listRuns({
               ...instance(p, a),
-              ...(a.flow ? { flowName: value(a, "flow", true) } : {}),
+              ...(a.loom ? { loomName: value(a, "loom", true) } : {}),
             }),
           ),
       ),
-      flow: leaf(
-        "Submit complete intent; immediate admission",
+      run: leaf(
+        "Run a Loom with the supplied inputs",
         {
-          flowName: pos("Workflow name"),
-          intent: str("Complete intent"),
-          "intent-file": str("UTF-8 file or -"),
+          loomName: pos("Loom name"),
+          prompt: str("Description for the Loom"),
+          "prompt-file": str("UTF-8 description file or -"),
+          file: str("File path; repeat to provide multiple files"),
+          dir: str("Directory path; repeat to provide multiple directories"),
+          url: str("URL; repeat to provide multiple URLs"),
           ...admissionFlags,
         },
         async (a, p) => {
           const bound = await binding(p, a);
           if (bound)
             print(
-              await core.flow({
+              await core.run({
                 ...bound,
-                flowName: value(a, "flowName", true),
-                intent: await text(a, "intent", "intent-file"),
+                loomName: value(a, "loomName", true),
+                input: {
+                  ...(a.prompt !== undefined || a["prompt-file"] !== undefined
+                    ? { prompt: await text(a, "prompt", "prompt-file") }
+                    : {}),
+                  ...pathInputs,
+                },
               }),
             );
         },
@@ -562,7 +593,7 @@ export async function runCmd(
           ),
       ),
       answer: leaf(
-        "Submit the complete Workflow answer JSON",
+        "Submit the complete Loom answer JSON",
         {
           runId: pos("Run ID"),
           action: str("Action ID"),
@@ -669,7 +700,7 @@ export async function runCmd(
         "Read/export committed snapshot",
         {
           artifactId: pos("ID", false),
-          flow: str("Workflow"),
+          loom: str("Loom"),
           stage: str("Stage"),
           output: str("JSON file"),
           overwrite: bool("Replace output"),
@@ -677,7 +708,7 @@ export async function runCmd(
         async (a, p) => {
           const selector = parseArtifactSelector({
             ...(a.artifactId ? { artifactId: a.artifactId } : {}),
-            ...(a.flow ? { flowName: a.flow } : {}),
+            ...(a.loom ? { loomName: a.loom } : {}),
             ...(a.stage ? { stageName: a.stage } : {}),
           });
           if (a.overwrite && !a.output)
@@ -715,29 +746,29 @@ export async function runCmd(
             }),
           ),
       ),
-      workflow: defineCommand({
-        meta: { description: "Offline Workflow packages" },
+      loom: defineCommand({
+        meta: { description: "Offline Loom packages" },
         subCommands: {
           list: leaf("Declarations and installation", {}, async (_a, p) =>
-            print(await core.listWorkflowPackages(p)),
+            print(await core.listLoomPackages(p)),
           ),
           add: leaf(
             "Install package",
             { source: pos("Package/archive") },
             async (a, p) =>
               print(
-                await core.addWorkflowPackage({
+                await core.addLoomPackage({
                   ...p,
-                  source: workflowSource(value(a, "source", true), io.cwd),
+                  source: loomSource(value(a, "source", true), io.cwd),
                 }),
               ),
           ),
           remove: leaf(
             "Remove declaration; retain data",
-            { name: pos("Package name") },
+            { name: pos("Package name or unambiguous short name") },
             async (a, p) =>
               print(
-                await core.removeWorkflowPackage({
+                await core.removeLoomPackage({
                   ...p,
                   packageName: value(a, "name", true),
                 }),

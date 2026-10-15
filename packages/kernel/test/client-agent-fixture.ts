@@ -4,13 +4,13 @@ import {
   type AgentTool,
   type AgentExecutionAccess,
   type JsonValue,
-} from "@intloom/workflow-sdk";
+} from "@intloom/loom-sdk";
 import { createRuntime } from "../src/runtime/create-runtime.ts";
 import { createEffector } from "../src/effector/create-effector.ts";
 import { resolveRunExecution } from "../src/runtime/execution-policy.ts";
 import { runtimeFixture } from "./runtime-fixture.ts";
 import { source, agentId } from "./workflow-fixture.ts";
-import type { LoadedAgent } from "../src/workflow/types.ts";
+import type { LoadedAgent } from "../src/loom/types.ts";
 import type { RuntimeOptions } from "../src/runtime/contracts.ts";
 import type { RunView } from "../src/runtime/run-view.ts";
 import assert from "node:assert/strict";
@@ -47,7 +47,7 @@ export function clientAgentFixture() {
       description: "Fixture",
       instructions:
         "Add to the value using Tools, then return complete or retry.",
-      llm: "reasoning",
+      llm: "thinking",
       outputSchema: z.strictObject({ outcome: z.enum(["complete", "retry"]) }),
       tools,
       skills: [],

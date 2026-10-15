@@ -10,17 +10,16 @@ import fs, {
 } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { test } from "node:test";
 import { LoomError } from "@intloom/utils";
-import type { LinkedWorkflow } from "../analyze/model.ts";
+import type { LinkedLoom } from "../analyze/model.ts";
 import { buildExportFiles } from "./build-export-files.ts";
 
 for (const scenario of [
   "outside config",
   "missing config",
   "non-directory dist",
-  "existing generated entry",
 ] as const) {
   test(`rejects ${scenario} before compilation and preserves existing files`, async (t) => {
     const root = await realpath(
@@ -36,17 +35,29 @@ for (const scenario of [
     }
     if (scenario !== "missing config")
       await writeFile(resolve(root, "tsconfig.build.json"), "{}");
-    if (scenario === "existing generated entry")
-      await writeFile(resolve(root, "workflow.generated.ts"), "author source");
-    const workflow: LinkedWorkflow = {
+    const loom: LinkedLoom = {
       model: {
+        manifest: {
+          name: "example",
+          version: "1.0.0",
+          type: "module",
+          loom: {
+            type: "loom",
+            version: "2026-10-15",
+            name: "example",
+            inputs: [],
+            entry: "main",
+            stages: {},
+          },
+        },
+        inputs: [],
         options: {
           packageRoot: root,
           ...(scenario === "outside config"
             ? { tsconfigFile: "../outside.json" }
             : {}),
         },
-        flowName: "example",
+        loomName: "example",
         version: "1.0.0",
         entryStageName: "main",
         stages: {},
@@ -56,25 +67,19 @@ for (const scenario of [
       },
       codeIds: {},
       agentIds: {},
+      diagnostics: [],
     };
     const before = (await readdir(root)).sort();
-    await assert.rejects(buildExportFiles(workflow), (error) => {
+    await assert.rejects(buildExportFiles(loom), (error) => {
       assert.ok(LoomError.is(error));
-      assert.equal(
-        error.code,
-        scenario === "existing generated entry"
-          ? "BUILD_FAILED"
-          : "INVALID_BUILD_CONFIG",
-      );
+      assert.equal(error.code, "INVALID_BUILD_CONFIG");
       assert.equal(
         (error.cause as { location: { file: string } }).location.file,
         scenario === "outside config"
           ? resolve(root, "../outside.json")
           : scenario === "missing config"
             ? resolve(root, "tsconfig.build.json")
-            : scenario === "non-directory dist"
-              ? destination
-              : resolve(root, "workflow.generated.ts"),
+            : destination,
       );
       return true;
     });
@@ -85,11 +90,6 @@ for (const scenario of [
       assert.equal(
         await readFile(resolve(destination, "previous.txt"), "utf8"),
         "previous output",
-      );
-    if (scenario === "existing generated entry")
-      assert.equal(
-        await readFile(resolve(root, "workflow.generated.ts"), "utf8"),
-        "author source",
       );
   });
 }
@@ -108,7 +108,7 @@ test("preserves build diagnostics and attempts all cleanup after configuration g
   await write(resolve(root, "tsconfig.build.json"), "{}");
   await mkdir(resolve(root, "dist"));
   await write(resolve(root, "dist/previous.txt"), "previous output");
-  const entry = resolve(root, "workflow.generated.ts");
+  let entry = "";
   const original = new LoomError(
     "INVALID_BUILD_CONFIG",
     "Configuration generation failed",
@@ -132,15 +132,32 @@ test("preserves build diagnostics and attempts all cleanup after configuration g
     "rm",
     async (...[file, options]: Parameters<typeof fs.rm>) => {
       attempted.push(String(file));
-      if (file === entry) throw cleanupError;
+      if (basename(String(file)) === "loom.generated.ts") {
+        entry = String(file);
+        throw cleanupError;
+      }
       return remove(file, options);
     },
   );
   syncBuiltinESMExports();
-  const workflow: LinkedWorkflow = {
+  const loom: LinkedLoom = {
     model: {
+      manifest: {
+        name: "example",
+        version: "1.0.0",
+        type: "module",
+        loom: {
+          type: "loom",
+          version: "2026-10-15",
+          name: "example",
+          inputs: [],
+          entry: "main",
+          stages: {},
+        },
+      },
+      inputs: [],
       options: { packageRoot: root },
-      flowName: "example",
+      loomName: "example",
       version: "1.0.0",
       entryStageName: "main",
       stages: {},
@@ -150,8 +167,9 @@ test("preserves build diagnostics and attempts all cleanup after configuration g
     },
     codeIds: {},
     agentIds: {},
+    diagnostics: [],
   };
-  await assert.rejects(buildExportFiles(workflow), (error) => {
+  await assert.rejects(buildExportFiles(loom), (error) => {
     assert.ok(LoomError.is(error));
     assert.equal(error.code, original.code);
     assert.equal(error.message, original.message);

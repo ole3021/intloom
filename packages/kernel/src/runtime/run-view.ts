@@ -1,5 +1,5 @@
 import type { RunExecution } from "./execution-policy.ts";
-import type { Cursor } from "../workflow/blueprint.ts";
+import type { Cursor } from "./cursor.ts";
 import type { ReadonlyJsonValue } from "../shared/json.ts";
 import type { PendingAgentCall } from "./agent-call-types.ts";
 
@@ -18,7 +18,7 @@ export type PendingUserActionKind =
 export interface PendingUserAction {
   /** Generated for each new question, retained during presentation and reconnection, and submitted as actionId. */
   readonly id: string;
-  readonly flowName: string;
+  readonly loomName: string;
   readonly cursor: Readonly<Cursor>;
   readonly kind: PendingUserActionKind;
   readonly request: ReadonlyJsonValue;
@@ -44,7 +44,7 @@ export interface RunView {
   readonly stopReason?: "user_cancel" | "budget_exceeded";
   readonly control?: import("../mirror/contracts.ts").MirrorControl;
   readonly runId: string;
-  readonly flowName: string;
+  readonly loomName: string;
   readonly execution: RunExecution;
 
   /** The current cursor for running/waiting, or the last reached cursor for completed/failed. */

@@ -1,17 +1,17 @@
 import * as z from "zod";
 import { createHash } from "node:crypto";
 
-export const scopeSchema = z.enum(["step", "stage", "workflow"]);
+export const scopeSchema = z.enum(["step", "stage", "loom"]);
 export type MirrorScope = z.infer<typeof scopeSchema>;
 export const boundarySchema = z.strictObject({
   kind: z.enum([
-    "workflow_start",
+    "loom_start",
     "stage_before_init",
     "stage_start",
     "step_before",
     "step_after",
     "stage_end",
-    "workflow_end",
+    "loom_end",
   ]),
   stageName: z.string().optional(),
   stageVisitId: z.number().int().nonnegative(),
@@ -62,7 +62,7 @@ export const manifestSchema = z.strictObject({
     mirrorId: z.uuid().nullable(),
     traceId: z.uuid().nullable(),
   }),
-  workflow: z.strictObject({ name: z.string(), identityAtCapture: z.string() }),
+  loom: z.strictObject({ name: z.string(), identityAtCapture: z.string() }),
   storageBackend: z.enum(["file", "sqlite"]),
   complete: z.literal(true),
   restorable: z.boolean(),

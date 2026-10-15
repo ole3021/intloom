@@ -171,11 +171,11 @@ test("same-name Stage reentry allocates distinct visits and stage scope exits be
 });
 test("clear State restores an initialized empty binding and waiting does not emit step_after", async (t) => {
   const c = controlled();
-  c.f.codes.start = async (_input, a) => {
+  c.f.codes.start = async (a) => {
     await a.state.clear();
     return { outcome: "complete" };
   };
-  c.f.codes.review = async (_input, a) => {
+  c.f.codes.review = async (a) => {
     assert.equal(a.state.value, undefined);
     await a.state.create({ intent: "fresh" });
     return { outcome: "complete" };
@@ -226,7 +226,7 @@ test("clear State restores an initialized empty binding and waiting does not emi
   assert.equal((await stable(branch, done.runId)).status, "paused");
   assert.equal(initialized, 0);
   const wait = controlled();
-  wait.f.codes.start = async (_input, a) => {
+  wait.f.codes.start = async (a) => {
     await a.interaction.confirm("wait");
     return { outcome: "complete" };
   };

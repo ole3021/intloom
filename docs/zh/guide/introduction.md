@@ -22,6 +22,6 @@ Workflow 定义流程，Run 针对一个意图执行一次流程。Code 执行�
 
 CLI 提供项目 Service 和使用入口，业务 Workflow 需要单独安装。`@intloom/workflow-intent` 提供 Specification → Solution → Implementation → Validation 四个阶段；这属于该包的业务流程，并非所有 IntLoom Workflow 的固定结构。
 
-Workflow 作者在运行时使用 `@intloom/workflow-sdk`，在构建时使用 `@intloom/compiler`。私有 Kernel 随 CLI 一起提供。
+Workflow 作者在运行时使用 `@intloom/loom-sdk`，在构建时使用 `@intloom/compiler`。私有 Kernel 随 CLI 一起提供。
 
 继续阅读[为什么需要 IntLoom](./about/why.md)，或[选择使用方式](./about/choose.md)。

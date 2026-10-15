@@ -3,7 +3,7 @@ import type { JsonValue } from "../../shared/json.ts";
 import type { StateAccess } from "../state-access.ts";
 import type { AgentExecutionAccess } from "../execution.ts";
 
-import { agentExecutionContextKey } from "@intloom/workflow-sdk";
+import { agentExecutionContextKey } from "../agent-context.ts";
 export const agentToolControlKey = "intloom.toolControl";
 export interface AgentToolControl {
   closed: boolean;
@@ -11,7 +11,7 @@ export interface AgentToolControl {
 export {
   agentExecutionContextKey,
   getAgentExecutionAccess,
-} from "@intloom/workflow-sdk";
+} from "../agent-context.ts";
 
 /** The new context references only the current call; access failures remain failures even if the SDK converts them to Tool results. */
 export function bindAgentContext(
@@ -53,11 +53,11 @@ export function bindAgentContext(
     ...(access.project ? { project: access.project } : {}),
     signal: access.signal,
     storage: Object.freeze({
-      getArtifact: (flow, stage) =>
-        invoke(() => storage.getArtifact(flow, stage)),
+      getArtifact: (loom, stage) =>
+        invoke(() => storage.getArtifact(loom, stage)),
       getArtifactById: (id) => invoke(() => storage.getArtifactById(id)),
-      getLatestRecord: (flow, stage) =>
-        invoke(() => storage.getLatestRecord(flow, stage)),
+      getLatestRecord: (loom, stage) =>
+        invoke(() => storage.getLatestRecord(loom, stage)),
       getRecordById: (id) => invoke(() => storage.getRecordById(id)),
       listArtifacts: (query) => invoke(() => storage.listArtifacts(query)),
       listRecords: (query) => invoke(() => storage.listRecords(query)),

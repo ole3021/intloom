@@ -1,10 +1,11 @@
+import type { LoomInput } from "@intloom/loom-sdk";
 import type {
   ListPage,
   ReadonlyJsonValue,
   RunView,
   StoredArtifact,
   StoredRecord,
-  WorkflowView,
+  LoomView,
 } from "../../index.ts";
 import type {
   ArtifactQuery,
@@ -14,7 +15,7 @@ import type {
 
 /** Business operations shared by CLI and Studio; transports never own Run or Stage state. */
 export interface ProjectClient {
-  flow(flowName: string, intent: string): Promise<RunView>;
+  run(loomName: string, input: LoomInput): Promise<RunView>;
   getRun(runId: string): Promise<RunView>;
   answerAsk(
     runId: string,
@@ -22,8 +23,8 @@ export interface ProjectClient {
     answer: ReadonlyJsonValue,
   ): Promise<RunView>;
   cancelRun(runId: string): Promise<RunView>;
-  listRuns(flowName?: string): Promise<readonly RunView[]>;
-  listWorkflows(): Promise<readonly WorkflowView[]>;
+  listRuns(loomName?: string): Promise<readonly RunView[]>;
+  listLooms(): Promise<readonly LoomView[]>;
   getRecord(recordId: string): Promise<StoredRecord | null>;
   getArtifact(selector: ArtifactSelector): Promise<StoredArtifact | null>;
   listArtifacts(query?: ArtifactQuery): Promise<ListPage<ArtifactSummary>>;

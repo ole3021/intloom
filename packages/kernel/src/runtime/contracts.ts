@@ -1,14 +1,15 @@
+import type { LoomInput } from "@intloom/loom-sdk";
 import type { ExecutableAgent } from "../effector/execution.ts";
 import type { RunExecution, RunSource } from "./execution-policy.ts";
 import type { Effector } from "../effector/contracts.ts";
 import type { Logger } from "@intloom/utils";
-import type { CodeRegistry } from "../workflow/registries.ts";
+import type { CodeRegistry } from "../loom/registries.ts";
 import type { StorageAccess } from "../storage/contracts.ts";
-import type { Blueprint } from "../workflow/blueprint.ts";
+import type { Blueprint } from "../loom/blueprint.ts";
 import type { ReadonlyJsonValue } from "../shared/json.ts";
 import type { RunView } from "./run-view.ts";
 import type { AgentCallApi } from "./agent-call-types.ts";
-import type { AgentRegistry } from "../workflow/registries.ts";
+import type { AgentRegistry } from "../loom/registries.ts";
 import type { RunCheckpointStore } from "./recovery/store.ts";
 
 /** Execution resources supplied after project initialization, without business access bound to a specific Run. */
@@ -23,11 +24,11 @@ export interface RuntimeOptions {
       >,
     ): Promise<void>;
   };
-  readonly project?: import("@intloom/workflow-sdk").ProjectAccess;
+  readonly project?: import("@intloom/loom-sdk").ProjectAccess;
   readonly recovery?: {
     readonly store: RunCheckpointStore;
     readonly blueprints: Readonly<Record<string, Blueprint>>;
-    readonly workflowIdentities: Readonly<Record<string, string>>;
+    readonly loomIdentities: Readonly<Record<string, string>>;
   };
   readonly observation?: import("./run-observation.ts").RuntimeObservation;
   readonly logger?: Logger;
@@ -50,15 +51,15 @@ export interface Runtime extends AgentCallApi {
   /** Releases live execution while retaining recovery copies; unlike cancel, unfinished work can be recovered. */
   suspend(): Promise<void>;
   /** Admits a Run and returns its initial running snapshot without waiting for execution. */
-  startFlow(
+  startRun(
     blueprint: Blueprint,
-    intent: string,
+    input: LoomInput,
     source?: RunSource,
   ): Promise<RunView>;
-  /** Preserves the original text and returns a snapshot after reaching waiting/completed/failed. */
-  flow(
+  /** Preserves the declared inputs and returns a snapshot after reaching waiting/completed/failed. */
+  run(
     blueprint: Blueprint,
-    intent: string,
+    input: LoomInput,
     source?: RunSource,
   ): Promise<RunView>;
   resumeRun(
@@ -72,7 +73,7 @@ export interface Runtime extends AgentCallApi {
     },
   ): Promise<RunView>;
   getRun(runId: string): Promise<RunView>;
-  listRuns(flowName?: string): Promise<RunView[]>;
+  listRuns(loomName?: string): Promise<RunView[]>;
   /** Accepts a valid answer synchronously and returns the resumed running snapshot. */
   submitAnswer(
     runId: string,

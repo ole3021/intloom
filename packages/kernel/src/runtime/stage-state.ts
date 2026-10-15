@@ -1,4 +1,4 @@
-import type { BlueprintStage } from "../workflow/blueprint.ts";
+import type { BlueprintStage } from "../loom/blueprint.ts";
 import type { JsonValue, ReadonlyJsonValue } from "../shared/json.ts";
 import type { StateAccess } from "../effector/state-access.ts";
 import { RUNTIME_ERRORS } from "../errors/runtime.ts";
@@ -112,9 +112,9 @@ export function createStageState(
       current = binding;
       const context = Object.freeze({
         runId: run.id,
-        flowName: run.flowName,
+        loomName: run.loomName,
         stageName: stage.stageName,
-        intent: run.intent,
+        input: structuredClone(run.input),
       });
       try {
         const seed = await stage.initializeState(context);

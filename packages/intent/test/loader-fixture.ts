@@ -2,11 +2,8 @@ import type { LoomConfig } from "@intloom/kernel";
 
 export function modelConfig(version: string): LoomConfig {
   return {
-    intent: { apps: [] },
     localStorage: "file",
-    workflows: [
-      { name: "@intloom/workflow-intent", version, sha256: "a".repeat(64) },
-    ],
+    looms: [{ name: "@intloom/intent", version, sha256: "a".repeat(64) }],
     useMcpAgent: true,
     llms: {
       default: {

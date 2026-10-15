@@ -1,8 +1,8 @@
-import type { WorkflowView } from "@intloom/kernel";
+import type { LoomView } from "@intloom/kernel";
 import type { ServiceStatus } from "@intloom/kernel/service";
 import type { OperationReceipt } from "@intloom/kernel/service/api-contracts";
 import type { CoreResult, ServiceRunView } from "../core/index.ts";
-import { renderRun, renderStatus, renderWorkflows } from "../ui/render.ts";
+import { renderRun, renderStatus, renderLooms } from "../ui/render.ts";
 import { formatLog } from "../ui/logs.ts";
 
 interface RenderOptions {
@@ -129,15 +129,15 @@ function runDetails(run: ServiceRunView) {
       : []),
   ].join("\n");
 }
-function workflows(data: unknown): string {
+function looms(data: unknown): string {
   const views = objects(data);
-  if (!views.length) return "No Workflows loaded.\nNext: intloom workflow list";
+  if (!views.length) return "No Looms loaded.\nNext: intloom loom list";
   return [
-    `Workflows (${views.length})`,
+    `Looms (${views.length})`,
     table(
-      ["WORKFLOW", "READINESS", "PACKAGE"],
+      ["LOOM", "READINESS", "PACKAGE"],
       views.map((view) => [
-        view.flowName ?? "—",
+        view.loomName ?? "—",
         view.isAvailable
           ? (object(view.readiness)?.status ?? "available")
           : "unavailable",
@@ -148,7 +148,7 @@ function workflows(data: unknown): string {
       const error = object(view.error) ?? object(object(view.readiness)?.error);
       return error
         ? [
-            `\n${scalar(view.flowName ?? view.packageName)}: ${scalar(error.code)} — ${scalar(error.message)}`,
+            `\n${scalar(view.loomName ?? view.packageName)}: ${scalar(error.code)} — ${scalar(error.message)}`,
           ]
         : [];
     }),
@@ -160,10 +160,10 @@ function runs(data: unknown): string {
     ? section(
         `Runs (${views.length})`,
         table(
-          ["RUN", "WORKFLOW", "STATUS", "STAGE / STEP"],
+          ["RUN", "LOOM", "STATUS", "STAGE / STEP"],
           views.map((run) => [
             run.runId,
-            run.flowName,
+            run.loomName,
             run.status,
             `${scalar(object(run.cursor)?.stageName)} / ${scalar(object(run.cursor)?.stepName)}`,
           ]),
@@ -197,11 +197,11 @@ function page(data: Fields, command: string): string {
           `${title} (${items.length})`,
           table(
             artifacts
-              ? ["ARTIFACT", "WORKFLOW", "STAGE", "REVISION"]
-              : ["RECORD", "WORKFLOW", "STAGE", "CREATED"],
+              ? ["ARTIFACT", "LOOM", "STAGE", "REVISION"]
+              : ["RECORD", "LOOM", "STAGE", "CREATED"],
             items.map((item) => [
               item.id,
-              item.flowName,
+              item.loomName,
               item.stageName,
               artifacts ? item.revision : item.createdAt,
             ]),
@@ -230,14 +230,28 @@ function formatData(value: unknown, options: RenderOptions): string {
           .join("\n")
       : "No matching logs.";
   }
-  if (command === "flows") return workflows(value);
+  if (command === "looms") return looms(value);
   if (command === "runs") return runs(value);
   if (!data) return value === null ? "Not found." : formatDetails(value);
+  if (command === "build")
+    return [
+      `Built ${scalar(data.packageName)}@${scalar(data.packageVersion)}`,
+      line("Loom", data.loomName),
+      line("Source", data.packageRoot),
+      line("Output", data.outputPath),
+      ...objects(data.diagnostics).map((diagnostic) => {
+        const at = object(diagnostic.location);
+        const location = at
+          ? `${scalar(at.file)}${at.line ? `:${scalar(at.line)}:${scalar(at.column ?? 1)}` : ""}: `
+          : "";
+        return `Warning ${scalar(diagnostic.code)}: ${location}${scalar(diagnostic.message)}`;
+      }),
+    ].join("\n");
   if (data.type === "project_snapshot")
     return [
       renderStatus(data.service as ServiceStatus),
       "",
-      workflows(data.workflows),
+      looms(data.looms),
       "",
       runs(data.runs),
     ].join("\n");
@@ -276,7 +290,7 @@ function formatData(value: unknown, options: RenderOptions): string {
       line("PID", service.pid),
       line("Storage", service.storage),
       line("Instance", service.instanceId),
-      "Next: intloom flows",
+      "Next: intloom looms",
     ].join("\n");
   }
   if (command === "stop")
@@ -322,9 +336,7 @@ function formatData(value: unknown, options: RenderOptions): string {
             ),
           ]
         : []),
-      ...(data.workflows
-        ? ["", renderWorkflows(data.workflows as WorkflowView[])]
-        : []),
+      ...(data.looms ? ["", renderLooms(data.looms as LoomView[])] : []),
     ].join("\n");
   if (command === "recover")
     return [
@@ -339,14 +351,14 @@ function formatData(value: unknown, options: RenderOptions): string {
         formatDetails(data.paths),
       ),
     ].join("\n");
-  if (command.startsWith("workflow ")) {
-    const items = objects(data.workflows);
+  if (command.startsWith("loom ")) {
+    const items = objects(data.looms);
     return [
-      command === "workflow add"
-        ? "Workflow package added"
-        : command === "workflow remove"
-          ? "Workflow package removed"
-          : "Workflow packages",
+      command === "loom add"
+        ? "Loom package added"
+        : command === "loom remove"
+          ? "Loom package removed"
+          : "Loom packages",
       line("Project", data.projectRoot),
       line("Installation", data.installation),
       "",
@@ -355,7 +367,7 @@ function formatData(value: unknown, options: RenderOptions): string {
             ["PACKAGE", "VERSION"],
             items.map((item) => [item.name, item.version]),
           )
-        : "No Workflow packages declared.",
+        : "No Loom packages declared.",
     ].join("\n");
   }
   if (command === "config show")
@@ -387,7 +399,7 @@ function formatData(value: unknown, options: RenderOptions): string {
   if (command === "artifact" || command === "record")
     return [
       `${command === "artifact" ? "Artifact" : "Record"} ${scalar(data.id)}`,
-      line("Workflow", data.flowName),
+      line("Loom", data.loomName),
       line("Stage", data.stageName),
       ...(data.revision === undefined ? [] : [line("Revision", data.revision)]),
       line("Created", data.createdAt),
@@ -412,17 +424,21 @@ export function formatResult(
         ? ["Earlier successful changes are retained."]
         : []),
       ...(result.outcome === "unknown"
-        ? [
-            "Outcome unknown; inspect the original operation before submitting again.",
-            line("Operation", result.meta.operationId),
-            line("Instance", result.meta.serviceInstanceId),
-            ...(result.meta.runId ? [line("Run", result.meta.runId)] : []),
-            ...(result.meta.operationId && result.meta.serviceInstanceId
-              ? [
-                  `Next: intloom operation ${result.meta.operationId} --instance ${result.meta.serviceInstanceId}`,
-                ]
-              : []),
-          ]
+        ? options.command === "build"
+          ? [
+              "Inspect the reported build error and output directory before rebuilding.",
+            ]
+          : [
+              "Outcome unknown; inspect the original operation before submitting again.",
+              line("Operation", result.meta.operationId),
+              line("Instance", result.meta.serviceInstanceId),
+              ...(result.meta.runId ? [line("Run", result.meta.runId)] : []),
+              ...(result.meta.operationId && result.meta.serviceInstanceId
+                ? [
+                    `Next: intloom operation ${result.meta.operationId} --instance ${result.meta.serviceInstanceId}`,
+                  ]
+                : []),
+            ]
         : []),
       ...(result.data === undefined
         ? []

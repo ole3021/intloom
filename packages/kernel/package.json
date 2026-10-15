@@ -8,9 +8,9 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./workflow": {
-      "types": "./dist/workflow/index.d.ts",
-      "default": "./dist/workflow/index.js"
+    "./loom": {
+      "types": "./dist/loom/index.d.ts",
+      "default": "./dist/loom/index.js"
     },
     "./storage/file": {
       "types": "./dist/storage/file/open.d.ts",
@@ -44,7 +44,7 @@
     "yaml": "^2.8.1",
     "drizzle-orm": "0.45.3",
     "better-sqlite3": "13.0.3",
-    "@intloom/workflow-sdk": "workspace:*",
+    "@intloom/loom-sdk": "workspace:*",
     "@modelcontextprotocol/server": "2.3.1",
     "@modelcontextprotocol/client": "2.3.1",
     "@modelcontextprotocol/node": "2.1.1"

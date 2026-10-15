@@ -3,8 +3,8 @@ import type { AgentConfig } from "@mastra/core/agent";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import * as z from "zod";
 import type { LoomConfig } from "../../core/schemas/loom-config.ts";
-import { fail } from "../../workflow/errors.ts";
-import { agentModelRoleSchema } from "../../workflow/schemas/workflow-module.ts";
+import { fail } from "../../loom/errors.ts";
+import { agentModelTypeSchema } from "@intloom/loom-sdk";
 import { packageVersion } from "../../shared/version.ts";
 import {
   createCredentialResolver,
@@ -22,9 +22,9 @@ export function resolveModelConfig(
   label: string,
   credentials: CredentialResolver = createCredentialResolver(),
 ) {
-  const role = agentModelRoleSchema.safeParse(roleName);
+  const role = agentModelTypeSchema.safeParse(roleName);
   if (!role.success)
-    fail("WORKFLOW_AGENT_FAILED", `${label}: Unknown model role: ${roleName}`);
+    fail("LOOM_AGENT_FAILED", `${label}: Unknown model role: ${roleName}`);
   // The caller validates project configuration; default is used only when a valid role lacks dedicated configuration.
   if (!configuration.llms)
     throw KERNEL_ERRORS.create("INVALID_REQUEST", {
@@ -66,7 +66,7 @@ export function createModelOptions(
       ? undefined
       : providerOptionsSchema.safeParse(config.providerOptions);
   if (providerOptions && !providerOptions.success) {
-    fail("WORKFLOW_AGENT_FAILED", `${label}: Invalid provider options`);
+    fail("LOOM_AGENT_FAILED", `${label}: Invalid provider options`);
   }
   return {
     model,

@@ -87,7 +87,7 @@ export function actionForm(action: PendingUserAction): ActionForm {
   const schema = z.strictObject(fields);
   return {
     message:
-      "Answer the Workflow questions. Only skippable questions may be left unanswered.",
+      "Answer the Loom questions. Only skippable questions may be left unanswered.",
     schema,
     decode(input) {
       const value = schema.parse(input);

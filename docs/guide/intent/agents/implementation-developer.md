@@ -1,21 +1,13 @@
 ---
-title: Implementation Developer
+title: Implementation developer
 ---
 
-# Implementation Developer
+# Implementation developer
 
-`implementation-developer` is the Implementation Agent, using the `coding` role or external task executor.
+Implements confirmed feature work and explains actual changes, reuse and remaining work with evidence.
 
-## Inputs and responsibilities
+The role is reused by the Implementation `implement / observe` Steps. The `feature-implementation` Skill describes its method. Step bindings supply only the Tools needed for the assigned task.
 
-It uses fixed confirmed requirements/design, the command plan, project snapshots and repair feedback. It changes actual project files and submits a declaration of the changes.
+The Agent submits business judgments through typed Tools. Code owns actual interaction, deterministic checks, identifiers and formal publication. The role does not contain storage serialization or the complete stage state machine.
 
-## Tools and output
-
-Business Tools are `readImplementationContext` and `submitImplementation`. Engineering Tools list, read, write and remove project files and run argument-array commands. The final outcome is `ready`.
-
-Code compares the proposal with actual changes, runs agreed checks, provides repair feedback, and rechecks the final snapshot before committing the Implementation Record. Agent-submitted declarations do not replace host evidence.
-
-## Assess its work
-
-Read the actual diff, file origins and check results. A failed check can return to implementation within the same Run. Cancellation or failure preserves files already changed; inspect them before new work. See [stage details](../stages.md) and [results](../results.md).
+See [stages](../stages.md) and [Loom design principles](../../development/design-principles.md).

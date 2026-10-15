@@ -1,7 +1,7 @@
 import { createSkill, type SkillInput } from "@mastra/core/skills";
 import { basename, dirname, resolve } from "node:path";
-import type { SkillSpec } from "../../workflow/module.ts";
-import { fail } from "../../workflow/errors.ts";
+import type { SkillSpec } from "../../loom/module.ts";
+import { fail } from "../../loom/errors.ts";
 
 export function createAgentSkills(
   specs: readonly SkillSpec[],
@@ -13,7 +13,7 @@ export function createAgentSkills(
   for (const skill of specs) {
     if (names.has(skill.name))
       fail(
-        "WORKFLOW_AGENT_FAILED",
+        "LOOM_AGENT_FAILED",
         `${label}: Duplicate Skill name: ${skill.name}`,
       );
     names.add(skill.name);
@@ -25,7 +25,7 @@ export function createAgentSkills(
       (documents.length === 0 && skill.assets.length > 0)
     ) {
       fail(
-        "WORKFLOW_AGENT_FAILED",
+        "LOOM_AGENT_FAILED",
         `${label}: Missing or ambiguous packaged SKILL.md: ${skill.name}`,
       );
     }

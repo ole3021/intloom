@@ -50,7 +50,7 @@ describe("applyStepResult", () => {
     );
     assert.equal(run.status, "running");
     assert.equal(run.id, "RUN-1");
-    assert.equal(run.intent, "original text");
+    assert.equal(run.input.prompt, "original text");
     assert.equal(run.createdAt, createdAt);
     assert.deepEqual(run.updatedAt, now);
     assert.equal(initializations(), 0);
@@ -243,7 +243,7 @@ describe("applyStepResult", () => {
       if (status === "waiting") {
         run.pendingAction = {
           id: "ASK-1",
-          flowName: run.flowName,
+          loomName: run.loomName,
           cursor: { ...run.cursor },
           kind: "user_ask_confirmation",
           request: { question: "Continue?" },

@@ -1,4 +1,5 @@
-import type { Blueprint, Cursor } from "../workflow/blueprint.ts";
+import type { Blueprint } from "../loom/blueprint.ts";
+import type { Cursor } from "./cursor.ts";
 import { stepResultSchema } from "../effector/schemas/step-result.ts";
 import type { StepResult } from "../effector/execution.ts";
 import { RUNTIME_ERRORS } from "../errors/runtime.ts";
@@ -74,7 +75,7 @@ export function applyStepResult(
           transition = { kind: "enter_stage", stage };
           break;
         }
-        case "workflow_end":
+        case "loom_end":
           transition = { kind: "complete" };
           break;
         default:

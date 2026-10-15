@@ -1,38 +1,19 @@
 ---
-title: From intent to validated delivery
+title: A feature-development round
 ---
 
-# From intent to validated delivery
+# A feature-development round
 
-This example develops a local Todo application. Prepare Intent and your chosen execution environment first.
-
-```text
-Build a Todo app with local persistence.
-Users can create, complete, rename, and delete tasks.
-Keep the UI usable on narrow screens.
-Propose the technical design and verification commands before changing files.
-```
-
-Submit this as one intent through your chosen interface. In CMD:
+This example describes the intended interaction for a Todo feature. It is a usage walkthrough, not an executed E2E result. Prepare your project, installed Intent package and model/client setup first.
 
 ```sh
-intloom flow intent --intent-file ./request.txt
+intloom run intent --prompt "Build a Todo app with local persistence. Users can create, complete, rename and delete tasks. Support narrow screens."
 ```
 
-## 1. Confirm requirements
+1. **Clarify and confirm requirements.** Answer questions about behavior. Review features, requirements, observable acceptance conditions and this round's scope. A later bug fix may reuse these requirements unchanged.
+2. **Confirm the solution.** Review affected modules and interfaces, implementation dependencies, risks and verification methods. Check which work runs during Implementation, Validation or both.
+3. **Review delivery when needed.** Implementation changes actual files and collects receipts. If it cannot complete the agreed work, review the exact remaining items before explicitly choosing partial delivery or continuing work.
+4. **Read the validation report.** Inspect each target's evidence and judgment. Missing evidence stays unverified. A valid failed report is still a completed report.
+5. **Start the next round deliberately.** Add or adjust a feature, or fix a reported problem in a new Run. Its stages distinguish intended requirements/design from actual code and preserve historical assessment versions.
 
-Specification identifies goals, functions, scenarios, acceptance conditions, and unresolved questions. Answer actual questions about persistence, platforms, and expected behavior. Review the cumulative requirements; give concrete feedback if a requirement is missing. Confirm only the version you intend to approve.
-
-## 2. Confirm the solution
-
-Solution reads the confirmed Specification and project context. Review app structure, technology decisions, risks, affected scope, and build/test commands. Check that commands can run in your project's environment. Feedback returns to design; confirmation saves the Solution.
-
-## 3. Inspect implementation
-
-Implementation reads the fixed upstream bases, edits actual project files with declared Tools, and submits changes. Host Code runs the agreed checks and can return repair feedback. The resulting Record retains file origins/hashes and real command results.
-
-## 4. Read validation
-
-Validation independently assesses confirmed targets and actual delivery. Read evidence, command output, findings, and what remains unverified. Workflow completion does not imply every target passed.
-
-Keep the same Run ID throughout. If observation disconnects, inspect that Run. If it fails, examine existing files and commits before starting new work. [Results](./results.md) explains which objects to read.
+Use `intloom runs` and `intloom attach <run-id>` to inspect the original Run after a disconnect. Earlier results and file changes remain after cancellation; starting another Run is not a rollback.

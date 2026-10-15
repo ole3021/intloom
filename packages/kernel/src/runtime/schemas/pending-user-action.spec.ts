@@ -5,7 +5,7 @@ import { pendingUserActionSchema } from "./pending-user-action.ts";
 test("validates the authoritative action cursor and rejects previously accepted invalid cursors", () => {
   const action = {
     id: "ASK-1",
-    flowName: "intent",
+    loomName: "intent",
     cursor: { stageName: "specification", stepName: "confirm" },
     kind: "user_ask_confirmation",
     request: { context: "Confirm requirements" },

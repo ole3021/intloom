@@ -184,6 +184,7 @@ test("rejects unknown roles, missing credentials and encrypted values", async (t
   credential(t);
   await assert.rejects(
     createAgent(
+      // @ts-expect-error Exercise malformed JavaScript Agent metadata.
       { ...agentSpec(), llm: "reasonig" },
       { agentId, source, config: testConfig() },
     ),

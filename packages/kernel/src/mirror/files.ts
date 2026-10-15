@@ -10,7 +10,7 @@ import {
 } from "node:path";
 import * as z from "zod";
 import { digest } from "./contracts.ts";
-import type { WorkflowPackage } from "../workflow/types.ts";
+import type { LoomPackage } from "../loom/types.ts";
 
 const fileEntry = z.strictObject({
   path: z.string(),
@@ -151,9 +151,9 @@ export async function writeBytes(
   }
   await chmod(file, executable ? 0o700 : 0o600);
 }
-export async function protectedWorkflowPaths(
+export async function protectedLoomPaths(
   root: string,
-  sources: Readonly<Record<string, WorkflowPackage>>,
+  sources: Readonly<Record<string, LoomPackage>>,
 ): Promise<string[]> {
   const paths: string[] = [];
   for (const source of Object.values(sources)) {
@@ -169,7 +169,7 @@ export async function protectedWorkflowPaths(
         const rel = relative(root, path).split(sep).join("/");
         if (!rel)
           throw new Error(
-            "Workflow resources cover the entire business workspace.",
+            "Loom resources cover the entire business workspace.",
           );
         paths.push(rel);
       }

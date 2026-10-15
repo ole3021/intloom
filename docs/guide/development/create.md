@@ -1,30 +1,32 @@
 ---
-title: Create your first Workflow
+title: Create your first Loom
 ---
 
-# Create your first Workflow
+# Create your first Loom
 
-Build a small Code-only `capture` Workflow that saves the original intent as a Record. Create a new `capture-workflow` directory and place the following files inside it. This example uses the current artifact protocol; choose compatible SDK/Compiler releases.
-
-The manifest starts without dependencies. Install commands below add the actual dependencies and lock their resolved versions. Keep production source directories in the TypeScript include list; the build script is a development file.
+Create a Code-only `capture` Loom that saves this Run’s `prompt` as a Record. Keep Stage resources together; shared code can live in `src`. Paths below are relative to the source package.
 
 ## `package.json`
 
 ```json
 {
-  "name": "capture-workflow",
+  "name": "capture-loom",
   "version": "0.1.0",
   "type": "module",
-  "scripts": {"build": "node build.ts"},
-  "exports": {
-    ".": {
-      "types": "./dist/workflow.generated.d.ts",
-      "default": "./dist/workflow.generated.js"
-    },
-    "./package.json": "./package.json"
-  },
-  "files": ["dist"],
-  "intloom": {"type": "workflow", "version": "2026-10-08"}
+  "scripts": {"build": "intloom build"},
+  "loom": {
+    "type": "loom",
+    "version": "2026-10-15",
+    "name": "capture",
+    "inputs": ["prompt"],
+    "entry": "capture",
+    "stages": {
+      "capture": {
+        "stage": "./stages/capture/stage.yaml",
+        "on": {"complete": {"end": true}}
+      }
+    }
+  }
 }
 ```
 
@@ -37,117 +39,81 @@ The manifest starts without dependencies. Install commands below add the actual 
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
     "types": ["node"],
     "skipLibCheck": true
-  },
-  "include": ["codes/**/*.ts", "schemas/**/*.ts", "initializers/**/*.ts"],
-  "exclude": ["dist", "node_modules", "**/*.spec.ts", "test"]
+  }
 }
 ```
 
-## `workflow.yaml`
-
-```yaml
-workflow:
-  name: capture
-  entry: capture
-  stages:
-    capture:
-      stage: "@stages/capture"
-      on:
-        complete:
-          end: true
-```
-
-## `stages/capture.yaml`
+## `stages/capture/stage.yaml`
 
 ```yaml
 stage:
   name: capture
   state:
-    schema: "@schemas/state"
-    initialize: "@initializers/state"
+    schema: "./schema/state.ts"
+    initialize: "./code/initialize.ts"
   entry: save
   steps:
     save:
       type: code
-      code: "@codes/capture"
+      code: "./code/save.ts"
       on:
         complete:
           end: true
 ```
 
-## `schemas/state.ts`
+## `stages/capture/schema/state.ts`
 
 ```ts
 import * as z from "zod";
 
-export default z.strictObject({
-  runId: z.string(),
-  intent: z.string(),
-});
+export default z.strictObject({ runId: z.string(), prompt: z.string() });
 ```
 
-## `initializers/state.ts`
+## `stages/capture/code/initialize.ts`
 
 ```ts
-import type { StageStateInitializer } from "@intloom/workflow-sdk";
+import type { StageStateInitializer } from "@intloom/loom-sdk";
 
-const initialize: StageStateInitializer = ({ runId, intent }) => ({
+const initialize: StageStateInitializer = ({ runId, input }) => ({
   runId,
-  intent,
+  prompt: input.prompt ?? "",
 });
-
 export default initialize;
 ```
 
-## `codes/capture.ts`
+## `stages/capture/code/save.ts`
 
 ```ts
-import type { ExecutableCode } from "@intloom/workflow-sdk";
-import stateSchema from "../schemas/state.ts";
+import type { ExecutableCode } from "@intloom/loom-sdk";
+import stateSchema from "../schema/state.ts";
 
-const capture: ExecutableCode = async (_input, access) => {
+const save: ExecutableCode = async (access) => {
   access.signal.throwIfAborted();
   const state = stateSchema.parse(access.state.value);
   await access.storage.commit([{
     type: "append_record",
     id: state.runId,
     payload: {
-      flowName: "capture",
+      loomName: "capture",
       stageName: "capture",
-      data: { intent: state.intent },
+      data: { prompt: state.prompt },
     },
   }]);
   return { outcome: "complete" };
 };
-
-export default capture;
+export default save;
 ```
 
-## `build.ts`
-
-```ts
-import { fileURLToPath } from "node:url";
-import { compileWorkflow } from "@intloom/compiler";
-
-await compileWorkflow({
-  packageRoot: fileURLToPath(new URL(".", import.meta.url)),
-});
-```
-
-## Install and compile
-
-Run from the package directory:
+## Install and build
 
 ```sh
-bun add @intloom/workflow-sdk zod
-bun add --dev @intloom/compiler @types/node typescript
+bun add @intloom/loom-sdk zod
+bun add --dev @intloom/cli @types/node
 bun run build
 ```
 
-Compiler produces the named exports `blueprint`, `codes` and `agentSpecs` in `dist`. The initializer supplies Schema input on Stage entry; Code reads State, commits the Record and returns only a routing outcome. Using the Run ID as Record ID is this example's convention.
+CLI includes Compiler. Add `@intloom/compiler` as a development dependency when calling `compileLoom()` from your own program. Generated `dist` is an independent distribution containing a manifest, three named exports, declarations and resources. Compiler follows entry dependencies, so no build-specific `include` list is needed.
 
-Next, [package and install the Workflow](./build.md). CMD service admission requires a model configuration even for this Code-only example; external MCP with `useMcpAgent: true` can execute it without project models.
+The initializer provides state on Stage entry. Code reads state, commits a Record and returns an outcome. Using the Run ID as Record ID is this example’s convention. Continue with [building and distribution](./build.md).

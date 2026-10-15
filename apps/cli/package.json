@@ -37,10 +37,10 @@
     "smol-toml": "1.4.2",
     "solid-js": "1.9.12",
     "yaml": "^2.8.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@intloom/compiler": "workspace:*"
   },
   "devDependencies": {
-    "@intloom/workflow-intent": "workspace:*",
     "@babel/core": "7.29.7",
     "@babel/preset-typescript": "7.27.1",
     "babel-preset-solid": "1.9.12",

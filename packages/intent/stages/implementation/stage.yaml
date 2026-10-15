@@ -1,0 +1,95 @@
+stage:
+  name: implementation
+  state:
+    schema: ./schema/state.ts
+    initialize: ../../src/initialize.ts
+  entry: prepare
+  steps:
+    prepare:
+      type: code
+      code: ./codes/prepare.ts
+      on:
+        ready:
+          target: implement
+        complete:
+          end: true
+    implement:
+      type: agent
+      agent: ./agents/implementation-developer.md
+      llm: coding
+      outputSchema: ./schema/result.ts
+      skills:
+        - ./skills/feature-implementation/SKILL.md
+      tools:
+        - ./tools/index.ts#readImplementationContext
+        - ../../src/tools/project.ts#listProject
+        - ../../src/tools/project.ts#readProject
+        - ../../src/tools/project.ts#readEvidence
+        - ../../src/tools/project.ts#readHistory
+        - ../../src/tools/questions.ts#requestClarification
+        - ../../src/tools/project.ts#writeProject
+        - ../../src/tools/project.ts#removeProject
+        - ./tools/index.ts#runDiagnostic
+        - ./tools/index.ts#retryImplementationVerification
+        - ./tools/index.ts#submitImplementation
+      on:
+        ready:
+          target: verify
+        needs_input:
+          target: resolve
+    verify:
+      type: code
+      code: ./codes/verify.ts
+      on:
+        ready:
+          target: check
+        observe:
+          target: observe
+    observe:
+      type: agent
+      agent: ./agents/implementation-developer.md
+      llm: coding
+      outputSchema: ./schema/result.ts
+      skills:
+        - ./skills/feature-implementation/SKILL.md
+      tools:
+        - ./tools/index.ts#readImplementationContext
+        - ../../src/tools/project.ts#listProject
+        - ../../src/tools/project.ts#readProject
+        - ../../src/tools/project.ts#readEvidence
+        - ../../src/tools/project.ts#readHistory
+        - ../../src/tools/questions.ts#requestClarification
+        - ./tools/index.ts#submitObservation
+      on:
+        ready:
+          target: verify
+        needs_input:
+          target: resolve
+    check:
+      type: code
+      code: ./codes/check.ts
+      on:
+        ready:
+          target: commit
+        implement:
+          target: implement
+        verify:
+          target: verify
+        needs_input:
+          target: resolve
+    resolve:
+      type: code
+      code: ./codes/resolve.ts
+      on:
+        ready:
+          target: check
+        implement:
+          target: implement
+        observe:
+          target: observe
+    commit:
+      type: code
+      code: ./codes/commit.ts
+      on:
+        complete:
+          end: true

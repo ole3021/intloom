@@ -4,7 +4,7 @@ import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as z from "zod";
-import { defineAgentTool } from "@intloom/workflow-sdk";
+import { defineAgentTool } from "@intloom/loom-sdk";
 import {
   scriptedAgent,
   executionAccess,

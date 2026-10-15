@@ -1,189 +1,170 @@
 import assert from "node:assert/strict";
-import {
-  mkdir,
-  mkdtemp,
-  realpath,
-  rm,
-  symlink,
-  writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { describe, test, type TestContext } from "node:test";
+import { test } from "node:test";
 import { LoomError } from "@intloom/utils";
+import { workspace } from "../../test/helpers/workspace.ts";
+import { editManifest, editStage } from "../../test/helpers/definition.ts";
 import { loadSources } from "./load-sources.ts";
+import type { CompilerDiagnostic } from "../diagnostics.ts";
 
-async function workspace(
-  t: TestContext,
-  files: Record<string, string>,
-): Promise<string> {
-  const root = await realpath(
-    await mkdtemp(resolve(tmpdir(), "compiler-load-")),
+test("loads only explicit references without executing modules, with JSON/YAML/Markdown locations", async (t) => {
+  const { root } = await workspace(t);
+  await writeFile(resolve(root, "stages/unreferenced.yaml"), "invalid: [");
+  const result = await loadSources({ packageRoot: root });
+  assert.equal(result.packageJson.value.loom.name, "compiler_fixture");
+  assert.ok(result.packageJson.locations["/loom/entry"]?.line);
+  assert.equal(result.resources.filter((r) => r.kind === "code").length, 1);
+  const source = result.resources.find((r) => r.kind === "code");
+  assert.ok(source && "source" in source);
+  assert.match(source.source.text, /writeFileSync/);
+  await assert.rejects(readFile(resolve(root, "module-loaded.txt")), {
+    code: "ENOENT",
+  });
+  const agent = result.resources.find((r) => r.kind === "agent");
+  assert.ok(agent?.kind === "agent");
+  assert.equal(agent.metadata.locations["/name"]?.line, 2);
+  assert.equal(
+    result.references.find((r) => r.kind === "code")?.location.stepName,
+    "run",
   );
-  t.after(() => rm(root, { recursive: true, force: true }));
-  for (const [name, content] of Object.entries(files)) {
-    const file = resolve(root, name);
-    await mkdir(dirname(file), { recursive: true });
-    await writeFile(file, content);
-  }
-  return root;
+});
+
+for (const scenario of [
+  "missing_package",
+  "invalid_json",
+  "missing_loom",
+  "invalid_root",
+  "missing_code",
+  "missing_frontmatter",
+  "outside_symlink",
+] as const) {
+  test(`rejects ${scenario}`, async (t) => {
+    const { root } = await workspace(t);
+    if (scenario === "missing_package") await rm(resolve(root, "package.json"));
+    if (scenario === "invalid_json")
+      await writeFile(resolve(root, "package.json"), "{");
+    if (scenario === "missing_loom")
+      await editManifest(root, (m) => {
+        Reflect.deleteProperty(m, "loom");
+      });
+    if (scenario === "missing_code" || scenario === "outside_symlink")
+      await rm(resolve(root, "codes/run.ts"));
+    if (scenario === "missing_frontmatter")
+      await writeFile(resolve(root, "agents/reviewer.md"), "body only");
+    if (scenario === "outside_symlink") {
+      await writeFile(resolve(root, "../outside.ts"), "export default 1;");
+      await symlink(
+        resolve(root, "../outside.ts"),
+        resolve(root, "codes/run.ts"),
+      );
+    }
+    const code =
+      scenario === "invalid_json" || scenario === "missing_frontmatter"
+        ? "SOURCE_PARSE_FAILED"
+        : scenario === "missing_loom"
+          ? "INVALID_LOOM"
+          : scenario === "outside_symlink"
+            ? "INVALID_REFERENCE"
+            : "SOURCE_READ_FAILED";
+    await assert.rejects(
+      loadSources({
+        packageRoot:
+          scenario === "invalid_root" ? resolve(root, "missing") : root,
+      }),
+      (error) => LoomError.is(error) && error.code === code,
+    );
+  });
 }
 
-describe("loadSources", () => {
-  test("loads only referenced resources, deduplicates files and never executes source", async (t) => {
-    const code = 'throw new Error("must not execute");';
-    const root = await workspace(t, {
-      "package.json": '{"name":"example"}',
-      "workflow.yaml":
-        'stage: "@stages/main"\ndescription: "@codes/not-present"\n',
-      "stages/main.yaml":
-        'code: "@codes/run"\nschema: "@schemas/state"\nagent: "@agents/reviewer"\nskills: ["@skills/review"]\ntools: ["@tools/search", "@tools/search:other"]\n',
-      "codes/run.ts": code,
-      "schemas/state.ts": code,
-      "tools/search.ts": code,
-      "agents/reviewer.md":
-        "---\nname: reviewer\ndescription: review\n---\n\nPlease review.\n",
-      "skills/review/SKILL.md":
-        "---\nname: review\ndescription: review\n---\nSkill instructions\n",
-      "stages/unreferenced.yaml": "invalid: [",
-    });
-    const result = await loadSources({
-      packageRoot: resolve(root, "."),
-      tsconfigFile: "custom.json",
-    });
-    assert.deepEqual(result.options, {
-      packageRoot: root,
-      tsconfigFile: "custom.json",
-    });
-    assert.deepEqual(result.packageJson.value, { name: "example" });
-    assert.deepEqual(result.resources.map((item) => item.kind).sort(), [
-      "agent",
-      "code",
-      "schema",
-      "skill",
-      "stage",
-      "tool",
-      "workflow",
-    ]);
-    const resource = result.resources.find((item) => item.kind === "code");
-    assert.ok(resource && "source" in resource);
-    assert.deepEqual(resource.source, {
-      file: resolve(root, "codes/run.ts"),
-      text: code,
-    });
-    const agent = result.resources.find((item) => item.kind === "agent");
-    assert.ok(agent && "metadata" in agent);
-    assert.equal(agent.content, "Please review.");
-    assert.deepEqual(agent.metadata.value, {
-      name: "reviewer",
-      description: "review",
-    });
-  });
-
-  for (const newline of ["\n", "\r\n"]) {
-    test(`preserves YAML pointer and Markdown locations with ${JSON.stringify(newline)}`, async (t) => {
-      const root = await workspace(t, {
-        "package.json": "{}",
-        "workflow.yaml": [
-          '"a/b~c":',
-          "  items:",
-          "    - value",
-          'agent: "@agents/reviewer"',
-          "",
-        ].join(newline),
-        "agents/reviewer.md": [
-          "\uFEFF---",
-          "name: reviewer",
-          "description: test",
-          "---",
-          "body",
-        ].join(newline),
-      });
-      const { resources } = await loadSources({ packageRoot: root });
-      const workflow = resources.find((item) => item.kind === "workflow");
-      assert.ok(workflow && "document" in workflow);
-      assert.deepEqual(workflow.document.locations["/a~1b~0c/items/0"], {
-        file: resolve(root, "workflow.yaml"),
-        line: 3,
-        column: 7,
-      });
-      const agent = resources.find((item) => item.kind === "agent");
-      assert.ok(agent && "metadata" in agent);
-      assert.deepEqual(agent.metadata.locations["/name"], {
-        file: resolve(root, "agents/reviewer.md"),
-        line: 2,
-        column: 1,
-      });
-    });
-  }
-
-  for (const [label, files, code] of [
-    ["missing package", {}, "SOURCE_READ_FAILED"],
-    ["invalid package JSON", { "package.json": "{" }, "SOURCE_PARSE_FAILED"],
-    ["missing workflow", { "package.json": "{}" }, "SOURCE_READ_FAILED"],
-    [
-      "missing referenced file",
-      { "package.json": "{}", "workflow.yaml": 'code: "@codes/missing"' },
-      "SOURCE_READ_FAILED",
-    ],
-    [
-      "missing frontmatter",
-      {
-        "package.json": "{}",
-        "workflow.yaml": 'agent: "@agents/a"',
-        "agents/a.md": "body only",
-      },
-      "SOURCE_PARSE_FAILED",
-    ],
-  ] satisfies [string, Record<string, string>, string][]) {
-    test(`reports ${label}`, async (t) => {
-      const root = await workspace(t, files);
-      await assert.rejects(
-        loadSources({ packageRoot: root }),
-        (error) => LoomError.is(error) && error.code === code,
-      );
-    });
-  }
-
-  test("reports an invalid packageRoot", async (t) => {
-    const root = await workspace(t, {});
-    await assert.rejects(
-      loadSources({ packageRoot: resolve(root, "missing") }),
-      (error) => LoomError.is(error) && error.code === "SOURCE_READ_FAILED",
-    );
-  });
-
-  test("rejects referenced symlinks outside the package", async (t) => {
-    const root = await workspace(t, {
-      "package/package.json": "{}",
-      "package/workflow.yaml": 'code: "@codes/run"',
-      "outside.ts": "export default 1;",
-    });
-    await mkdir(resolve(root, "package/codes"));
-    await symlink(
-      resolve(root, "outside.ts"),
-      resolve(root, "package/codes/run.ts"),
-    );
-    await assert.rejects(
-      loadSources({ packageRoot: resolve(root, "package") }),
-      (error) => LoomError.is(error) && error.code === "INVALID_REFERENCE",
-    );
-  });
-
-  test("invalid reference reports the referring YAML field", async (t) => {
-    const root = await workspace(t, {
-      "package.json": "{}",
-      "workflow.yaml": 'name: example\ncode: "@codes/../outside"\n',
+for (const field of ["input", "preHook", "postHook", "typo"] as const) {
+  test(`rejects unsupported ${field} before following references`, async (t) => {
+    const { root } = await workspace(t);
+    await editStage(root, "first", (stage) => {
+      const run = stage.steps.run;
+      assert.ok(run);
+      Reflect.set(run, field, "../missing.ts");
     });
     await assert.rejects(loadSources({ packageRoot: root }), (error) => {
       assert.ok(LoomError.is(error));
-      assert.equal(error.code, "INVALID_REFERENCE");
-      assert.deepEqual((error.cause as { location: unknown }).location, {
-        file: resolve(root, "workflow.yaml"),
-        line: 2,
-        column: 1,
-      });
+      assert.equal(error.code, "INVALID_LOOM");
+      const diagnostics = (error.cause as { diagnostics: CompilerDiagnostic[] })
+        .diagnostics;
+      assert.ok(diagnostics[0]?.location?.line);
+      assert.match(error.message, /Unrecognized/);
       return true;
     });
   });
+}
+
+test("collects independent document errors with source locations", async (t) => {
+  const { root } = await workspace(t);
+  await editManifest(root, (manifest) => {
+    manifest.name = "BAD NAME";
+    manifest.version = "invalid";
+  });
+  await assert.rejects(loadSources({ packageRoot: root }), (error) => {
+    assert.ok(LoomError.is(error));
+    const diagnostics = (error.cause as { diagnostics: CompilerDiagnostic[] })
+      .diagnostics;
+    assert.equal(diagnostics.length, 2);
+    assert.notEqual(
+      diagnostics[0]?.location?.line,
+      diagnostics[1]?.location?.line,
+    );
+    return true;
+  });
 });
+
+test("invalid references identify the declaring Step and field", async (t) => {
+  const { root } = await workspace(t);
+  await editStage(root, "first", (stage) => {
+    const step = stage.steps.run;
+    assert.ok(step?.type === "code");
+    step.code = "../../outside.ts";
+  });
+  await assert.rejects(loadSources({ packageRoot: root }), (error) => {
+    assert.ok(LoomError.is(error));
+    assert.equal(error.code, "INVALID_REFERENCE");
+    const at = (
+      error.cause as {
+        location: { file: string; line: number; stepName: string };
+      }
+    ).location;
+    assert.equal(at.stepName, "run");
+    assert.ok(at.line > 0);
+    assert.equal(at.file, resolve(root, "stages/first.yaml"));
+    return true;
+  });
+});
+
+for (const resource of [
+  "nested/template.txt",
+  ".env",
+  ".dev.vars",
+  "link.txt",
+] as const) {
+  test(`Skill asset policy for ${resource}`, async (t) => {
+    const { root } = await workspace(t);
+    const path = resolve(root, "skills/review", resource);
+    await mkdir(dirname(path), { recursive: true });
+    if (resource === "link.txt")
+      await symlink(resolve(root, "package.json"), path);
+    else await writeFile(path, "fixture");
+    if (resource !== "nested/template.txt") {
+      await assert.rejects(
+        loadSources({ packageRoot: root }),
+        (e) => LoomError.is(e) && e.code === "INVALID_REFERENCE",
+      );
+    } else {
+      const result = await loadSources({ packageRoot: root });
+      const skill = result.resources.find((r) => r.kind === "skill");
+      assert.ok(skill?.kind === "skill");
+      assert.ok(
+        skill.assets.some(
+          (a) => a.outputPath === "skills/review/nested/template.txt",
+        ),
+      );
+    }
+  });
+}

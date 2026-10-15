@@ -1,38 +1,19 @@
 ---
-title: 从意图到验证交付
+title: 一次功能开发流程
 ---
 
-# 从意图到验证交付
+# 一次功能开发流程
 
-本示例开发本地 Todo 应用。先准备 Intent 和所选执行环境。
-
-```text
-Build a Todo app with local persistence.
-Users can create, complete, rename, and delete tasks.
-Keep the UI usable on narrow screens.
-Propose the technical design and verification commands before changing files.
-```
-
-通过所选入口把这些内容作为一个完整意图提交。CMD 示例：
+下面以 Todo 功能说明预期交互；这是使用说明，不是已执行的 E2E 结果。先完成项目、Intent 包和模型或客户端配置。
 
 ```sh
-intloom flow intent --intent-file ./request.txt
+intloom run intent --prompt "开发一个本地持久化的 Todo 应用，支持创建、完成、改名和删除任务，适配窄屏。"
 ```
 
-## 1. 确认需求
+1. **澄清并确认需求。** 回答行为问题，检查功能、需求、可观察验收条件和本轮范围。后续修复可以复用需求而不改动内容。
+2. **确认方案。** 检查受影响模块与接口、实施依赖、风险、验证方法，以及哪些检查在 Implementation、Validation 或两阶段执行。
+3. **必要时决定交付。** Implementation 修改真实文件并收集回执。不能完成时，先看清剩余事项，再明确选择部分交付或继续处理。
+4. **阅读验收报告。** 逐目标查看证据和判断。缺证据保持未知；有效失败报告也可以完成阶段。
+5. **明确开启下一轮。** 新增或调整功能，或修复已报告问题。新 Run 分别固定意图需求/设计与实际代码，并保留历史验收版本。
 
-Specification 整理目标、功能、场景、验收条件和未解决问题。回答持久化、平台和预期行为等实际问题。审核累计需求，缺失时提供具体反馈，只确认你确实认可的版本。
-
-## 2. 确认方案
-
-Solution 读取已确认 Specification 和项目上下文。审核应用结构、技术决策、风险、影响范围和构建测试命令，确认命令可以在项目环境运行。反馈返回设计，确认后保存 Solution。
-
-## 3. 检查实施
-
-Implementation 读取固定的上游依据，通过声明 Tools 修改实际文件并提交变更。宿主 Code 执行约定检查，必要时返回修复反馈。生成的 Record 保存文件来源、哈希和真实命令结果。
-
-## 4. 阅读验证
-
-Validation 独立评估已确认目标和实际交付。阅读证据、命令输出、发现及尚未验证的内容。流程完成不代表所有目标均通过。
-
-全程保留同一个 Run ID。观察断开后查看原 Run；失败后先检查已有文件和提交，再开始新工作。[结果说明](./results.md)介绍应读取的对象。
+断线后用 `intloom runs` 和 `intloom attach <run-id>` 检查原 Run。取消后先前成果与文件变化仍在；开启新 Run 不是回滚。

@@ -1,3 +1,4 @@
+import { validateLoomInput } from "../loom-input.ts";
 import { jsonCopy } from "../../mirror/contracts.ts";
 import { validateResult } from "../../mirror/runtime.ts";
 import { isDeepStrictEqual } from "node:util";
@@ -23,24 +24,25 @@ export async function restoreRuns(
   options: RuntimeOptions,
 ): Promise<RunEntry[]> {
   if (!options.recovery) return [];
-  const { store, blueprints, workflowIdentities } = options.recovery;
+  const { store, blueprints, loomIdentities } = options.recovery;
   const entries: RunEntry[] = [];
   for (const saved of store.read()) {
     if (saved.phase === "terminal") continue;
-    const blueprint = blueprints[saved.run.flowName];
+    const blueprint = blueprints[saved.run.loomName];
     if (
       !blueprint ||
       (!saved.control?.sourceMirrorId &&
-        workflowIdentities[saved.run.flowName] !== saved.workflowIdentity)
+        loomIdentities[saved.run.loomName] !== saved.loomIdentity)
     )
       throw KERNEL_ERRORS.create("KERNEL_UNAVAILABLE", {
-        message: `Cannot restore Run ${saved.run.id}: its exact Workflow resources are unavailable. Recovery files were retained.`,
+        message: `Cannot restore Run ${saved.run.id}: its exact Loom resources are unavailable. Recovery files were retained.`,
       });
     const { lastError, pendingAction, pendingAgentCall, ...data } = saved.run;
     if (lastError)
       throw new Error("Nonterminal checkpoint contains a terminal error.");
     const state: RunState = {
       ...data,
+      input: validateLoomInput(blueprint, data.input),
       ...(saved.control ? { control: jsonCopy(saved.control) } : {}),
       execution: freezeRunExecution(data.execution),
       createdAt: new Date(data.createdAt),
@@ -84,13 +86,12 @@ export async function restoreRuns(
       entry.observationBaseline = saved.observationBaseline;
     entry.recovery = {
       store,
-      workflowIdentity: saved.control?.sourceMirrorId
-        ? (workflowIdentities[saved.run.flowName] ?? saved.workflowIdentity)
-        : saved.workflowIdentity,
+      loomIdentity: saved.control?.sourceMirrorId
+        ? (loomIdentities[saved.run.loomName] ?? saved.loomIdentity)
+        : saved.loomIdentity,
       ...(saved.control?.sourceMirrorId
         ? {
-            sourceWorkflowIdentity:
-              saved.sourceWorkflowIdentity ?? saved.workflowIdentity,
+            sourceLoomIdentity: saved.sourceLoomIdentity ?? saved.loomIdentity,
           }
         : {}),
       phase: saved.phase,
@@ -117,7 +118,7 @@ export async function restoreRuns(
       if (
         saved.answer === undefined ||
         !saved.answeredAction ||
-        saved.answeredAction.flowName !== state.flowName ||
+        saved.answeredAction.loomName !== state.loomName ||
         !isDeepStrictEqual(saved.answeredAction.cursor, state.cursor)
       )
         throw new Error("The accepted answer checkpoint is incomplete.");

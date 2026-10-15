@@ -1,5 +1,5 @@
 import * as z from "zod";
-import type { Blueprint, BlueprintStage } from "../src/workflow/blueprint.ts";
+import type { Blueprint, BlueprintStage } from "../src/loom/blueprint.ts";
 import type { Effector } from "../src/effector/contracts.ts";
 import type { ExecutableCode } from "../src/effector/execution.ts";
 import type { StorageAccess } from "../src/storage/contracts.ts";
@@ -20,14 +20,14 @@ export function deferred<T = void>() {
 
 export function runtimeFixture() {
   const events: string[] = [];
-  const contexts: { runId: string; stageName: string; intent: string }[] = [];
+  const contexts: import("@intloom/loom-sdk").StageStateContext[] = [];
   const first: BlueprintStage = {
     stageName: "first",
     stateSchema: fixtureStateSchema,
     initializeState(context) {
       contexts.push(context);
       events.push(`init:${context.stageName}`);
-      return { intent: context.intent };
+      return { intent: context.input.prompt ?? "" };
     },
     entryStepName: "start",
     steps: {
@@ -62,10 +62,11 @@ export function runtimeFixture() {
         on: { complete: { kind: "stage_end" } },
       },
     },
-    on: { complete: { kind: "workflow_end" } },
+    on: { complete: { kind: "loom_end" } },
   };
   const blueprint: Blueprint = {
-    flowName: "fixture",
+    loomName: "fixture",
+    inputs: ["prompt"],
     entryStageName: "first",
     stages: { second, first },
   };
@@ -105,8 +106,8 @@ export function runtimeFixture() {
     },
   };
   const effector: Effector = {
-    async executeCode(code, input, access) {
-      return code(input, access);
+    async executeCode(code, access) {
+      return code(access);
     },
     async executeAgent() {
       throw new Error("Unexpected Agent execution");

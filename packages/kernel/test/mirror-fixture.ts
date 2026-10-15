@@ -27,7 +27,7 @@ export const blueprint={flowName:'mirror-case',entryStageName:'first',stages:{
  second:{stageName:'second',initializeState:ctx=>({upstream:true,runId:ctx.runId}),stateSchema:z.strictObject({upstream:z.boolean(),runId:z.string()}),entryStepName:'finish',steps:{finish:{stepName:'finish',execution:{kind:'code',codeId:'CODE-bbcdefghijklmnopqrstu'},on:{done:{kind:'stage_end'},again:{kind:'stage_end'}}}},on:{done:{kind:'workflow_end'},again:{kind:'stage',stageName:'first'}}}
 }};
 export const codes={
- 'CODE-abcdefghijklmnopqrstu':async (_input,a)=>{
+ 'CODE-abcdefghijklmnopqrstu':async (a)=>{
   const state=a.state.value; const n=state.n+${options.delta ?? 1};
   await a.state.update({...state,n});
   await a.project.write('src/value.json',JSON.stringify({n}));
@@ -37,7 +37,7 @@ export const codes={
   ${options.clear ? "await a.state.clear();" : ""}
   return {outcome:n<2?'loop':'done'};
  },
- 'CODE-bbcdefghijklmnopqrstu':async (_input,a)=>{
+ 'CODE-bbcdefghijklmnopqrstu':async (a)=>{
   const up=await a.storage.getArtifact('mirror-case','first');
   if(!a.state.value.upstream||up.data.runId!==a.state.value.runId)throw new Error('upstream reference lost');
   if(JSON.parse(await a.project.read('src/value.json')).n!==up.data.n)throw new Error('file mismatch');
