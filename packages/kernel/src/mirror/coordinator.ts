@@ -1,4 +1,8 @@
 import {
+  decodeCheckpoint,
+  encodeCheckpoint,
+} from "../runtime/recovery/codec.ts";
+import {
   lstat,
   open,
   realpath,
@@ -14,22 +18,22 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { LoomError } from "@intloom/utils";
 import {
-  checkpointSchema,
-  openRunCheckpointStore,
-  type RunCheckpoint,
-} from "../runtime/recovery/store.ts";
+  checkpointSnapshotSchema,
+  type CheckpointSnapshot,
+} from "../runtime/recovery/contracts.ts";
+import { openRunCheckpointStore } from "../host/checkpoints/store.ts";
 import type { StorageHandle } from "../storage/contracts.ts";
 import { storageSnapshotSchema } from "../storage/snapshot.ts";
 import { openFileStorage } from "../storage/file/open.ts";
 import { openSqliteStorage } from "../storage/sqlite/open.ts";
 import {
   manifestSchema,
-  jsonCopy,
   digest,
   type MirrorManifest,
   type MirrorControl,
   type MirrorScope,
 } from "./contracts.ts";
+import { jsonCopy } from "../shared/json.ts";
 import {
   copyFiles,
   isMissing,
@@ -45,8 +49,7 @@ import {
   type MirrorFileOptions,
 } from "./files.ts";
 import { createWriteGate } from "./write-gate.ts";
-import { sampleRunObservation } from "../runtime/run-observation.ts";
-import type { RunEntry } from "../runtime/run-entry.ts";
+import { getLogger } from "@intloom/utils";
 
 const names = [
   "mirror.json",
@@ -100,12 +103,16 @@ export function createMirrorCoordinator(
     gate,
     assertOpen: gate.assertOpen,
     async capture(
-      entry: RunEntry,
-      checkpoint: RunCheckpoint,
+      checkpoint: CheckpointSnapshot,
       pending: NonNullable<MirrorControl["capturePending"]>,
+      observation: () => {
+        metrics?: unknown;
+        results?: unknown;
+        settled?: boolean;
+      } = () => ({}),
     ): Promise<void> {
       // Freeze before any await; this copy is the safe-boundary control truth.
-      const fixed = checkpointSchema.parse(jsonCopy(checkpoint));
+      const fixed = checkpointSnapshotSchema.parse(jsonCopy(checkpoint));
       await gate.capture(async () => {
         const started = performance.now();
         const root = mirrorRoot(project);
@@ -155,7 +162,11 @@ export function createMirrorCoordinator(
               "Project files changed during mirror capture; no image was published.",
             );
           const digests = {
-            checkpoint: await writeJson(temporary, "checkpoint.json", fixed),
+            checkpoint: await writeJson(
+              temporary,
+              "checkpoint.json",
+              encodeCheckpoint(fixed),
+            ),
             storage: await writeJson(temporary, "storage.json", snapshot),
             filesManifest: await writeJson(
               temporary,
@@ -163,8 +174,7 @@ export function createMirrorCoordinator(
               manifestFiles,
             ),
           };
-          sampleRunObservation(entry.state);
-          const meta = entry.state.observation;
+          const meta = observation();
           const terminal = fixed.phase === "terminal";
           const manifest: MirrorManifest = {
             schemaVersion: 1,
@@ -205,11 +215,11 @@ export function createMirrorCoordinator(
                     metrics: meta.metrics,
                     results: meta.results,
                     settled: meta.settled,
-                  }) as unknown as import("../shared/json.ts").JsonValue,
+                  }) as unknown as import("@intloom/loom-sdk").JsonValue,
                 }
               : {}),
-            ...(entry.observationBaseline
-              ? { observationBaseline: entry.observationBaseline }
+            ...(fixed.observationBaseline
+              ? { observationBaseline: fixed.observationBaseline }
               : {}),
           };
           await writeJson(temporary, "mirror.json", manifest);
@@ -239,7 +249,7 @@ export function createMirrorCoordinator(
             });
             await rename(index, join(traceDirectory, "run.json"));
           } catch (cause) {
-            entry.logger.warn("mirror_index_failed", { err: cause });
+            getLogger().warn("mirror_index_failed", { err: cause });
           }
         } finally {
           await rm(temporary, { recursive: true, force: true });
@@ -269,10 +279,10 @@ export async function readMirrorDirectory(directory: string) {
     if (digest(await readBytes(directory, name)) !== expected)
       throw new Error(`Mirror digest mismatch: ${name}`);
   }
-  const checkpoint = checkpointSchema.parse(raw["checkpoint.json"]);
+  const checkpoint = decodeCheckpoint(raw["checkpoint.json"]);
   if (
-    checkpoint.version !== 2 ||
-    checkpoint.schemaVersion !== 2 ||
+    checkpoint.version !== 3 ||
+    checkpoint.schemaVersion !== 3 ||
     !checkpoint.control ||
     checkpoint.run.id !== manifest.runId ||
     checkpoint.control.traceId !== manifest.traceId ||
@@ -624,7 +634,7 @@ export function restoreFailure(cause: unknown): LoomError<string> {
 export async function commitRestore(
   target: string,
   source: Awaited<ReturnType<typeof readMirrorDirectory>>,
-  checkpoint: RunCheckpoint,
+  checkpoint: CheckpointSnapshot,
   protectedPaths: string[],
   options: {
     dryRun?: boolean;

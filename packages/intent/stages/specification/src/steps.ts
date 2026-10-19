@@ -70,7 +70,7 @@ export async function check(access: StageCodeAccess) {
     await save(access, s);
     return { outcome: "analyze" };
   }
-  await assertBaseline(access, "specification", s.baseline!);
+  await assertBaseline(access, "specification", s.baseline);
   try {
     checkSpecification(s);
     s.reviewDigest = reviewDigest(s);
@@ -100,7 +100,7 @@ export async function confirm(
 ) {
   const s = readState(access);
   checkSpecification(s);
-  await assertBaseline(access, "specification", s.baseline!);
+  await assertBaseline(access, "specification", s.baseline);
   if (s.reviewDigest !== reviewDigest(s)) fail("Requirement review is stale.");
   const receipt = await interact(
     access,
@@ -113,7 +113,7 @@ ${formatReview(s)}`,
     },
     recovery,
   );
-  await assertBaseline(access, "specification", s.baseline!);
+  await assertBaseline(access, "specification", s.baseline);
   if (approved(receipt.answer)) {
     s.approval = { reviewDigest: s.reviewDigest, interactionRef: receipt.id };
     s.task = "commit";
@@ -130,7 +130,11 @@ export async function commit(access: StageCodeAccess) {
   if (await resumeCommitted(access, s.id, "specification"))
     return { outcome: "complete" };
   checkSpecification(s);
-  await assertBaseline(access, "specification", s.baseline!);
+  const currentBaseline = await assertBaseline(
+    access,
+    "specification",
+    s.baseline,
+  );
   if (!s.approval || s.approval.reviewDigest !== reviewDigest(s))
     fail("Requirements need current user confirmation.");
   const record = specificationRecordSchema.parse(
@@ -149,7 +153,7 @@ export async function commit(access: StageCodeAccess) {
   );
   await publish(access, s.id, "specification", record, {
     data: s.draft,
-    baseline: s.baseline!,
+    baseline: currentBaseline,
   });
   return { outcome: "complete" };
 }

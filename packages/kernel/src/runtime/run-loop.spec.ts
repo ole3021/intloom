@@ -1,11 +1,13 @@
+import { waitForEntry } from "../../test/runtime-harness.ts";
+import { RuntimeCall } from "./call-scope.ts";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { runtimeFixture, deferred } from "../../test/runtime-fixture.ts";
-import type { JsonValue } from "../shared/json.ts";
+import type { JsonValue } from "@intloom/loom-sdk";
 import { createRun } from "./create-run.ts";
-import { answerAsk } from "./answer-ask.ts";
+import { submitAnswer } from "./answer-ask.ts";
 import { cancelRun } from "./cancel-run.ts";
-import { createRunEntry, waitUntilStable } from "./run-entry.ts";
+import { createRunEntry } from "./run-entry.ts";
 import { launchRunLoop } from "./run-loop.ts";
 
 describe("run loop ownership and continuation", () => {
@@ -23,18 +25,18 @@ describe("run loop ownership and continuation", () => {
       f.blueprint,
       createRun(f.blueprint, { prompt: "text" }),
     );
-    const waiting = waitUntilStable(entry);
+    const waiting = waitForEntry(entry);
     launchRunLoop(entry, f.options);
     const task = entry.task;
     assert.equal((await waiting).status, "waiting");
     assert.equal(entry.observers.size, 0);
     assert.ok(entry.task);
-    assert.equal((await waitUntilStable(entry)).status, "waiting");
+    assert.equal((await waitForEntry(entry)).status, "waiting");
     assert.ok(entry.state.pendingAction);
-    const next = answerAsk(entry, entry.state.pendingAction.id, {
+    submitAnswer(entry, entry.state.pendingAction.id, {
       isConfirmed: true,
     });
-    assert.equal((await next).status, "completed");
+    assert.equal((await waitForEntry(entry)).status, "completed");
     await task;
     assert.equal(calls, 1);
     assert.equal(entry.task, undefined);
@@ -62,7 +64,7 @@ describe("run loop ownership and continuation", () => {
       launchRunLoop(entry, f.options);
       const task = entry.task;
       await entered.promise;
-      const nextCall = new AbortController();
+      const nextCall = new RuntimeCall(entry);
       entry.activeCall = nextCall;
       release.resolve();
       await task;

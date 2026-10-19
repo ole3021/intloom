@@ -72,8 +72,8 @@ export async function check(access: StageCodeAccess) {
     await save(access, s);
     return { outcome: "analyze" };
   }
-  await assertBaseline(access, "solution", s.baseline!);
-  await loadRecord(access.storage, s.specificationRef!, "specification", s.id);
+  await assertBaseline(access, "solution", s.baseline);
+  await loadRecord(access.storage, s.specificationRef, "specification", s.id);
   try {
     checkSolution(s);
     s.reviewDigest = reviewDigest(s);
@@ -103,7 +103,7 @@ export async function confirm(
 ) {
   const s = readState(access);
   checkSolution(s);
-  await assertBaseline(access, "solution", s.baseline!);
+  await assertBaseline(access, "solution", s.baseline);
   if (s.reviewDigest !== reviewDigest(s)) fail("Design review is stale.");
   const receipt = await interact(
     access,
@@ -116,7 +116,7 @@ ${formatReview(s)}`,
     },
     recovery,
   );
-  await assertBaseline(access, "solution", s.baseline!);
+  await assertBaseline(access, "solution", s.baseline);
   if (approved(receipt.answer)) {
     s.approval = { reviewDigest: s.reviewDigest, interactionRef: receipt.id };
     s.task = "commit";
@@ -133,8 +133,8 @@ export async function commit(access: StageCodeAccess) {
   if (await resumeCommitted(access, s.id, "solution"))
     return { outcome: "complete" };
   checkSolution(s);
-  await assertBaseline(access, "solution", s.baseline!);
-  await loadRecord(access.storage, s.specificationRef!, "specification", s.id);
+  const currentBaseline = await assertBaseline(access, "solution", s.baseline);
+  await loadRecord(access.storage, s.specificationRef, "specification", s.id);
   if (!s.approval || s.approval.reviewDigest !== reviewDigest(s))
     fail("Design requires current confirmation.");
   const record = solutionRecordSchema.parse(
@@ -146,7 +146,7 @@ export async function commit(access: StageCodeAccess) {
       snapshot: s.draft,
       analysis: s.analysis,
       plan: s.plan,
-      targets: solutionTargets(s.specification!, s.draft!, s.plan!),
+      targets: solutionTargets(s.specification, s.draft, s.plan),
       edits: s.edits,
       evidence: s.evidence,
       interactions: s.interactions,
@@ -155,7 +155,7 @@ export async function commit(access: StageCodeAccess) {
   );
   await publish(access, s.id, "solution", record, {
     data: s.draft,
-    baseline: s.baseline!,
+    baseline: currentBaseline,
   });
   return { outcome: "complete" };
 }

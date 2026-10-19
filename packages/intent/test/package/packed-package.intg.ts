@@ -19,7 +19,7 @@ import { modelConfig } from "../loader-fixture.ts";
 const run = promisify(execFile);
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
-test("installs root-layout tarballs and loads Intent without repository sources or Compiler", {
+test("installs root-layout tarballs and loads Intent without repository sources or rebuilding the Loom", {
   timeout: 120_000,
 }, async (t) => {
   const temporary = await mkdtemp(resolve(tmpdir(), "intent-install-"));
@@ -29,6 +29,7 @@ test("installs root-layout tarballs and loads Intent without repository sources 
   const packages = await testArchives([
     "@intloom/intent",
     "@intloom/cli",
+    "@intloom/compiler",
     "@intloom/loom-sdk",
     "@intloom/utils",
   ]);
@@ -152,7 +153,7 @@ for (const handle of [
   } finally { await handle.dispose(); }
 }
 await assert.rejects(import("@intloom/kernel"), { code: "ERR_MODULE_NOT_FOUND" });
-await assert.rejects(import("@intloom/compiler"), { code: "ERR_MODULE_NOT_FOUND" });
+assert.equal("@intloom/compiler" in ${JSON.stringify(manifest.dependencies)}, false);
 console.log("PACKED_LOOM_OK");
 `;
   await writeFile(resolve(project, "consumer.mjs"), consumer);

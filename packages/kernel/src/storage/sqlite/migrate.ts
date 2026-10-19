@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { readMigrationFiles } from "drizzle-orm/migrator";
-import { KERNEL_ERRORS } from "../../errors/kernel.ts";
+import { ERRORS } from "../../errors.ts";
 
 /** Read migration history under the same write lock as DDL, including concurrent first opens. */
 export function migrateStorage(db: BetterSQLite3Database): void {
@@ -27,7 +27,7 @@ export function migrateStorage(db: BetterSQLite3Database): void {
             entry.created_at !== migrations[index]?.folderMillis,
         )
       ) {
-        KERNEL_ERRORS.throw("STORAGE_ERROR", {
+        ERRORS.throw("STORAGE_ERROR", {
           message:
             "Storage migration history is newer than or incompatible with this package.",
         });

@@ -1,5 +1,5 @@
 import { cursorSchema } from "../loom/schemas/cursor.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import { ERRORS } from "../errors.ts";
 import { pendingUserActionSchema } from "./schemas/pending-user-action.ts";
 import type { RunState } from "./run-state.ts";
 import * as z from "zod";
@@ -70,7 +70,7 @@ export function assertRunState(run: Readonly<RunState>): void {
   }
 
   if (run.status === "failed") {
-    if (!RUNTIME_ERRORS.is(run.lastError)) {
+    if (!ERRORS.is(run.lastError)) {
       invalid("A failed Run must have a Runtime error.");
     }
   } else if (run.lastError !== undefined) {
@@ -79,5 +79,5 @@ export function assertRunState(run: Readonly<RunState>): void {
 }
 
 function invalid(message: string): never {
-  throw RUNTIME_ERRORS.create("RUN_STATE_INVALID", { message });
+  throw ERRORS.create("RUN_STATE_INVALID", { message });
 }

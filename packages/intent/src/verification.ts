@@ -104,8 +104,7 @@ export async function recordObservation(
   const entry = state.verifications.find(
     (v) => v.definition.id === input.verificationRef,
   );
-  if (!entry || entry.definition.method.kind !== "procedure")
-    fail("Unknown procedure.");
+  if (entry?.definition.method.kind !== "procedure") fail("Unknown procedure.");
   const procedureSteps = entry.definition.method.steps;
   unique(
     input.steps.map((s) => String(s.stepIndex)),

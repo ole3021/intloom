@@ -27,10 +27,11 @@ function report(
   s: ReturnType<typeof readState>,
   verdict: "passed" | "failed" | "unverified",
 ): AssessmentSubmission {
+  assert.ok(s.candidate);
   const receipt = s.evidence.find((e) => e.kind === "execution");
   return {
     revision: s.revision,
-    candidateRef: s.candidate!.id,
+    candidateRef: s.candidate.id,
     kind: "ready",
     findings: [],
     findingUpdates: [],
@@ -98,7 +99,7 @@ test("Validation independently executes both-stage checks and publishes a negati
   assert.equal((await check(f.access)).outcome, "ready");
   await commit(f.access);
   const r = validationRecordSchema.parse(
-    f.records.get(recordId(runId, "validation"))!.data,
+    f.records.get(recordId(runId, "validation"))?.data,
   );
   assert.equal(r.summary.verdict, "failed");
   assert.equal(
@@ -106,10 +107,10 @@ test("Validation independently executes both-stage checks and publishes a negati
     recordId(runId, "implementation"),
   );
   const artifact = validationArtifactSchema.parse(
-    [...f.artifacts.values()][0]!.data,
+    [...f.artifacts.values()][0]?.data,
   );
   assert.equal(artifact.records.length, 1);
-  assert.equal(artifact.latestRound!.verdict, "failed");
+  assert.equal(artifact.latestRound?.verdict, "failed");
 });
 test("missing or unsuccessful evidence cannot support a passed judgment", async () => {
   const f = await fixture();
@@ -133,9 +134,11 @@ test("supplementary requests remain queued across draft replacement and duplicat
   await verify(f.access);
   let s = readState(f.access);
   const base = report(s, "unverified");
+  const target = s.targets[0];
+  assert.ok(target);
   const request = {
     key: "extra",
-    targetRefs: [s.targets[0]!.id],
+    targetRefs: [target.id],
     purpose: "Additional observation",
     evidenceGap: "Runtime observation missing",
     method: { kind: "command" as const, command: "node", args: ["--version"] },
@@ -177,15 +180,15 @@ test("explicit stop binds exact unfinished work and does not approve acceptance"
   assert.equal((await resolve(f.access)).outcome, "assess");
   s = readState(f.access);
   assert.equal(s.collectionDecisions.length, 1);
-  assert.equal(s.verifications[0]!.disposition, "stopped");
+  assert.equal(s.verifications[0]?.disposition, "stopped");
   assert.equal((await submit(report(s, "unverified"), f.access)).saved, true);
   assert.equal((await check(f.access)).outcome, "ready");
   await commit(f.access);
   const record = validationRecordSchema.parse(
-    f.records.get(recordId(runId, "validation"))!.data,
+    f.records.get(recordId(runId, "validation"))?.data,
   );
   assert.equal(record.summary.verdict, "undone");
-  assert.equal(record.collectionDecisions[0]!.verificationRefs[0], "VERIFY-a");
+  assert.equal(record.collectionDecisions[0]?.verificationRefs[0], "VERIFY-a");
 });
 test("candidate drift blocks publication instead of becoming an undone report", async () => {
   const f = await fixture();
@@ -204,7 +207,9 @@ test("final assessment must account for relevant verification receipts even with
   await verify(f.access);
   const s = readState(f.access),
     input = report(s, "unverified");
-  input.assessments[0]!.evidence = [];
+  const assessment = input.assessments[0];
+  assert.ok(assessment);
+  assessment.evidence = [];
   assert.throws(() => checkAssessment(s, input, true), /latest receipt/);
 });
 
@@ -226,10 +231,11 @@ test("collection continuation can recover the second information request", async
   await assert.rejects(resolve(f.access), /No fabricated user reply/);
   s = readState(f.access);
   assert.equal(s.resolutionChoice, "continue_collection");
+  assert.ok(s.pendingInteraction);
   await resolve(f.access, {
     actionId: "host-questions",
     kind: "user_ask_questions",
-    request: userAskQuestionsSchema.parse(s.pendingInteraction!.request),
+    request: userAskQuestionsSchema.parse(s.pendingInteraction.request),
     answer: [
       {
         questionId: "observation",
@@ -259,8 +265,8 @@ test("unverified final gaps need a scoped user decision even after commands comp
   ]);
   await resolve(f.access);
   s = readState(f.access);
-  assert.equal(s.collectionDecisions[0]!.verificationRefs.length, 0);
-  assert.equal(s.collectionDecisions[0]!.evidenceGapRefs.length, 1);
+  assert.equal(s.collectionDecisions[0]?.verificationRefs.length, 0);
+  assert.equal(s.collectionDecisions[0]?.evidenceGapRefs.length, 1);
   await submit(report(s, "unverified"), f.access);
   assert.equal((await check(f.access)).outcome, "ready");
 });

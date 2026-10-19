@@ -1,4 +1,4 @@
-import type { BlueprintStage, BlueprintStep } from "../loom/blueprint.ts";
+import type { BlueprintStage, BlueprintStep } from "@intloom/loom-sdk";
 
 /** Transient resolution, not a third state record; RunState.status determines why execution halts. */
 export type Resolution =

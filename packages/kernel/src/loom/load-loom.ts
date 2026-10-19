@@ -7,7 +7,7 @@ import { getLogger, LoomError, withLogger } from "@intloom/utils";
 import { fail } from "./errors.ts";
 import { loomProtocolVersion } from "./schemas/package-metadata.ts";
 import type { LoadedLoom, LoomPackage } from "./types.ts";
-import type { ExecutableCode } from "../effector/execution.ts";
+import type { ExecutableCode } from "@intloom/loom-sdk";
 import type { AgentTool } from "@intloom/loom-sdk";
 import { validateLoom } from "./validate-loom.ts";
 

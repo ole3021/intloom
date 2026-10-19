@@ -1,11 +1,11 @@
-import { jsonCopy } from "../mirror/contracts.ts";
+import { jsonCopy } from "../shared/json.ts";
 import { isDeepStrictEqual } from "node:util";
-import type { SavedStage } from "./recovery/store.ts";
+import type { SavedStage } from "./recovery/contracts.ts";
 import { getLogger } from "@intloom/utils";
-import type { BlueprintStage } from "../loom/blueprint.ts";
-import type { JsonValue, ReadonlyJsonValue } from "../shared/json.ts";
-import type { StateAccess } from "../effector/state-access.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import type { BlueprintStage } from "@intloom/loom-sdk";
+import type { JsonValue, ReadonlyJsonValue } from "@intloom/loom-sdk";
+import type { StateAccess } from "@intloom/loom-sdk";
+import { ERRORS } from "../errors.ts";
 
 export interface StageStateBinding {
   readonly access: StateAccess<JsonValue>;
@@ -33,7 +33,7 @@ export function createStageStateBinding(
     try {
       return jsonCopy(input) as JsonValue;
     } catch (cause) {
-      throw RUNTIME_ERRORS.wrap("STAGE_STATE_INVALID", cause);
+      throw ERRORS.wrap("STAGE_STATE_INVALID", cause);
     }
   }
 
@@ -58,10 +58,10 @@ export function createStageStateBinding(
       assertScope();
       assertActive(true, allowAgentWait);
       if (mode === "create" && value !== undefined) {
-        throw RUNTIME_ERRORS.create("STAGE_STATE_EXISTS");
+        throw ERRORS.create("STAGE_STATE_EXISTS");
       }
       if (mode === "update" && value === undefined) {
-        throw RUNTIME_ERRORS.create("STAGE_STATE_NOT_FOUND");
+        throw ERRORS.create("STAGE_STATE_NOT_FOUND");
       }
       let parsed: unknown;
       try {
@@ -69,7 +69,7 @@ export function createStageStateBinding(
         if (!result.success) throw result.error;
         parsed = result.data;
       } catch (cause) {
-        throw RUNTIME_ERRORS.wrap("STAGE_STATE_INVALID", cause);
+        throw ERRORS.wrap("STAGE_STATE_INVALID", cause);
       }
       const next = copyJson(parsed);
       // Recheck after validation; stale access cannot write to a new Stage or a terminal Run.
@@ -125,15 +125,15 @@ export function createStageStateBinding(
       }),
     async restore(saved) {
       if (saved.exists === false && ("input" in saved || "value" in saved))
-        throw RUNTIME_ERRORS.create("STAGE_STATE_INVALID");
+        throw ERRORS.create("STAGE_STATE_INVALID");
       if (saved.exists === true && (!("input" in saved) || !("value" in saved)))
-        throw RUNTIME_ERRORS.create("STAGE_STATE_INVALID");
+        throw ERRORS.create("STAGE_STATE_INVALID");
       if (saved.input === undefined && saved.value === undefined) return;
       if (saved.input === undefined || saved.value === undefined)
-        throw RUNTIME_ERRORS.create("STAGE_STATE_INVALID");
+        throw ERRORS.create("STAGE_STATE_INVALID");
       const parsed = await stage.stateSchema.safeParseAsync(saved.input);
       if (!parsed.success || !isDeepStrictEqual(parsed.data, saved.value))
-        throw RUNTIME_ERRORS.create("STAGE_STATE_INVALID", {
+        throw ERRORS.create("STAGE_STATE_INVALID", {
           message: "Saved Stage State no longer matches its Schema output.",
         });
       inputValue = copyJson(saved.input);

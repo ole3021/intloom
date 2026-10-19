@@ -83,7 +83,7 @@ export const readHistory = defineAgentTool({
         }),
       );
     const stored = await access.storage.getRecordById(input.recordRef);
-    if (!stored || stored.loomName !== "intent") fail("Unknown Intent Record.");
+    if (stored?.loomName !== "intent") fail("Unknown Intent Record.");
     const state = rawState(access);
     const item = evidence(state, "historical_result", {
       recordRef: stored.id,

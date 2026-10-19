@@ -4,13 +4,14 @@ import { logStorageAccess } from "../log-access.ts";
 import { mkdir, open, readFile, readdir, realpath, rm } from "node:fs/promises";
 import { join } from "node:path";
 import * as z from "zod";
-import { KERNEL_ERRORS } from "../../errors/kernel.ts";
-import type { StorageAccess, StorageHandle } from "../contracts.ts";
+import { ERRORS } from "../../errors.ts";
+import type { StorageAccess } from "@intloom/loom-sdk";
+import type { StorageHandle } from "../contracts.ts";
 import { storageError } from "../errors.ts";
 import { createLifecycle } from "../lifecycle.ts";
 import { comparePosition, matches, prepareQuery, toPage } from "../query.ts";
 import { nameSchema, parseInput, parseOperations } from "../schemas.ts";
-import type { StorageQuery, StoredRecord } from "../types.ts";
+import type { StorageQuery, StoredRecord } from "@intloom/loom-sdk";
 import { storeSchema, type FileStore } from "./store.ts";
 import { publishStore } from "./publish.ts";
 import { applyOperations } from "./apply-operations.ts";
@@ -52,7 +53,7 @@ export async function openFileStorage(
         "code" in cause &&
         cause.code === "EEXIST"
       ) {
-        throw KERNEL_ERRORS.wrap("BUSY", cause, {
+        throw ERRORS.wrap("BUSY", cause, {
           message:
             "Storage directory is locked; inspect store.lock before recovery.",
         });

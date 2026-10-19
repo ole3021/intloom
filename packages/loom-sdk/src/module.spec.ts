@@ -74,12 +74,31 @@ test("validates compiled structure without invoking code, tools, initializers or
   assert.equal(f.calls(), 0);
 });
 
-test("rejects malformed compiled resources and non-callable recovery entries", () => {
-  const { value } = fixture();
-  for (const bad of [
-    { ...value, extra: {} },
-    { ...value, codes: { "CODE-short": () => ({ outcome: "done" }) } },
-    {
+for (const { name, change, path } of [
+  {
+    name: "unknown module export",
+    change: (value) => ({ ...value, extra: {} }),
+    path: [],
+  },
+  {
+    name: "malformed Code ID",
+    change: (value) => ({
+      ...value,
+      codes: { "CODE-short": () => ({ outcome: "done" }) },
+    }),
+    path: ["codes", "CODE-short"],
+  },
+  {
+    name: "non-callable Code",
+    change: (value) => ({
+      ...value,
+      codes: { "CODE-abcdefghijklmnopqrstu": {} },
+    }),
+    path: ["codes", "CODE-abcdefghijklmnopqrstu"],
+  },
+  {
+    name: "non-callable recovery",
+    change: (value) => ({
       ...value,
       codes: {
         "CODE-abcdefghijklmnopqrstu": Object.assign(
@@ -87,19 +106,38 @@ test("rejects malformed compiled resources and non-callable recovery entries", (
           { recover: true },
         ),
       },
-    },
-    {
+    }),
+    path: ["codes", "CODE-abcdefghijklmnopqrstu"],
+  },
+  {
+    name: "malformed Agent ID",
+    change: (value) => ({
       ...value,
       agentSpecs: {
         "AGENT-short": value.agentSpecs["AGENT-abcdefghijklmnopqrstu"],
       },
-    },
-    {
+    }),
+    path: ["agentSpecs", "AGENT-short"],
+  },
+  {
+    name: "duplicate input declaration",
+    change: (value) => ({
       ...value,
       blueprint: { ...value.blueprint, inputs: ["prompt", "prompt"] },
-    },
-    { ...value, blueprint: { ...value.blueprint, loomName: "constructor" } },
-    {
+    }),
+    path: ["blueprint", "inputs"],
+  },
+  {
+    name: "reserved Loom name",
+    change: (value) => ({
+      ...value,
+      blueprint: { ...value.blueprint, loomName: "constructor" },
+    }),
+    path: ["blueprint", "loomName"],
+  },
+  {
+    name: "invalid Agent output Schema",
+    change: (value) => ({
       ...value,
       agentSpecs: {
         "AGENT-abcdefghijklmnopqrstu": {
@@ -107,7 +145,23 @@ test("rejects malformed compiled resources and non-callable recovery entries", (
           outputSchema: {},
         },
       },
-    },
-  ])
-    assert.equal(loomModuleSchema.safeParse(bad).success, false);
-});
+    }),
+    path: ["agentSpecs", "AGENT-abcdefghijklmnopqrstu", "outputSchema"],
+  },
+] satisfies {
+  name: string;
+  change(value: ReturnType<typeof fixture>["value"]): unknown;
+  path: string[];
+}[]) {
+  test(`rejects ${name} without executing business definitions`, () => {
+    const f = fixture();
+    const parsed = loomModuleSchema.safeParse(change(f.value));
+    assert.equal(parsed.success, false);
+    if (parsed.success) assert.fail("Expected malformed module to be rejected");
+    assert.deepEqual(
+      parsed.error.issues.map((issue) => issue.path),
+      [path],
+    );
+    assert.equal(f.calls(), 0);
+  });
+}

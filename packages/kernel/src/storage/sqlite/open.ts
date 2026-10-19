@@ -6,12 +6,13 @@ import Database from "better-sqlite3";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as z from "zod";
-import type { StorageAccess, StorageHandle } from "../contracts.ts";
+import type { StorageAccess } from "@intloom/loom-sdk";
+import type { StorageHandle } from "../contracts.ts";
 import { storageError } from "../errors.ts";
 import { createLifecycle } from "../lifecycle.ts";
 import { prepareQuery, toPage } from "../query.ts";
 import { nameSchema, parseInput, parseOperations } from "../schemas.ts";
-import type { StorageQuery } from "../types.ts";
+import type { StorageQuery } from "@intloom/loom-sdk";
 import { migrateStorage } from "./migrate.ts";
 import { artifacts, projects, records } from "./schema.ts";
 import {

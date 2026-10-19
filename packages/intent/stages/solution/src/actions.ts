@@ -12,6 +12,7 @@ import {
 } from "../schema/submission.ts";
 import { batchEdit, allocateIds, resolveRefs } from "../../../src/edits.ts";
 import { context } from "../../../src/project.ts";
+import { fail } from "../../../src/errors.ts";
 import { json } from "../../../src/json.ts";
 import { unanswered } from "../../../src/questions.ts";
 import { checkObjects, checkSolution } from "./rules.ts";
@@ -60,11 +61,13 @@ export async function edit(
   const s = readState(access);
   try {
     assertRevision(s, input.revision, ["design"]);
-    const result = batchEdit(s.id, s.draft!, s.aliases, input.edits);
+    if (!s.draft || !s.specification)
+      fail("Missing design draft or fixed requirements.");
+    const result = batchEdit(s.id, s.draft, s.aliases, input.edits);
     const draft = solutionArtifactSchema.parse(result.draft);
     checkObjects(
       draft,
-      s.specification!.snapshot.requirements.map((x) => x.id),
+      s.specification.snapshot.requirements.map((x) => x.id),
     );
     s.draft = draft;
     s.aliases = result.ids;

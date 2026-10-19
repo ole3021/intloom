@@ -11,7 +11,7 @@ import { connectProject } from "@intloom/cli";
 
 const client = await connectProject("/absolute/path/to/project");
 try {
-  console.log(await client.listWorkflows());
+  console.log(await client.listLooms());
 } finally {
   await client.close();
 }
@@ -21,10 +21,10 @@ try {
 
 | Method | Result |
 | --- | --- |
-| flow(flowName, intent) | Run at wait/terminal |
+| run(loomName, input) | Accepted Run snapshot |
 | getRun(runId) | Current snapshot |
-| listRuns(flowName?) | Current-instance Runs |
-| listWorkflows() | Loaded definitions |
+| listRuns(loomName?) | Active Runs and retained terminal history |
+| listLooms() | Loaded definitions |
 | answerAsk(runId, actionId, answer) | Continued Run |
 | cancelRun(runId) | Terminal snapshot |
 | getRecord(recordId) | Record or null |
@@ -32,7 +32,7 @@ try {
 | listArtifacts(query?) | Metadata page |
 | close() | Idempotent connection release |
 
-Artifact selectors are `{ artifactId }` or `{ flowName, stageName }`. List queries support flowName, stageName, limit and cursor.
+Artifact selectors are `{ artifactId }` or `{ loomName, stageName }`. List queries support loomName, stageName, limit and cursor.
 
 ## Explicit backend integration
 
@@ -41,3 +41,5 @@ Artifact selectors are `{ artifactId }` or `{ flowName, stageName }`. List queri
 `ProjectConnection` contains url and private token and belongs in the trusted backend, not browser code. `ProjectClientOptions.requestId` provides logging correlation, not execution deduplication.
 
 External Agent ownership operations use [MCP](./mcp.md), not these methods. Connection close leaves Runs active. Errors include PROJECT_CONNECTION_FAILED, PROJECT_REQUEST_FAILED, PROJECT_RESPONSE_INVALID and PROJECT_CLIENT_CLOSED. Requests are not automatically replayed.
+
+Each mutation binds a fresh operation UUID to the connected Service instance. An uncertain error preserves both identities for `get_operation`; never resubmit the business operation to resolve uncertainty. Use CLI Core or MCP directly when the caller needs explicit receipt and retry identity control.

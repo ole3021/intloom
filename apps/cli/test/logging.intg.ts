@@ -45,9 +45,9 @@ test("daemon logging is flat, independent of CLI level, scoped by Run, and reada
   assert.deepEqual(await readdir(folder), [service.logFile]);
 
   const hidden = await cli(root, [
-    "flow",
+    "run",
     "fixture",
-    "--intent",
+    "--prompt",
     "PRIVATE_INTENT",
     "--json",
   ]);
@@ -57,9 +57,9 @@ test("daemon logging is flat, independent of CLI level, scoped by Run, and reada
   assert.equal(initialReceipt.status, "running");
   assert.match(initialReceipt.runId, /^RUN-\d{8}T\d{9}Z-[\w-]{21}$/u);
   const visible = await cli(root, [
-    "flow",
+    "run",
     "fixture",
-    "--intent",
+    "--prompt",
     "PRIVATE_SECOND",
     "--debug",
     "--json",
@@ -174,7 +174,18 @@ test("a commit-start logging failure cancels the Run before a durable write begi
   try {
     const blueprint = Object.values(host.execution.registries.blueprints)[0];
     assert.ok(blueprint);
-    const run = await host.execution.runtime.flow(blueprint, "PRIVATE_COMMIT");
+    const accepted = await host.execution.runtime.startRun(
+      blueprint,
+      { prompt: "PRIVATE_COMMIT" },
+      await host.execution.prepareExecution(blueprint, "cli"),
+    );
+    assert.equal(accepted.status, "applied");
+    if (accepted.status !== "applied") throw new Error("Run not accepted");
+    const run = await untilRun(
+      host.execution.runtime,
+      accepted.value.runId,
+      (run) => run.status === "failed",
+    );
     assert.equal(run.lastError?.code, "RUN_STOPPED");
     assert.equal(
       await host.storage.access.getRecordById(`once-${run.runId}`),
@@ -196,10 +207,7 @@ for (const origin of ["uncaught_exception", "unhandled_rejection"] as const) {
   }, async (t) => {
     const root = await projectFixture(t);
     await appendFile(
-      join(
-        root,
-        ".intloom/workflows/node_modules/fixture-workflow/workflow.js",
-      ),
+      join(root, ".intloom/looms/node_modules/fixture-loom/loom.js"),
       `
 process.on("unhandledRejection", () => {});
 process.once("message", () => setImmediate(() => {
@@ -283,7 +291,7 @@ test("a poisoned log stops waiting Runs, rejects new work, and keeps status and 
   t.after(() => host.close().catch(() => undefined));
   const client = await connectProject(root);
   t.after(() => client.close());
-  const receipt = await client.flow("fixture", "private");
+  const receipt = await client.run("fixture", { prompt: "private" });
   const waiting = await untilRun(
     client,
     receipt.runId,
@@ -306,7 +314,7 @@ test("a poisoned log stops waiting Runs, rejects new work, and keeps status and 
     (await host.execution.runtime.getRun(waiting.runId)).lastError?.code,
     "RUN_STOPPED",
   );
-  await assert.rejects(client.flow("fixture", "new private intent"));
+  await assert.rejects(client.run("fixture", { prompt: "new private intent" }));
   assert.equal((await host.execution.runtime.listRuns()).length, 1);
   await assert.rejects(host.close(), { code: "LOG_WRITE_FAILED" });
 });

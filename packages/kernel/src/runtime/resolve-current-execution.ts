@@ -1,8 +1,8 @@
 import { cursorSchema } from "../loom/schemas/cursor.ts";
-import type { Blueprint } from "../loom/blueprint.ts";
+import type { Blueprint } from "@intloom/loom-sdk";
 import type { Cursor } from "./cursor.ts";
 import { assertRunState } from "./assert-run-state.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import { ERRORS } from "../errors.ts";
 import type { Resolution } from "./routing.ts";
 import type { RunState } from "./run-state.ts";
 
@@ -14,7 +14,7 @@ export function resolveCurrentExecution(
   const current = resolveCursor(blueprint, run.cursor);
   assertRunState(run);
   if (run.loomName !== blueprint.loomName) {
-    throw RUNTIME_ERRORS.create("RUN_STATE_INVALID", {
+    throw ERRORS.create("RUN_STATE_INVALID", {
       message: "The Run does not belong to this Blueprint Loom.",
     });
   }
@@ -27,7 +27,7 @@ export function resolveCursor(
   cursor: Readonly<Cursor>,
 ): Extract<Resolution, { kind: "execute" }> {
   if (!cursorSchema.safeParse(cursor).success) {
-    throw RUNTIME_ERRORS.create("INVALID_CURSOR");
+    throw ERRORS.create("INVALID_CURSOR");
   }
   const stage = Object.hasOwn(blueprint.stages, cursor.stageName)
     ? blueprint.stages[cursor.stageName]
@@ -42,7 +42,7 @@ export function resolveCursor(
     !step ||
     step.stepName !== cursor.stepName
   ) {
-    throw RUNTIME_ERRORS.create("INVALID_CURSOR", {
+    throw ERRORS.create("INVALID_CURSOR", {
       message: `Cursor ${cursor.stageName}/${cursor.stepName} is not in the Blueprint.`,
     });
   }

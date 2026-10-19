@@ -4,28 +4,28 @@ title: Service and Kernel architecture
 
 # Service and Kernel architecture
 
-IntLoom separates project execution from user interfaces.
+The project Service owns one Kernel environment. CMD, TUI and MCP connect to it; they do not create separate copies of Run or Stage State.
 
-| Layer | Responsibility |
+| Module | Responsibility and owned state |
 | --- | --- |
-| CMD / TUI / MCP proxy | Input, presentation, observation and explicit operations |
-| CLI Core | Shared client operations, local setup and safe result envelopes |
-| Project Service | Independent process, discovery, configuration, APIs and resource lifetime |
-| Kernel Core / Workflow loader | Initialize the project and load/register compiled definitions |
-| Runtime | Run state, scheduling, routing, waits, ownership and recovery |
-| Effector | Dispatch Code/Agent calls and bind current capabilities |
-| Storage | Formal Artifact/Record persistence |
+| Host | Project configuration, loaded resources, model preparation, process and storage lifetime |
+| Operations | Trusted entry policy, mutation admissions, instance-scoped operation receipts and queries |
+| Runtime | Run/Stage state, Calls, routing, waiting, pause/cancel and recovery |
+| Execution | Code/Agent/Tool execution; delegated tasks, claims and execution receipts |
+| Access | Bind SDK capabilities to the current Call and Tool; no business state copy |
+| Loom loader | Discover and validate built Loom package resources |
+| Storage | Formal Artifact/Record transactions and queries |
+| Mirror | Immutable historical execution images and explicit restore |
+| Transport | HTTP/JSON, SSE, MCP and human-interaction adapters |
 
-The Service uses the private Kernel, bundled in the CLI. It owns one Runtime/Storage environment per project. Clients connect to that environment rather than executing their own copy.
+Host prepares a fixed execution policy. Operations admits the request, Runtime creates the Run and advances its Steps, Execution evaluates Code/Agents, and Access checks authority for each capability use. Host supplies only the ports Operations needs. Run mutations use the receipt-bearing `admit` entry; waiting is a separate observer operation. Runtime alone decides the next transition. Execution and Access have no dependency on Runtime implementations.
 
-## One execution
+Mutation acceptance is separate from completion. An operation receipt records admission; a Run snapshot records current progress. Observation disconnects never cancel or replay execution. Human waits save the action before publication and accepted answers before continuation. Agent waiting persists only the recovery boundary; process-local claims cannot survive restart.
 
-A request resolves the project Service, validates source policy and prerequisites, admits a Run, initializes Stage State, dispatches a Step, validates its outcome and advances routing. Human interaction publishes a wait; answering continues the original call or supported recovery continuation. Code commits formal results explicitly.
+Actual commit references and pending activity are independent of optional model metrics. A stopped Run can still have `settled: false` while an already accepted external operation finishes. Exclusive Runs retain their project reservation until this work settles; paused Runs retain it too. Shutdown rejects new mutations before effects, while known receipts remain queryable within that instance. Terminal checkpoints are retained as read-only history; uncertain external effects are never replayed automatically.
 
-JSON operations, snapshot SSE and MCP are Service adapters over shared project operations. Snapshot streams show current state and may coalesce intermediate changes; they are not an audit history.
+Model adaptation preserves Tool capability bindings; a returned Tool cannot continue writing State. Delegated Tool receipts include post-execution checks, so retries preserve the same success or failure. Runtime supplies independent recovery validation; Host offline mirror restore does not construct an executor.
 
-## Public development boundary
+Use `@intloom/loom-sdk` to author Looms and `intloom build` to compile them. Kernel is private and bundled with CLI. Its ownership, dependency and recovery details live in the [Kernel contract](https://github.com/ole3021/intloom/blob/main/packages/kernel/README.md).
 
-Use `@intloom/loom-sdk` to author Workflows and `@intloom/compiler` to build them. Kernel internals are private and are not a separately installed public dependency.
-
-See [execution resources](./execution.md), [lifecycle](./lifecycle.md), and [ProjectClient](../reference/project-client.md).
+See [execution resources](./execution.md), [lifecycle](./lifecycle.md), [recovery](../usage/recovery.md) and [ProjectClient](../reference/project-client.md).

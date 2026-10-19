@@ -1,5 +1,5 @@
 import { failure } from "../../errors.ts";
-import { projectRoot, readConnection } from "../../service/discovery.ts";
+import { projectRoot, readConnection } from "@intloom/kernel/host";
 
 export async function authHeaders(directory: string) {
   const root = await projectRoot(directory);
@@ -14,7 +14,7 @@ export async function authHeaders(directory: string) {
 
 /** Generates a project configuration snippet only; the private token is read at runtime and excluded from Codex configuration. */
 export async function codexConfiguration(directory: string) {
-  const { planMcpConfig } = await import("../../core/mcp-config.ts");
+  const { planMcpConfig } = await import("../../core/project/mcp-config.ts");
   return (await planMcpConfig({ projectPath: directory, ide: "codex" }))
     .snippet;
 }

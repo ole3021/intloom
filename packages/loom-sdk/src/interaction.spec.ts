@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { describe, test } from "node:test";
 import {
   userAnswerQuestionsSchema,
   userAskConfirmationSchema,
@@ -29,19 +29,11 @@ test("accepts flat questions and single text answers without duplicating cursor 
   );
 });
 
-test("requires explicit skip or nonempty text while retaining the original answer", () => {
+test("accepts explicit skip and retains the original nonempty answer", () => {
   assert.deepEqual(
     userAnswerQuestionsSchema.parse([{ questionId: "Q1", isSkipped: true }]),
     [{ questionId: "Q1", isSkipped: true }],
   );
-  for (const answer of [
-    { questionId: "Q1", isSkipped: false },
-    { questionId: "Q1", isSkipped: false, answer: "" },
-    { questionId: "Q1", isSkipped: false, answer: " \t\n " },
-    { questionId: "Q1", isSkipped: true, answer: "Required" },
-  ]) {
-    assert.equal(userAnswerQuestionsSchema.safeParse([answer]).success, false);
-  }
   const text = "  original user answer  ";
   assert.deepEqual(
     userAnswerQuestionsSchema.parse([
@@ -51,31 +43,68 @@ test("requires explicit skip or nonempty text while retaining the original answe
   );
 });
 
-test("requires nonempty questions and strict question/option fields", () => {
-  for (const questions of [
-    [],
-    [{ id: "", question: "Question", isSkippable: false }],
-    [{ id: "Q1", question: "", isSkippable: false }],
-    [{ id: "Q1", question: "Question" }],
-    [{ id: "Q1", question: "Question", isSkippable: false, runId: "RUN-1" }],
+describe("question request shape", () => {
+  for (const [name, questions] of [
+    ["empty list", []],
+    ["empty identity", [{ id: "", question: "Question", isSkippable: false }]],
+    ["empty question", [{ id: "Q1", question: "", isSkippable: false }]],
+    ["missing skip policy", [{ id: "Q1", question: "Question" }]],
     [
-      {
-        id: "Q1",
-        question: "Question",
-        isSkippable: false,
-        options: [{ id: "O1", label: "" }],
-      },
+      "Runtime identity",
+      [{ id: "Q1", question: "Question", isSkippable: false, runId: "RUN-1" }],
     ],
     [
-      {
-        id: "Q1",
-        question: "Question",
-        isSkippable: false,
-        options: [{ id: "O1", label: "Keep", extra: true }],
-      },
+      "empty option label",
+      [
+        {
+          id: "Q1",
+          question: "Question",
+          isSkippable: false,
+          options: [{ id: "O1", label: "" }],
+        },
+      ],
     ],
-  ])
-    assert.equal(userAskQuestionsSchema.safeParse(questions).success, false);
+    [
+      "unknown option field",
+      [
+        {
+          id: "Q1",
+          question: "Question",
+          isSkippable: false,
+          options: [{ id: "O1", label: "Keep", extra: true }],
+        },
+      ],
+    ],
+  ] as const) {
+    test(`rejects ${name}`, () => {
+      assert.equal(userAskQuestionsSchema.safeParse(questions).success, false);
+    });
+  }
+});
+
+describe("question answer shape", () => {
+  for (const [name, answer] of [
+    ["missing text", { questionId: "Q1", isSkipped: false }],
+    ["empty text", { questionId: "Q1", isSkipped: false, answer: "" }],
+    [
+      "whitespace text",
+      { questionId: "Q1", isSkipped: false, answer: " \t\n " },
+    ],
+    [
+      "text on a skipped answer",
+      { questionId: "Q1", isSkipped: true, answer: "Required" },
+    ],
+  ] as const) {
+    test(`rejects ${name}`, () => {
+      assert.equal(
+        userAnswerQuestionsSchema.safeParse([answer]).success,
+        false,
+      );
+    });
+  }
+});
+
+test("question descriptions and option labels remain author-owned text", () => {
   const questions = [
     {
       id: "Q1",

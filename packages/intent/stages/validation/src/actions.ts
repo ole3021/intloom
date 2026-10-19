@@ -22,7 +22,7 @@ export const readState = (access: StageAccess) =>
   read(access, validationStateSchema);
 export async function readContext(_input: unknown, access: StageAccess) {
   const s = readState(access);
-  await assertCandidate(access, s.candidate!);
+  await assertCandidate(access, s.candidate);
   return validationContextSchema.parse(
     json({
       ...context(s),
@@ -45,13 +45,12 @@ export async function submit(
   const s = readState(access);
   try {
     assertRevision(s, input.revision, ["assess"]);
-    await assertCandidate(access, s.candidate!);
+    await assertCandidate(access, s.candidate);
     const submission = assessmentSubmissionSchema.parse(input);
     for (const finding of submission.findings) {
       if (finding.id.startsWith("$")) {
         const key = finding.id;
-        s.aliases[key] ??= formalId("FIND", s.id, key);
-        finding.id = s.aliases[key]!;
+        finding.id = s.aliases[key] ??= formalId("FIND", s.id, key);
       } else if (!Object.values(s.aliases).includes(finding.id))
         fail(
           "New findings require a $temporary key; historical findings require findingUpdates.",
@@ -83,14 +82,15 @@ export async function submit(
             fail("A supplementary request key cannot change its definition.");
           continue;
         }
-        if (request.replaces) {
+        const replacement = request.replaces;
+        if (replacement) {
           const prior = s.verifications.find(
-            (v) => v.definition.id === request.replaces!.verificationRef,
+            (v) => v.definition.id === replacement.verificationRef,
           );
-          if (!prior || prior.origin !== "supplementary")
+          if (prior?.origin !== "supplementary")
             fail("Only supplementary requests may be replaced.");
           prior.disposition = "stopped";
-          prior.reason = `Replaced by ${id}: ${request.replaces.reason}`;
+          prior.reason = `Replaced by ${id}: ${replacement.reason}`;
         }
         s.verifications.push({
           definition,

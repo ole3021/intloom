@@ -1,11 +1,12 @@
 import type { SpecificationState } from "../schema/state.ts";
 import { bullets, section, answers } from "../../../src/review.ts";
+import { fail } from "../../../src/errors.ts";
 export function formatReview(s: SpecificationState) {
-  const draft = s.draft!,
-    scope = s.scope!;
+  const { draft, scope, analysis } = s;
+  if (!draft || !scope || !analysis) fail("Missing specification review data.");
   return [
     section("Round goal", s.prompt),
-    section("Analysis", `${s.analysis!.summary}\n\n${s.analysis!.rationale}`),
+    section("Analysis", `${analysis.summary}\n\n${analysis.rationale}`),
     section(
       "Requirement baseline",
       s.baseline
@@ -56,7 +57,8 @@ export function formatReview(s: SpecificationState) {
         scope.workItems.map((work) => {
           const coverage = scope.coverage.find(
             (item) => item.workItemRef === work.id,
-          )!;
+          );
+          if (!coverage) fail(`Missing work-item coverage: ${work.id}`);
           const targets = [
             ...draft.acceptances.filter((item) =>
               coverage.acceptanceRefs.includes(item.id),
@@ -73,7 +75,7 @@ export function formatReview(s: SpecificationState) {
       ),
     ),
     section("Excluded work", bullets(scope.excluded)),
-    section("Assumptions", bullets(s.analysis!.assumptions)),
+    section("Assumptions", bullets(analysis.assumptions)),
     section("User answers", bullets(answers(s))),
     section("Review feedback", bullets(s.feedback)),
   ].join("\n\n");

@@ -34,7 +34,7 @@ try {
     {
       type: "append_record",
       id,
-      payload: { flowName: "flow", stageName: "stage", data: id },
+      payload: { loomName: "run", stageName: "stage", data: id },
     },
   ]);
 } finally {

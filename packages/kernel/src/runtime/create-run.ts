@@ -5,9 +5,9 @@ import {
   type RunExecution,
 } from "./execution-policy.ts";
 import { generateRunId } from "@intloom/utils";
-import type { Blueprint } from "../loom/blueprint.ts";
+import type { Blueprint } from "@intloom/loom-sdk";
 import { validateLoomInput } from "./loom-input.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import { ERRORS } from "../errors.ts";
 import { resolveCursor } from "./resolve-current-execution.ts";
 import type { RunState } from "./run-state.ts";
 
@@ -18,11 +18,11 @@ export function createRun(
   execution: RunExecution = resolveRunExecution("cli", false),
 ): RunState {
   const parsedInput = validateLoomInput(blueprint, input);
-  if (!blueprint.loomName) throw RUNTIME_ERRORS.create("RUN_STATE_INVALID");
+  if (!blueprint.loomName) throw ERRORS.create("RUN_STATE_INVALID");
   const stage = Object.hasOwn(blueprint.stages, blueprint.entryStageName)
     ? blueprint.stages[blueprint.entryStageName]
     : undefined;
-  if (!stage) throw RUNTIME_ERRORS.create("INVALID_CURSOR");
+  if (!stage) throw ERRORS.create("INVALID_CURSOR");
   const cursor = {
     stageName: blueprint.entryStageName,
     stepName: stage.entryStepName,

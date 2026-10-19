@@ -1,8 +1,13 @@
 id: M01
-version: 4
-name: Browser TodoMVC
-scale: medium
-description: Continue a prepared first Intent through two browser task application iterations.
-intents:
-  - "Extend our existing task list with inline editing, remaining counts, toggle-all and clear-completed controls. Preserve the previous iteration and use the authorized editing and bulk-operation rules."
-  - "Add All, Active and Completed filters with address navigation and localStorage persistence. Complete the lightweight TodoMVC presentation described in the knowledge. Preserve the existing tasks and interaction behavior; do not add refresh-time task restoration."
+version: 5
+name: Create then adjust and remove features
+description: Two real Runs in one fresh project; the second changes and retires requirements while preserving formal history.
+rounds:
+  - id: create
+    input:
+      prompt: Create a local command-line task manager supporting add, list, complete and reopen. Persist task IDs, titles and completion flags in a project-relative JSON file. Include focused tests and usage documentation.
+    knowledge: rounds/create.md
+  - id: adjust
+    input:
+      prompt: Adjust the existing task list command to support all, active and completed filters, defaulting to active. Remove the reopen command and its public documentation and tests; completed tasks can no longer be reopened. Preserve adding, completing, task IDs, stored data and creation order. Update focused tests and usage documentation for this round.
+    knowledge: rounds/adjust.md

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { CompileResult } from "@intloom/compiler";
-import type { CoreResult } from "@intloom/kernel/service/api-contracts";
+import type { CoreResult } from "@intloom/kernel/operations";
 import { errorView, failure } from "../errors.ts";
 
 export interface BuildInput {
@@ -25,7 +25,7 @@ export async function buildLoom(
       ok: false,
       error: safe,
       // Build finalization can fail after replacing dist; do not claim rollback in that case.
-      outcome: ["BUILD_FAILED", "CLI_INTERNAL_ERROR"].includes(safe.code)
+      outcome: ["BUILD_FAILED", "KERNEL_INTERNAL_ERROR"].includes(safe.code)
         ? "unknown"
         : "not_applied",
       meta,

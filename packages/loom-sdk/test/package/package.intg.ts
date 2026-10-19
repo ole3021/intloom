@@ -114,7 +114,9 @@ test("installs SDK archives and checks runtime and declarations without reposito
       "--ignore-scripts",
       "--no-audit",
       "--no-fund",
-      "--fetch-retries=0",
+      "--fetch-retries=2",
+      "--fetch-retry-mintimeout=1000",
+      "--fetch-retry-maxtimeout=3000",
       "--fetch-timeout=30000",
     ],
     {

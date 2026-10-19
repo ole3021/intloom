@@ -1,7 +1,7 @@
 import { and, eq, gt, inArray, lt, or, type SQL } from "drizzle-orm";
 import type { PreparedQuery } from "../query.ts";
 import { artifactSchema, recordSchema } from "../schemas.ts";
-import type { StoredArtifact, StoredRecord } from "../types.ts";
+import type { StoredArtifact, StoredRecord } from "@intloom/loom-sdk";
 import { artifacts, records } from "./schema.ts";
 
 export const artifactKey = (projectId: string, id: string) =>

@@ -12,6 +12,7 @@ import {
 } from "../schema/submission.ts";
 import { batchEdit, allocateIds, resolveRefs } from "../../../src/edits.ts";
 import { context } from "../../../src/project.ts";
+import { fail } from "../../../src/errors.ts";
 import { json } from "../../../src/json.ts";
 import { unanswered } from "../../../src/questions.ts";
 import { checkObjects, checkSpecification } from "./rules.ts";
@@ -57,7 +58,8 @@ export async function edit(
   const s = readState(access);
   try {
     assertRevision(s, input.revision, ["draft"]);
-    const result = batchEdit(s.id, s.draft!, s.aliases, input.edits);
+    if (!s.draft) fail("Missing requirement draft.");
+    const result = batchEdit(s.id, s.draft, s.aliases, input.edits);
     const draft = specificationArtifactSchema.parse(result.draft);
     checkObjects(draft);
     s.draft = draft;

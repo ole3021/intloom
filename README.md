@@ -66,4 +66,4 @@ Model behavior and client support need validation in the intended environment. S
 - [Getting started](./docs/guide/start/installation.md)
 - [CLI command reference](./docs/guide/reference/cli.md)
 - [Create a Workflow](./docs/guide/development/create.md)
-- [AI-driven E2E testing](./e2e/README.md)
+- [AI-driven E2E testing](./apps/cli/src/e2e/README.md)

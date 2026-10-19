@@ -1,7 +1,7 @@
 import type { LoomError } from "@intloom/utils";
-import type { LoomConfig } from "../core/schemas/loom-config.ts";
-import type { AgentId } from "./blueprint.ts";
-import type { AgentSpec, LoomModule } from "./module.ts";
+import type { LoomConfig } from "../host/config/schemas/loom-config.ts";
+import type { AgentId } from "@intloom/loom-sdk";
+import type { AgentSpec, LoomModule } from "@intloom/loom-sdk";
 import type { LoomRegistries } from "./registries.ts";
 
 export interface LoomPackage {

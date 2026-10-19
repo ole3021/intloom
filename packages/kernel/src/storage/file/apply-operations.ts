@@ -1,7 +1,7 @@
-import { KERNEL_ERRORS } from "../../errors/kernel.ts";
+import { ERRORS } from "../../errors.ts";
 import { conflict, missing } from "../errors.ts";
 import { artifactSchema, recordSchema } from "../schemas.ts";
-import type { StorageCommitResult, StorageOperation } from "../types.ts";
+import type { StorageCommitResult, StorageOperation } from "@intloom/loom-sdk";
 import type { FileStore } from "./store.ts";
 
 export function applyOperations(
@@ -62,7 +62,7 @@ export function applyOperations(
           conflict("Artifact Loom/Stage cannot change.");
       }
       if (store.revision === Number.MAX_SAFE_INTEGER)
-        throw KERNEL_ERRORS.create("STORAGE_ERROR", {
+        throw ERRORS.create("STORAGE_ERROR", {
           message: "Storage revision space exhausted.",
         });
       const entry = artifactSchema.parse({

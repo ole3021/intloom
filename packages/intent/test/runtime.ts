@@ -312,8 +312,9 @@ export function runtime(
     project: {
       snapshot: async () => manifest(),
       read: async (path) => {
-        assert.ok(path in files);
-        return files[path]!;
+        const content = files[path];
+        assert.ok(content !== undefined);
+        return content;
       },
       write: async (path, content) => {
         files[path] = content;

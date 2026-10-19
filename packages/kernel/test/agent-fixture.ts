@@ -1,7 +1,7 @@
 import type { TestContext } from "node:test";
 import * as z from "zod";
-import type { LoomConfig } from "../src/core/schemas/loom-config.ts";
-import type { AgentSpec } from "../src/loom/module.ts";
+import type { LoomConfig } from "../src/host/config/schemas/loom-config.ts";
+import type { AgentSpec } from "@intloom/loom-sdk";
 
 export function agentSpec(): AgentSpec {
   return {

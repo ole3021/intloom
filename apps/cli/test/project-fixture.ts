@@ -1,3 +1,4 @@
+import { bindMutationIdentity } from "./mcp-identity-fixture.ts";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -36,7 +37,7 @@ export function pending(view: RunView) {
   assert.ok(view.pendingAction);
   return view.pendingAction;
 }
-/** Tests explicitly follow a receipt; production clients never hide waiting behind flow or answerAsk. */
+/** Tests explicitly follow a receipt; production clients never hide waiting behind run or answerAsk. */
 export async function untilRun(
   client: Pick<ProjectClient, "getRun">,
   runId: string,
@@ -89,7 +90,7 @@ export async function configureProject(
 
 /** Keeps hand-authored protocol fixtures valid without exercising npm installation in every service test. */
 export async function refreshFixtureInstallation(root: string) {
-  const directory = join(root, ".intloom/workflows");
+  const directory = join(root, ".intloom/looms");
   const hash = createHash("sha256");
   async function walk(relative: string) {
     const file = join(directory, relative);
@@ -113,18 +114,16 @@ export async function refreshFixtureInstallation(root: string) {
       );
   }
   await walk("node_modules");
-  const { workflows } = parse(
-    await readFile(join(root, "intloom.yaml"), "utf8"),
-  );
+  const { looms } = parse(await readFile(join(root, "intloom.yaml"), "utf8"));
   await writeFile(
     join(directory, "installed.json"),
-    JSON.stringify({ workflows, treeHash: hash.digest("hex") }),
+    JSON.stringify({ looms, treeHash: hash.digest("hex") }),
   );
 }
 
 export async function projectFixture(
   t: TestContext,
-  workflow = true,
+  loom = true,
   localStorage: "file" | "sqlite" = "file",
 ) {
   const root = await realpath(await mkdtemp(join(tmpdir(), "intloom-cli-")));
@@ -132,16 +131,16 @@ export async function projectFixture(
     join(root, "intloom.yaml"),
     stringify({
       localStorage,
-      workflows: workflow
+      looms: loom
         ? [
             {
-              name: "fixture-workflow",
+              name: "fixture-loom",
               version: "1.0.0",
               sha256: "a".repeat(64),
             },
           ]
         : [],
-      intent: { apps: [] },
+
       llms: {
         default: {
           provider: "openai-compatible",
@@ -152,28 +151,28 @@ export async function projectFixture(
       },
     }),
   );
-  if (workflow) {
-    const installation = join(root, ".intloom/workflows");
+  if (loom) {
+    const installation = join(root, ".intloom/looms");
     await mkdir(join(installation, "node_modules"), { recursive: true });
     const zod = findPackageJSON("zod", import.meta.url);
     assert.ok(zod);
     await symlink(dirname(zod), join(installation, "node_modules/zod"), "dir");
-    const directory = join(installation, "node_modules/fixture-workflow");
+    const directory = join(installation, "node_modules/fixture-loom");
     await mkdir(directory);
     await writeFile(
       join(directory, "package.json"),
       JSON.stringify({
-        name: "fixture-workflow",
+        name: "fixture-loom",
         version: "1.0.0",
         type: "module",
-        intloom: { type: "workflow", version: "2026-10-08" },
+        loom: { type: "loom", version: "2026-10-15" },
         exports: {
-          ".": { types: "./workflow.d.ts", default: "./workflow.js" },
+          ".": { types: "./loom.d.ts", default: "./loom.js" },
           "./package.json": "./package.json",
         },
       }),
     );
-    await writeFile(join(directory, "workflow.js"), compiledWorkflow);
+    await writeFile(join(directory, "loom.js"), compiledLoom);
     await refreshFixtureInstallation(root);
   }
   t.after(async () => {
@@ -214,6 +213,7 @@ export async function mcpClient(
     },
   );
   await client.connect(transport, { timeout: 5_000 });
+  await bindMutationIdentity(client);
   t.after(async () => {
     try {
       if (transport.sessionId) await transport.terminateSession();
@@ -226,18 +226,18 @@ export async function mcpClient(
 }
 
 /** Compiled fixture with an observable commit: writes a once record before answering so Code replay would cause an ID conflict. */
-const compiledWorkflow = `import * as z from "zod";
-export const blueprint = { flowName: "fixture", entryStageName: "first", stages: {
-  first: { stageName: "first", initializeState: ({ runId, intent }) => ({ id: runId, intent }), stateSchema: z.object({ id: z.string(), intent: z.string(), answer: z.string().optional() }), entryStepName: "ask",
-    steps: { ask: { stepName: "ask", execution: { kind: "code", codeId: "CODE-123456789012345678901" }, on: { complete: { kind: "stage_end" } } } }, on: { complete: { kind: "workflow_end" } } }
+const compiledLoom = `import * as z from "zod";
+export const blueprint = {inputs:["prompt"], loomName: "fixture", entryStageName: "first", stages: {
+  first: { stageName: "first", initializeState: ({ runId, input }) => ({ id: runId, intent: input.prompt }), stateSchema: z.object({ id: z.string(), intent: z.string(), answer: z.string().optional() }), entryStepName: "ask",
+    steps: { ask: { stepName: "ask", execution: { kind: "code", codeId: "CODE-123456789012345678901" }, on: { complete: { kind: "stage_end" } } } }, on: { complete: { kind: "loom_end" } } }
 } };
 export const codes = { "CODE-123456789012345678901": async (access) => {
   const { id, intent } = access.state.value;
-  await access.storage.commit([{ type: "append_record", id: "once-" + id, payload: { flowName: "fixture", stageName: "first", data: { intent } } }]);
+  await access.storage.commit([{ type: "append_record", id: "once-" + id, payload: { loomName: "fixture", stageName: "first", data: { intent } } }]);
   const answers = await access.interaction.askQuestions([{ id: "place", question: "Where should it be deployed?", options: [{ id: "local", label: "Local" }, { id: "cloud", label: "Cloud" }], isSkippable: false }, { id: "notes", question: "Any additional notes?", isSkippable: true }]);
   await access.state.update({ id, intent, answer: answers[0].answer });
   const decision = await access.interaction.confirm("Confirm saving?");
-  await access.storage.commit([{ type: "append_record", id, payload: { flowName: "fixture", stageName: "first", data: { intent, answers, isConfirmed: decision.isConfirmed, ...(decision.feedback === undefined ? {} : { feedback: decision.feedback }) } } }]);
+  await access.storage.commit([{ type: "append_record", id, payload: { loomName: "fixture", stageName: "first", data: { intent, answers, isConfirmed: decision.isConfirmed, ...(decision.feedback === undefined ? {} : { feedback: decision.feedback }) } } }]);
   if (intent === "fail-after-commit") throw new Error("after durable commit");
   return { outcome: "complete" };
 } };

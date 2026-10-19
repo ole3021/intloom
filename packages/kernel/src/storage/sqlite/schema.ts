@@ -8,7 +8,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import type { ReadonlyJsonValue } from "../../shared/json.ts";
+import type { ReadonlyJsonValue } from "@intloom/loom-sdk";
 
 export const projects = sqliteTable(
   "storage_projects",

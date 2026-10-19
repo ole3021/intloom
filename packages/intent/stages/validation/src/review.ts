@@ -5,9 +5,11 @@ import {
   candidateLabel,
   verificationLines,
 } from "../../../src/review.ts";
+import { fail } from "../../../src/errors.ts";
 export function formatReview(s: ValidationState) {
+  if (!s.candidate) fail("Missing validation candidate.");
   return [
-    section("Candidate", candidateLabel(s.candidate!)),
+    section("Candidate", candidateLabel(s.candidate)),
     section(
       "Acceptance scope",
       bullets(

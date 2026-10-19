@@ -3,7 +3,7 @@ import { createRequire, findPackageJSON } from "node:module";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { LoomError } from "@intloom/utils";
-import type { LoomDependency } from "../core/schemas/loom-config.ts";
+import type { LoomDependency } from "../host/config/schemas/loom-config.ts";
 import * as z from "zod";
 import { fail, loomError } from "./errors.ts";
 import {

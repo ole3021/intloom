@@ -1,6 +1,6 @@
 # Storage
 
-File and Drizzle SQLite backends implement StorageAccess directly. The host retains StorageHandle and injects only access into Kernel. See the [Storage architecture](../../../../design/architecture/storage.md) for the complete contract.
+File and Drizzle SQLite backends implement StorageAccess directly. The host retains StorageHandle and injects only access into Kernel. The authoring contract belongs to `@intloom/loom-sdk`; see [Kernel ownership](../../README.md) for lifecycle and recovery boundaries.
 
 ```ts
 import { openFileStorage } from "@intloom/kernel/storage/file";
@@ -14,29 +14,29 @@ const storage = await openSqliteStorage({
 // const storage = await openFileStorage({ directory: "/project/intloom", layout: "directories" });
 try {
   await storage.access.commit([
-    { type: "create_artifact", id: "ART-example", payload: { flowName: "example", stageName: "specification", data: {} } },
-    { type: "append_record", id: "RUN-example", payload: { flowName: "example", stageName: "specification", data: {} } },
+    { type: "create_artifact", id: "ART-example", payload: { loomName: "example", stageName: "specification", data: {} } },
+    { type: "append_record", id: "RUN-example", payload: { loomName: "example", stageName: "specification", data: {} } },
   ]);
 } finally {
   await storage.dispose();
 }
 ```
 
-- Each project has one current Artifact per Workflow/Stage. Appended Records can only be deleted.
+- Each project has one current Artifact per Loom/Stage. Appended Records can only be deleted.
 - commit applies a batch atomically. expectedRevision checks equality; revisions may skip values and are not reused after deletion/recreation.
 - Pages default to 50 items with a maximum of 200, ordered by creation time and ID. Cursors bind project, category, and query, without a cross-request snapshot.
 - dispose rejects new access and waits for accepted operations before releasing resources. It does not replace awaiting commit or roll back writes started before Runtime cancellation.
 - File directories hold store.lock. After abnormal exit, verify that no owner is active before explicit removal. Never reset corrupt or unknown formats to empty.
 - SQLite uses better-sqlite3; the synchronous driver may briefly block the event loop. Migrations ship with the package and are validated/applied in a write transaction before access.
-- Snapshot, remote databases, and Run recovery are not implemented.
+- Host-only snapshot import/export is separate from business StorageAccess. Runtime owns Run checkpoints; Storage owns Artifact/Record transactions. Remote databases are not implemented.
 
 The file subpath also exports inspectFileStorageLock({ directory }) and recoverFileStorageLock({ directory, expected }) for explicit host maintenance, outside StorageAccess. Inspection is read-only. Recovery requires an unchanged lock snapshot and a verifiably absent PID; active or unknown owners block cleanup. Neither operation reads or modifies store.json. The host must coordinate maintenance with startup; CLI recover supplies that coordination. openFileStorage never steals locks automatically.
 
-contracts/types define the public protocol; schemas/query/lifecycle implement shared behavior. file/sqlite own their persistence processes without an extra SQL abstraction. Helpers and shared contract tests live in test/ and are excluded from dist.
+`@intloom/loom-sdk` defines public data/access contracts; contracts/types retain only Kernel lifecycle and snapshot contracts; schemas/query/lifecycle implement shared behavior. file/sqlite own their persistence processes without an extra SQL abstraction. Helpers and shared contract tests live in test/ and are excluded from dist.
 
 ## Implementation organization
 
-StorageQuery and StorageCategory are canonical; Query and SnapshotCategory remain deprecated compatibility aliases. File open manages locking and lifecycle; store defines disk format, apply-operations applies batches to a copy, and publish synchronizes temporary files, renames them, and synchronizes the directory. SQLite open manages connections/access, query handles conditions and row conversion, and commit processes the complete batch in one immediate transaction. This separates resource management from commit rules while preserving each backend's atomicity.
+StorageQuery is an SDK contract; StorageCategory is a private Kernel maintenance type. File open manages locking and lifecycle; store defines disk format, apply-operations applies batches to a copy, and publish synchronizes temporary files, renames them, and synchronizes the directory. SQLite open manages connections/access, query handles conditions and row conversion, and commit processes the complete batch in one immediate transaction. This separates resource management from commit rules while preserving each backend's atomicity.
 
 ## File layouts
 

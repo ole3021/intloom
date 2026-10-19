@@ -2,11 +2,8 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { Writable } from "node:stream";
 import type { LogLevel } from "@intloom/utils";
-import {
-  projectRoot,
-  type CoreResult,
-  type CoreMeta,
-} from "@intloom/kernel/service";
+import { projectRoot } from "@intloom/kernel/host";
+import type { CoreResult, CoreMeta } from "@intloom/kernel/operations";
 import { errorView } from "../errors.ts";
 import { readProjectLogs } from "./log-reader.ts";
 export interface LogInput {

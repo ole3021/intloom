@@ -1,13 +1,15 @@
-import type { LoomInput } from "@intloom/kernel";
+import { randomUUID } from "node:crypto";
+import { admissionSchema } from "@intloom/kernel/operations";
+import type { LoomInput } from "@intloom/loom-sdk";
 import { packageVersion } from "../version.ts";
 import {
   Client,
   StreamableHTTPClientTransport,
 } from "@modelcontextprotocol/client";
-import type { ReadonlyJsonValue } from "@intloom/kernel";
+import type { ReadonlyJsonValue } from "@intloom/loom-sdk";
 import * as z from "zod";
-import { failure } from "../errors.ts";
-import { storedRecordSchema } from "../application/records.ts";
+import { failure, errorView } from "../errors.ts";
+import { storedRecordSchema } from "@intloom/kernel/operations";
 import {
   artifactPageSchema,
   parseArtifactQuery,
@@ -15,12 +17,12 @@ import {
   storedArtifactSchema,
   type ArtifactQuery,
   type ArtifactSelector,
-} from "../application/artifacts.ts";
+} from "@intloom/kernel/operations";
 import {
   errorViewSchema,
   runViewSchema,
   loomViewSchema,
-} from "../service/contracts.ts";
+} from "@intloom/kernel/host";
 import type {
   ProjectClient,
   ProjectConnection,
@@ -151,9 +153,64 @@ export async function connectProjectClient(
     return parsed.data;
   }
   const oneRun = z.strictObject({ run: runViewSchema });
+  const status = await call(
+    "status",
+    {},
+    z.object({ service: z.object({ instanceId: z.uuid() }) }),
+  ).catch(async (cause) => {
+    await client.close().catch(() => {});
+    throw cause;
+  });
+  const serviceInstanceId = status.service.instanceId;
+  async function mutate(
+    name: string,
+    args: Record<string, unknown>,
+    runId?: string,
+  ) {
+    const operationId = randomUUID();
+    const lookup = `Query get_operation with operationId ${operationId} and serviceInstanceId ${serviceInstanceId} before another mutation.`;
+    const data = await call(
+      name,
+      { ...args, operationId, serviceInstanceId },
+      admissionSchema,
+      runId,
+    ).catch((cause) => {
+      const error = errorView(cause);
+      throw failure(
+        error.code,
+        `${error.message} ${lookup}`,
+        cause,
+        error.retryable,
+      );
+    });
+    if (data.receipt.status === "accepted")
+      return (
+        data.run ??
+        (
+          await call(
+            "get_run",
+            { runId: data.receipt.runId },
+            oneRun,
+            data.receipt.runId,
+          )
+        ).run
+      );
+    if (
+      data.receipt.status === "rejected" ||
+      data.receipt.status === "indeterminate"
+    )
+      throw failure(
+        data.receipt.error.code,
+        `${data.receipt.error.message}${data.receipt.status === "indeterminate" ? ` ${lookup}` : ""}`,
+      );
+    throw failure(
+      "OPERATION_PENDING",
+      `Query operation ${operationId} in Service ${serviceInstanceId} before resubmitting.`,
+    );
+  }
   return {
     async run(loomName: string, input: LoomInput) {
-      return (await call("run", { loomName, input }, oneRun)).run;
+      return mutate("run", { loomName, input });
     },
     async getRun(runId: string) {
       return (await call("get_run", { runId }, oneRun, runId)).run;
@@ -163,12 +220,10 @@ export async function connectProjectClient(
       actionId: string,
       answer: ReadonlyJsonValue,
     ) {
-      return (
-        await call("answer_ask", { runId, actionId, answer }, oneRun, runId)
-      ).run;
+      return mutate("answer_ask", { runId, actionId, answer }, runId);
     },
     async cancelRun(runId: string) {
-      return (await call("cancel_run", { runId }, oneRun, runId)).run;
+      return mutate("cancel_run", { runId }, runId);
     },
     async listRuns(loomName?: string) {
       return (

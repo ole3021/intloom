@@ -66,4 +66,4 @@ IntLoom 仍处于早期开发阶段。本地 Workflow 执行、CLI/MCP 接入、
 - [开始使用](./docs/zh/guide/start/installation.md)
 - [CLI 命令参考](./docs/zh/guide/reference/cli.md)
 - [创建 Workflow](./docs/zh/guide/development/create.md)
-- [AI-driven E2E testing](./e2e/README.md)
+- [AI-driven E2E testing](./apps/cli/src/e2e/README.md)

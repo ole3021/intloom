@@ -41,7 +41,11 @@ export function checkAnalysis(state: SolutionState) {
   if (state.questions.length)
     fail("Required design questions remain unanswered.");
 }
-export function checkSolution(state: SolutionState) {
+export function checkSolution(
+  state: SolutionState,
+): asserts state is SolutionState & {
+  [K in "draft" | "plan" | "specification"]: NonNullable<SolutionState[K]>;
+} {
   checkAnalysis(state);
   if (!state.draft || !state.plan || !state.specification)
     fail("Design and implementation/verification plans are required.");
@@ -140,7 +144,8 @@ export function checkSolution(state: SolutionState) {
     );
     const source = spec.scope.coverage.find(
       (x) => x.workItemRef === coverage.workItemRef,
-    )!;
+    );
+    if (!source) fail(`Missing work-item coverage: ${coverage.workItemRef}`);
     if (
       coverage.target.kind === "acceptance" &&
       !source.acceptanceRefs.includes(coverage.target.id)
@@ -166,7 +171,9 @@ export function checkSolution(state: SolutionState) {
   function cover(id: string) {
     if (coveredItems.has(id)) return;
     coveredItems.add(id);
-    for (const ref of items.get(id)!.dependsOn) cover(ref);
+    const item = items.get(id);
+    if (!item) fail(`Unknown implementation dependency: ${id}`);
+    for (const ref of item.dependsOn) cover(ref);
   }
   for (const c of plan.coverage)
     for (const id of c.implementationRefs) cover(id);

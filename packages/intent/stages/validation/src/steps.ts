@@ -37,7 +37,8 @@ export async function prepare(access: StageCodeAccess) {
   if (!s.implementation) {
     const input = await inputRecord(access.storage, s.id, "implementation");
     s.implementationRef = input.ref;
-    s.implementation = implementationRecordSchema.parse(input.data);
+    const implementation = implementationRecordSchema.parse(input.data);
+    s.implementation = implementation;
     const solution = solutionRecordSchema.parse(
       await loadRecord(
         access.storage,
@@ -57,7 +58,8 @@ export async function prepare(access: StageCodeAccess) {
       digest(s.implementation.basis.specification)
     )
       fail("Handoff basis chain mismatch.");
-    s.candidate = s.implementation.workspace.candidate;
+    const candidate = implementation.workspace.candidate;
+    s.candidate = candidate;
     await assertCandidate(access, s.candidate);
     s.targets = solution.targets;
     s.evidence = structuredClone(s.implementation.evidence);
@@ -66,12 +68,12 @@ export async function prepare(access: StageCodeAccess) {
       ? validationArtifactSchema.parse(s.baseline.data)
       : emptyValidation();
     s.verifications = solution.plan.verifications.map((v) => {
-      const prior = s.implementation!.verifications.find(
+      const prior = implementation.verifications.find(
         (p) => p.definition.id === v.id,
       );
       const adopted =
         v.executionStage === "implementation" &&
-        prior?.candidateRef === s.candidate!.id &&
+        prior?.candidateRef === candidate.id &&
         prior.disposition === "executed";
       return {
         definition: v,
@@ -100,7 +102,7 @@ export async function prepare(access: StageCodeAccess) {
               ? "Evidence adopted from the fixed Implementation Record; not executed in Validation."
               : "Implementation did not supply completed applicable evidence.",
         attempts: 0,
-        ...(adopted ? { candidateRef: s.candidate!.id } : {}),
+        ...(adopted ? { candidateRef: candidate.id } : {}),
       };
     });
   }
@@ -115,13 +117,10 @@ export async function verify(access: StageCodeAccess) {
 export async function check(access: StageCodeAccess) {
   const s = readState(access);
   assertSettled(s);
-  await assertCandidate(access, s.candidate!);
-  await loadRecord(
-    access.storage,
-    s.implementationRef!,
-    "implementation",
-    s.id,
-  );
+  const candidate = await assertCandidate(access, s.candidate);
+  const implementationRef = s.implementationRef;
+  if (!implementationRef) fail("Missing implementation Record reference.");
+  await loadRecord(access.storage, implementationRef, "implementation", s.id);
   if (s.stopRequested || s.questions.length) return { outcome: "needs_input" };
   if (
     s.verifications.some((v) =>
@@ -130,7 +129,7 @@ export async function check(access: StageCodeAccess) {
   )
     return { outcome: "verify" };
   try {
-    if (!s.submission || s.submission.kind !== "ready")
+    if (s.submission?.kind !== "ready")
       fail("A complete final assessment is required.");
     checkAssessment(s, s.submission, true);
     if (unconfirmedGaps(s).length) {
@@ -146,8 +145,8 @@ export async function check(access: StageCodeAccess) {
       if (
         !s.collectionDecisions.some(
           (d) =>
-            d.candidateRef === s.candidate!.id &&
-            d.basisDigest === s.implementationRef!.digest &&
+            d.candidateRef === candidate.id &&
+            d.basisDigest === implementationRef.digest &&
             d.verificationRefs.includes(v.definition.id),
         )
       )
@@ -169,7 +168,9 @@ export async function resolve(
 ) {
   const s = readState(access);
   assertSettled(s);
-  await assertCandidate(access, s.candidate!);
+  const candidate = await assertCandidate(access, s.candidate);
+  const implementationRef = s.implementationRef;
+  if (!implementationRef) fail("Missing implementation Record reference.");
   if (s.resolutionChoice === "continue_collection") {
     await answerQuestions(access, s, recovery);
     delete s.resolutionChoice;
@@ -215,7 +216,7 @@ ${formatReview(s)}`,
     ],
     recovery,
   );
-  await assertCandidate(access, s.candidate!);
+  await assertCandidate(access, candidate);
   const answer = userAnswerQuestionsSchema.parse(receipt.answer)[0];
   if (!answer || answer.isSkipped)
     fail("A real collection decision is required.");
@@ -226,8 +227,8 @@ ${formatReview(s)}`,
       reviewRef: receipt.id,
       reviewDigest: digest(review),
       review: json(review),
-      basisDigest: s.implementationRef!.digest,
-      candidateRef: s.candidate!.id,
+      basisDigest: implementationRef.digest,
+      candidateRef: candidate.id,
       verificationRefs: review.verificationRefs,
       informationRequestRefs: review.informationRequestRefs,
       evidenceGapRefs: review.evidenceGapRefs,
@@ -281,29 +282,23 @@ export async function commit(access: StageCodeAccess) {
   if (await resumeCommitted(access, s.id, "validation"))
     return { outcome: "complete" };
   assertSettled(s);
-  await assertCandidate(access, s.candidate!);
-  await loadRecord(
-    access.storage,
-    s.implementationRef!,
-    "implementation",
-    s.id,
-  );
-  if (
-    !s.submission ||
-    s.submission.kind !== "ready" ||
-    s.checkedDigest !== checkDigest(s)
-  )
+  await assertCandidate(access, s.candidate);
+  const implementationRef = s.implementationRef;
+  if (!implementationRef) fail("Missing implementation Record reference.");
+  await loadRecord(access.storage, implementationRef, "implementation", s.id);
+  if (s.submission?.kind !== "ready" || s.checkedDigest !== checkDigest(s))
     fail("Validation requires a current final check.");
   checkAssessment(s, s.submission, true);
   if (unconfirmedGaps(s).length)
     fail("Ending evidence collection requires a real choice for these gaps.");
+  if (!s.implementation) fail("Missing implementation Record.");
   const record = validationRecordSchema.parse(
     seal({
       runId: s.id,
       prompt: s.prompt,
       basis: {
-        ...s.implementation!.basis,
-        implementation: s.implementationRef,
+        ...s.implementation.basis,
+        implementation: implementationRef,
       },
       candidate: s.candidate,
       scope: { targets: s.targets },

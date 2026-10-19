@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { createCliCore } from "@intloom/cli";
-import type { CoreMeta } from "@intloom/kernel/service";
+import type { CoreMeta } from "@intloom/kernel/operations";
 
 const sentinel = "PRIVATE_RESPONSE_AND_CREDENTIAL_SENTINEL";
 type Handler = (
@@ -72,14 +72,14 @@ async function fixture(t: TestContext) {
   };
   status = {
     ...info,
-    workflowCount: 0,
-    availableWorkflowCount: 0,
+    loomCount: 0,
+    availableLoomCount: 0,
     runningRuns: 0,
     waitingRuns: 0,
     completedRuns: 0,
     failedRuns: 0,
   };
-  await writeFile(join(projectPath, "intloom.yaml"), "workflows: []\n");
+  await writeFile(join(projectPath, "intloom.yaml"), "looms: []\n");
   await mkdir(join(projectPath, ".intloom"), { mode: 0o700 });
   for (const [name, value] of [
     ["service.json", info],
@@ -182,7 +182,7 @@ test("old API, malformed results and HTTP failures receive bounded distinct diag
       response.writeHead(status, { "content-type": contentType });
       response.end(body);
     });
-    const result = await project.core.listWorkflows(project.input);
+    const result = await project.core.listLooms(project.input);
     assert.ok(!result.ok, JSON.stringify(result));
     assert.equal(result.error.code, code);
     assert.equal(result.outcome, "not_applied");
@@ -210,7 +210,7 @@ test("envelope schema and each trusted identity are validated before accepting a
         JSON.stringify({ ok: true, data: [], meta: { ...meta, ...change } }),
       );
     });
-    const result = await project.core.listWorkflows(project.input);
+    const result = await project.core.listLooms(project.input);
     assert.ok(!result.ok);
     assert.equal(result.error.code, "CLI_RESULT_INVALID");
     assert.equal(JSON.stringify(result).includes(sentinel), false);
@@ -219,7 +219,7 @@ test("envelope schema and each trusted identity are validated before accepting a
     response.setHeader("content-type", "Application/JSON; charset=utf-8");
     response.end(JSON.stringify({ ok: true, data: [], meta }));
   });
-  assert.ok((await project.core.listWorkflows(project.input)).ok);
+  assert.ok((await project.core.listLooms(project.input)).ok);
 });
 
 test("request timeout and broken connection are distinguished without disclosing causes", async (t) => {
@@ -229,11 +229,11 @@ test("request timeout and broken connection are distinguished without disclosing
     timeout(ms === 10000 ? 25 : ms),
   );
   project.respond(() => {});
-  const stalled = await project.core.listWorkflows(project.input);
+  const stalled = await project.core.listLooms(project.input);
   assert.ok(!stalled.ok);
   assert.equal(stalled.error.code, "CLI_SERVICE_TIMEOUT");
   project.respond((request) => request.socket.destroy(new Error(sentinel)));
-  const disconnected = await project.core.listWorkflows(project.input);
+  const disconnected = await project.core.listLooms(project.input);
   assert.ok(!disconnected.ok);
   assert.equal(disconnected.error.code, "CLI_SERVICE_OFFLINE");
   assert.equal(JSON.stringify(disconnected).includes(sentinel), false);
@@ -241,7 +241,7 @@ test("request timeout and broken connection are distinguished without disclosing
     response.writeHead(200, { "content-type": "application/json" });
     response.write('{"ok":');
   });
-  const unfinished = await project.core.listWorkflows(project.input);
+  const unfinished = await project.core.listLooms(project.input);
   assert.ok(!unfinished.ok);
   assert.equal(unfinished.error.code, "CLI_SERVICE_TIMEOUT");
 });
@@ -276,8 +276,8 @@ test("sent writes retain a valid business rejection but keep malformed receipts 
   const input = {
     ...project.input,
     operationId: randomUUID(),
-    flowName: "missing",
-    intent: sentinel,
+    loomName: "missing",
+    input: { prompt: sentinel },
   };
   project.respond((_request, response, meta) => {
     response.writeHead(404, { "content-type": "application/json" });
@@ -286,7 +286,7 @@ test("sent writes retain a valid business rejection but keep malformed receipts 
         ok: false,
         error: {
           code: "NOT_FOUND",
-          message: "The Workflow is missing.",
+          message: "The Loom is missing.",
           retryable: false,
         },
         outcome: "not_applied",
@@ -294,7 +294,7 @@ test("sent writes retain a valid business rejection but keep malformed receipts 
       }),
     );
   });
-  const rejected = await project.core.flow(input);
+  const rejected = await project.core.run(input);
   assert.ok(!rejected.ok);
   assert.equal(rejected.error.code, "NOT_FOUND");
   assert.equal(rejected.outcome, "not_applied");
@@ -309,7 +309,7 @@ test("sent writes retain a valid business rejection but keep malformed receipts 
       response.writeHead(status, { "content-type": contentType });
       response.end(sentinel);
     });
-    const invalid = await project.core.flow(input);
+    const invalid = await project.core.run(input);
     assert.ok(!invalid.ok);
     assert.equal(invalid.error.code, "REQUEST_OUTCOME_UNKNOWN");
     assert.ok(invalid.error.message.includes(diagnosis));
@@ -326,15 +326,15 @@ test("status-probe timeout and invalid JSON are classified before a write is sen
   const input = {
     ...project.input,
     operationId,
-    flowName: "fixture",
-    intent: sentinel,
+    loomName: "fixture",
+    input: { prompt: sentinel },
   };
   for (const body of [sentinel, JSON.stringify({ instanceId: sentinel })]) {
     project.respondStatus((_request, response) => {
       response.setHeader("content-type", "application/json");
       response.end(body);
     });
-    const invalid = await project.core.flow(input);
+    const invalid = await project.core.run(input);
     assert.ok(!invalid.ok);
     assert.equal(invalid.error.code, "CLI_RESULT_INVALID");
     assert.equal(invalid.outcome, "not_applied");
@@ -345,7 +345,7 @@ test("status-probe timeout and invalid JSON are classified before a write is sen
     timeout(ms === 5000 ? 25 : ms),
   );
   project.respondStatus(() => {});
-  const stalled = await project.core.flow(input);
+  const stalled = await project.core.run(input);
   assert.ok(!stalled.ok);
   assert.equal(stalled.error.code, "CLI_SERVICE_TIMEOUT");
   assert.equal(stalled.outcome, "not_applied");
@@ -355,7 +355,7 @@ test("status-probe timeout and invalid JSON are classified before a write is sen
     response.writeHead(200, { "content-type": "application/json" });
     response.write('{"version":');
   });
-  const unfinished = await project.core.flow(input);
+  const unfinished = await project.core.run(input);
   assert.ok(!unfinished.ok);
   assert.equal(unfinished.error.code, "CLI_SERVICE_TIMEOUT");
   assert.equal(unfinished.outcome, "not_applied");

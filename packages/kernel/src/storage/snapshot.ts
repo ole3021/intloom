@@ -1,7 +1,7 @@
 import * as z from "zod";
 import { storeSchema } from "./file/store.ts";
 import { artifactSchema, recordSchema } from "./schemas.ts";
-import { jsonCopy } from "../mirror/contracts.ts";
+import { jsonCopy } from "../shared/json.ts";
 
 export const storageSnapshotSchema = z
   .strictObject({

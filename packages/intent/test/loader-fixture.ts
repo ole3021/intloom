@@ -1,4 +1,4 @@
-import type { LoomConfig } from "@intloom/kernel";
+import type { LoomConfig } from "@intloom/kernel/host";
 
 export function modelConfig(version: string): LoomConfig {
   return {

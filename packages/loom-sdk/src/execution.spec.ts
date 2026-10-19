@@ -1,21 +1,31 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { describe, test } from "node:test";
 import { codeRecoverySchema, stepResultSchema } from "./execution.ts";
 
-test("Step results contain a nonempty routing outcome only", () => {
-  assert.deepEqual(stepResultSchema.parse({ outcome: "complete" }), {
-    outcome: "complete",
+describe("StepResult", () => {
+  test("preserves the routing outcome", () => {
+    assert.deepEqual(stepResultSchema.parse({ outcome: "complete" }), {
+      outcome: "complete",
+    });
   });
-  for (const value of [
-    {},
-    { outcome: "" },
-    { outcome: 1 },
-    { outcome: "complete", data: {} },
-  ])
-    assert.equal(stepResultSchema.safeParse(value).success, false);
+
+  for (const [name, value] of [
+    ["null", null],
+    ["bare outcome", "complete"],
+    ["missing outcome", {}],
+    ["empty outcome", { outcome: "" }],
+    ["non-string outcome", { outcome: 1 }],
+    ["business output", { outcome: "complete", output: { changes: [] } }],
+    ["business data", { outcome: "complete", data: {} }],
+    ["Run status", { status: "waiting", userAsk: {} }],
+  ] as const) {
+    test(`rejects ${name}`, () => {
+      assert.equal(stepResultSchema.safeParse(value).success, false);
+    });
+  }
 });
 
-test("recovery associates each interaction kind with its request and answer", () => {
+describe("CodeRecovery", () => {
   const confirmation = {
     actionId: "confirm-1",
     kind: "user_ask_confirmation",
@@ -28,17 +38,38 @@ test("recovery associates each interaction kind with its request and answer", ()
     request: [{ id: "q", question: "Which name?", isSkippable: false }],
     answer: [{ questionId: "q", isSkipped: false, answer: "Example" }],
   };
-  assert.deepEqual(codeRecoverySchema.parse(confirmation), confirmation);
-  assert.deepEqual(codeRecoverySchema.parse(questions), questions);
-  for (const value of [
-    { ...confirmation, answer: questions.answer },
-    { ...questions, answer: confirmation.answer },
-    { ...confirmation, request: questions.request },
-    { ...questions, request: confirmation.request },
-    { ...confirmation, actionId: "" },
-    { ...confirmation, kind: "custom" },
-    { ...confirmation, cursor: {} },
-    { action: confirmation, answer: confirmation.answer },
-  ])
-    assert.equal(codeRecoverySchema.safeParse(value).success, false);
+  for (const value of [confirmation, questions]) {
+    test(`preserves ${value.kind} identity, request and answer`, () => {
+      assert.deepEqual(codeRecoverySchema.parse(value), value);
+    });
+  }
+  for (const [name, value] of [
+    [
+      "question answer for confirmation",
+      { ...confirmation, answer: questions.answer },
+    ],
+    [
+      "confirmation answer for questions",
+      { ...questions, answer: confirmation.answer },
+    ],
+    [
+      "question request for confirmation",
+      { ...confirmation, request: questions.request },
+    ],
+    [
+      "confirmation request for questions",
+      { ...questions, request: confirmation.request },
+    ],
+    ["empty action identity", { ...confirmation, actionId: "" }],
+    ["unknown interaction", { ...confirmation, kind: "custom" }],
+    ["Runtime cursor in recovery data", { ...confirmation, cursor: {} }],
+    [
+      "obsolete action envelope",
+      { action: confirmation, answer: confirmation.answer },
+    ],
+  ] as const) {
+    test(`rejects ${name}`, () => {
+      assert.equal(codeRecoverySchema.safeParse(value).success, false);
+    });
+  }
 });

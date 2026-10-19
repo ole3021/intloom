@@ -1,5 +1,5 @@
 import { getLogger, silentLogger, type LogFields } from "@intloom/utils";
-import type { StorageAccess } from "./contracts.ts";
+import type { StorageAccess } from "@intloom/loom-sdk";
 
 /** Records backend results after completion without serializing stored business data. */
 export function logStorageAccess(access: StorageAccess): StorageAccess {

@@ -53,9 +53,11 @@ test("latest unverified supersedes a prior pass; changed definitions create dist
   const second = record("R2", "unverified");
   a = accumulate(a, "REC2", second);
   assert.equal(a.targetIndex.length, 1);
-  assert.match(a.targetIndex[0]!.latestAssessmentRef, /^REC2/);
+  assert.ok(a.targetIndex[0]);
+  assert.match(a.targetIndex[0].latestAssessmentRef, /^REC2/);
   const third = record("R3", "passed");
-  third.scope.targets[0]!.definitionDigest = "new-definition";
+  assert.ok(third.scope.targets[0]);
+  third.scope.targets[0].definitionDigest = "new-definition";
   a = accumulate(a, "REC3", third);
   assert.equal(a.targetIndex.length, 2);
   assert.deepEqual(accumulate(a, "REC3", third), a);
@@ -64,17 +66,19 @@ test("round-only targets stay in Records and untouched targets retain old candid
   const first = record("R1", "passed");
   const a = accumulate(emptyValidation(), "REC1", first);
   const second = record("R2", "passed");
-  second.scope.targets[0]!.kind = "round_criterion";
-  second.scope.targets[0]!.persistent = false;
+  assert.ok(second.scope.targets[0]);
+  second.scope.targets[0].kind = "round_criterion";
+  second.scope.targets[0].persistent = false;
   const b = accumulate(a, "REC2", second);
   assert.deepEqual(b.targetIndex, a.targetIndex);
 });
 test("a later unverified finding review preserves the version-qualified prior resolution", () => {
   const first = record("R1", "failed");
+  assert.ok(first.scope.targets[0]);
   first.findings.push({
     id: "F1",
     description: "Wrong greeting",
-    targetRefs: [first.scope.targets[0]!.id],
+    targetRefs: [first.scope.targets[0].id],
     evidence: [
       {
         evidenceRef: "fixture",
@@ -85,9 +89,10 @@ test("a later unverified finding review preserves the version-qualified prior re
   });
   let a = accumulate(emptyValidation(), "REC1", first);
   const second = record("R2", "passed");
+  assert.ok(a.findingIndex[0]);
   second.findingUpdates.push({
     findingRef: "F1",
-    previousAssessmentRef: a.findingIndex[0]!.latestAssessmentRef,
+    previousAssessmentRef: a.findingIndex[0].latestAssessmentRef,
     outcome: "resolved",
     explanation: "Verified original failure",
     targetRefs: [],
@@ -95,9 +100,10 @@ test("a later unverified finding review preserves the version-qualified prior re
   });
   a = accumulate(a, "REC2", second);
   const third = record("R3", "unverified");
+  assert.ok(a.findingIndex[0]);
   third.findingUpdates.push({
     findingRef: "F1",
-    previousAssessmentRef: a.findingIndex[0]!.latestAssessmentRef,
+    previousAssessmentRef: a.findingIndex[0].latestAssessmentRef,
     outcome: "unverified",
     explanation: "Service unavailable",
     targetRefs: [],
@@ -105,11 +111,11 @@ test("a later unverified finding review preserves the version-qualified prior re
   });
   a = accumulate(a, "REC3", third);
   assert.equal(
-    a.findingIndex[0]!.latestAssessmentRef,
+    a.findingIndex[0]?.latestAssessmentRef,
     assessmentRef("REC3", "findingUpdates", "F1"),
   );
   assert.equal(
-    a.findingIndex[0]!.lastDefiniteAssessmentRef,
+    a.findingIndex[0]?.lastDefiniteAssessmentRef,
     assessmentRef("REC2", "findingUpdates", "F1"),
   );
 });

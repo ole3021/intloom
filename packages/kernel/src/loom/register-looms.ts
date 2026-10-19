@@ -1,5 +1,5 @@
-import type { AgentId, Blueprint, CodeId } from "./blueprint.ts";
-import type { ExecutableCode } from "../effector/execution.ts";
+import type { AgentId, Blueprint, CodeId } from "@intloom/loom-sdk";
+import type { ExecutableCode } from "@intloom/loom-sdk";
 import { fail } from "./errors.ts";
 import type { LoadedAgent, LoadedLoom, LoomPackage } from "./types.ts";
 import type { LoomRegistries } from "./registries.ts";

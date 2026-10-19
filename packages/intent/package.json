@@ -26,7 +26,7 @@
     "dev": "node --test --watch \"stages/**/*.spec.ts\" \"src/**/*.spec.ts\"",
     "build": "intloom build",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test \"stages/**/*.spec.ts\" \"src/**/*.spec.ts\" \"e2e/checks/*.spec.ts\"",
+    "test": "node --test \"stages/**/*.spec.ts\" \"src/**/*.spec.ts\" \"e2e/checks/*.spec.mjs\"",
     "test:intg": "node --test \"test/*.intg.ts\"",
     "pack": "node ../../scripts/pack-package.ts dist",
     "test:package": "node --test \"test/package/*.intg.ts\""

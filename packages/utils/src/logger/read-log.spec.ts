@@ -1,3 +1,4 @@
+import { deferred } from "../../test/deferred.ts";
 import assert from "node:assert/strict";
 import { appendFileSync } from "node:fs";
 import { appendFile, mkdtemp, writeFile, rm } from "node:fs/promises";
@@ -169,50 +170,110 @@ test("reader rejects broken output and releases its borrowed error listener", as
   assert.equal(output.listenerCount("error"), 0);
 });
 
-test("read/follow handle byte offsets, split Unicode, partial lines, filtering and slow output", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "intloom-read-log-"));
+test("read offsets stop before partial Unicode records and resume without loss or duplication", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "intloom-read-offset-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const file = join(root, "events.jsonl");
   const records: string[] = [];
   const output = new Writable({
-    highWaterMark: 1,
     write(chunk, _encoding, done) {
       records.push(String(chunk));
-      setTimeout(5).then(() => done());
+      done();
     },
   });
+  const first = '{"level":30,"event":"started"}\n';
+  const next = Buffer.from(
+    '{"level":30,"event":"completed","outcome":"完成"}\n',
+  );
+  const split = next.indexOf(Buffer.from("完成")) + 1;
   await writeFile(
     file,
-    `${JSON.stringify({ level: 30, event: "run_created", requestId: "request", runId: "RUN-a" })}\n`,
+    Buffer.concat([Buffer.from(first), next.subarray(0, split)]),
   );
-  const controller = new AbortController();
-  const task = followLog(file, {
-    output,
-    requestId: "request",
-    signal: controller.signal,
-  });
-  const row = Buffer.from(
-    `${JSON.stringify({ level: 30, event: "step_completed", runId: "RUN-a", outcome: "完成" })}\n`,
-  );
-  const split = row.indexOf(Buffer.from("完成")) + 1;
-  await appendFile(file, row.subarray(0, split));
-  await setTimeout(100);
-  assert.equal(records.length, 1);
-  await appendFile(file, row.subarray(split));
-  await appendFile(
-    file,
-    `${JSON.stringify({ level: 30, runId: "RUN-b", event: "other_run" })}\n`,
-  );
-  await appendFile(
-    file,
-    `${JSON.stringify({ level: 20, runId: "RUN-a", event: "debug_only" })}\n`,
-  );
+  const offset = await readLog(file, { output });
+  assert.equal(offset, Buffer.byteLength(first));
+  assert.deepEqual(records, [first]);
+
+  await appendFile(file, next.subarray(split));
   await appendFile(file, "partial");
-  controller.abort();
-  const offset = await task;
-  assert.equal(records.length, 2);
-  assert.equal(JSON.parse(records[1] ?? "null").outcome, "完成");
+  const completed = await readLog(file, { output, offset });
+  assert.equal(completed, Buffer.byteLength(first) + next.length);
+  assert.deepEqual(records, [first, next.toString("utf8")]);
   await appendFile(file, "\n");
-  assert.ok((await readLog(file, { output, offset })) > offset);
+  assert.equal(
+    await readLog(file, { output, offset: completed }),
+    completed + 8,
+  );
+  assert.equal(records.length, 2);
   assert.equal(output.destroyed, false);
+});
+
+test("request filtering follows associated Runs and applies the level threshold", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "intloom-read-filter-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const file = join(root, "events.jsonl");
+  const input = [
+    { level: 30, event: "created", requestId: "request", runId: "RUN-a" },
+    { level: 30, event: "completed", runId: "RUN-a" },
+    { level: 30, event: "other_run", runId: "RUN-b" },
+    { level: 20, event: "debug_only", runId: "RUN-a" },
+  ]
+    .map((record) => `${JSON.stringify(record)}\n`)
+    .join("");
+  await writeFile(file, input);
+  const events: string[] = [];
+  const output = new Writable({
+    write(chunk, _encoding, done) {
+      events.push(JSON.parse(String(chunk)).event);
+      done();
+    },
+  });
+  assert.equal(
+    await readLog(file, { output, requestId: "request" }),
+    Buffer.byteLength(input),
+  );
+  assert.deepEqual(events, ["created", "completed"]);
+});
+
+test("follow waits for borrowed output before delivering appended records", {
+  timeout: 2000,
+}, async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "intloom-follow-output-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const file = join(root, "events.jsonl");
+  const first = '{"level":30,"event":"first"}\n';
+  const second = '{"level":30,"event":"second"}\n';
+  await writeFile(file, first);
+  const started = deferred();
+  const controller = new AbortController();
+  let release: (() => void) | undefined;
+  const events: string[] = [];
+  const output = new Writable({
+    highWaterMark: 1,
+    write(chunk, _encoding, done) {
+      events.push(JSON.parse(String(chunk)).event);
+      if (events.length === 1) {
+        release = done;
+        started.resolve();
+      } else {
+        controller.abort();
+        done();
+      }
+    },
+  });
+  const task = followLog(file, { output, signal: controller.signal });
+  t.after(() => {
+    controller.abort();
+    release?.();
+  });
+  await started.promise;
+  await appendFile(file, second);
+  assert.deepEqual(events, ["first"]);
+  release?.();
+  release = undefined;
+  assert.equal(await task, Buffer.byteLength(first + second));
+  assert.deepEqual(events, ["first", "second"]);
+  assert.equal(output.destroyed, false);
+  assert.equal(output.listenerCount("error"), 0);
+  assert.equal(output.listenerCount("close"), 0);
 });

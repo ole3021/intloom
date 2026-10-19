@@ -57,8 +57,8 @@ for (const era of ["legacy", "modern"] as const)
         : { action: "accept", content: { decision: "confirm" } };
     });
     const created = await client.callTool({
-      name: "flow",
-      arguments: { flowName: "fixture", intent: "native" },
+      name: "run",
+      arguments: { loomName: "fixture", input: { prompt: "native" } },
     });
     assert.equal(created.isError, undefined);
     const receipt = data(created).run;
@@ -112,7 +112,7 @@ for (const era of ["legacy", "modern"] as const)
     await startService({ projectRoot: root });
     const observer = await connectProject(root);
     t.after(() => observer.close());
-    const receipt = await observer.flow("fixture", "cancel-form");
+    const receipt = await observer.run("fixture", { prompt: "cancel-form" });
     const initial = await untilRun(
       observer,
       receipt.runId,
@@ -144,7 +144,7 @@ test("capability/profile fallback exposes current action for explicit answer_ask
   await startService({ projectRoot: root });
   const observer = await connectProject(root);
   t.after(() => observer.close());
-  const receipt = await observer.flow("fixture", "fallback");
+  const receipt = await observer.run("fixture", { prompt: "fallback" });
   const initial = await untilRun(
     observer,
     receipt.runId,
@@ -184,7 +184,7 @@ test("malformed native form does not consume action; concurrent replies have one
   await startService({ projectRoot: root });
   const observer = await connectProject(root);
   t.after(() => observer.close());
-  const receipt = await observer.flow("fixture", "race");
+  const receipt = await observer.run("fixture", { prompt: "race" });
   const initial = await untilRun(
     observer,
     receipt.runId,

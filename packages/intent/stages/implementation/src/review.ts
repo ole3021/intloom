@@ -6,15 +6,18 @@ import {
   verificationLines,
 } from "../../../src/review.ts";
 import { gaps, unexplainedChanges } from "./rules.ts";
+import { fail } from "../../../src/errors.ts";
 export function formatReview(s: ImplementationState) {
+  const { candidate, solution } = s;
+  if (!candidate || !solution) fail("Missing implementation review data.");
   return [
-    section("Candidate", candidateLabel(s.candidate!)),
+    section("Candidate", candidateLabel(candidate)),
     section(
       "Planned work",
       bullets(
         (s.submission?.items ?? []).map(
           (item) =>
-            `${s.solution!.plan.implementationItems.find((work) => work.id === item.implementationRef)?.description}: ${item.outcome}. ${item.explanation}${item.remaining ? ` Remaining: ${item.remaining}` : ""}`,
+            `${solution.plan.implementationItems.find((work) => work.id === item.implementationRef)?.description}: ${item.outcome}. ${item.explanation}${item.remaining ? ` Remaining: ${item.remaining}` : ""}`,
         ),
       ),
     ),

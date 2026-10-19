@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { test } from "node:test";
 import { stopEndpoint, stopProject } from "./service-fixture.ts";
-import { writeMetadata } from "@intloom/kernel/service/discovery";
-import { stopService } from "@intloom/kernel/service/stop-service";
+import { writeMetadata } from "@intloom/kernel/host";
+import { stopService } from "@intloom/kernel/host";
 
 test("clean offline stop is successful without creating metadata; invalid projects fail", async (t) => {
   const root = await stopProject(t);

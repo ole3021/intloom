@@ -4,11 +4,17 @@
     "noEmit": true,
     "paths": {
       "@intloom/kernel": ["./src/index.ts"],
+      "@intloom/kernel/host": ["./src/host/index.ts"],
+      "@intloom/kernel/operations": ["./src/operations/index.ts"],
       "@intloom/kernel/loom": ["./src/loom/index.ts"],
+      "@intloom/kernel/errors": ["./src/errors.ts"],
+      "@intloom/kernel/transport/mcp": ["./src/transport/mcp/index.ts"],
+      "@intloom/kernel/transport/ide": ["./src/transport/ide/index.ts"],
+      "@intloom/kernel/transport/interaction": [
+        "./src/transport/interaction/index.ts"
+      ],
       "@intloom/kernel/storage/file": ["./src/storage/file/open.ts"],
-      "@intloom/kernel/storage/sqlite": ["./src/storage/sqlite/open.ts"],
-      "@intloom/kernel/service": ["./src/service/index.ts"],
-      "@intloom/kernel/service/*": ["./src/service/*.ts"]
+      "@intloom/kernel/storage/sqlite": ["./src/storage/sqlite/open.ts"]
     }
   },
   "include": ["src/**/*.ts", "test/**/*.ts", "drizzle.config.ts"]

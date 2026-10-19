@@ -1,5 +1,5 @@
 import { fail } from "./errors.ts";
-import { loomModuleSchema } from "./schemas/loom-module.ts";
+import { loomModuleSchema } from "@intloom/loom-sdk";
 import type { LoadedLoom, LoomPackage } from "./types.ts";
 
 /** Validates structure and references without IO, function calls, or sample execution of business Schemas. */

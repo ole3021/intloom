@@ -4,11 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { agentSpec } from "../../test/agent-fixture.ts";
-import {
-  agentId,
-  source,
-  workflowModule,
-} from "../../test/workflow-fixture.ts";
+import { agentId, source, loomModule } from "../../test/loom-fixture.ts";
 import { validateLoom } from "./validate-loom.ts";
 import { validateAgentResources } from "./validate-agent-resources.ts";
 
@@ -25,7 +21,7 @@ test("model-free loading still rejects damaged Skill resources and metadata", as
     validateLoom(
       { ...source, assetRoot: root },
       {
-        ...workflowModule(),
+        ...loomModule(),
         agentSpecs: { [agentId]: { ...agentSpec(), skills } },
       },
     );

@@ -22,7 +22,7 @@ export async function interact<S extends BaseState>(
 ) {
   const requestValue = json(request),
     reviewDigest = digest({ request: requestValue, purpose });
-  const pending = state.pendingInteraction;
+  let pending = state.pendingInteraction;
   if (
     pending &&
     (pending.reviewDigest !== reviewDigest ||
@@ -35,7 +35,7 @@ export async function interact<S extends BaseState>(
     );
   if (!pending) {
     if (recovery) fail("Missing saved interaction.", "STALE_INTENT_REPLY");
-    state.pendingInteraction = {
+    pending = {
       id: `USR-${digest({ runId: state.id, stage: state.stageName, purpose, revision: state.revision, reviewDigest }).slice(0, 24)}`,
       kind,
       purpose,
@@ -43,9 +43,9 @@ export async function interact<S extends BaseState>(
       revision: state.revision,
       reviewDigest,
     };
+    state.pendingInteraction = pending;
     await save(access, state, false);
   }
-  const current = state.pendingInteraction!;
   if (
     recovery &&
     (recovery.kind !==
@@ -84,7 +84,7 @@ export async function interact<S extends BaseState>(
       fail("Every required question needs its actual answer.");
   }
   const receipt = {
-    id: current.id,
+    id: pending.id,
     kind,
     purpose,
     request: requestValue,

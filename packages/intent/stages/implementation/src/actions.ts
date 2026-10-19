@@ -27,6 +27,7 @@ import {
   latestVerificationEvidence,
 } from "../../../src/verification.ts";
 import { checkSubmission } from "./rules.ts";
+import { fail } from "../../../src/errors.ts";
 export const readState = (access: StageAccess) =>
   read(access, implementationStateSchema);
 export async function refresh(
@@ -34,10 +35,11 @@ export async function refresh(
   s: ReturnType<typeof readState>,
 ) {
   assertSettled(s);
+  if (!s.baseline) fail("Missing implementation baseline.");
   const current = await snapshot(access);
   if (s.candidate?.id !== current.id) {
     s.candidate = current;
-    s.changes = changes(s.baseline!, current, s.evidence);
+    s.changes = changes(s.baseline, current, s.evidence);
     delete s.checkedDigest;
     delete s.partialApproval;
     delete s.externalApproval;
@@ -47,7 +49,7 @@ export async function refresh(
       delete v.candidateRef;
     }
     await save(access, s);
-  } else s.changes = changes(s.baseline!, current, s.evidence);
+  } else s.changes = changes(s.baseline, current, s.evidence);
 }
 export async function readContext(_input: unknown, access: StageAccess) {
   const s = readState(access);
@@ -182,7 +184,8 @@ export async function retryVerification(
       previous = receipt
         ? executionDataSchema.safeParse(receipt.data)
         : undefined;
-    const sources = linkedEvidence(s, input.evidenceRefs, s.candidate!.id);
+    if (!s.candidate) fail("Missing implementation candidate.");
+    const sources = linkedEvidence(s, input.evidenceRefs, s.candidate.id);
     if (
       !sources.some((source) => {
         const execution = executionDataSchema.safeParse(source.data);
@@ -207,7 +210,7 @@ export async function retryVerification(
         "Retry requires a new diagnostic receipt or actual user information about changed execution conditions.",
       );
     const basis = digest({
-      candidate: s.candidate!.id,
+      candidate: s.candidate.id,
       evidenceRefs: [...input.evidenceRefs].sort(),
     });
     if (entry.retryBasis === basis)

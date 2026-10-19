@@ -47,7 +47,7 @@ export function checkObjects(draft: SpecificationArtifact) {
     );
 }
 export function checkAnalysis(state: SpecificationState) {
-  if (!state.analysis || state.analysis.scope !== "feature_development")
+  if (state.analysis?.scope !== "feature_development")
     fail(
       "Intent requires a feature-development scope; independent restructuring needs another Loom.",
     );
@@ -86,7 +86,8 @@ export function checkSpecification(state: SpecificationState) {
       item.requirementRefs,
       "Requirement",
     );
-    const coverage = scope.coverage.find((x) => x.workItemRef === item.id)!;
+    const coverage = scope.coverage.find((x) => x.workItemRef === item.id);
+    if (!coverage) fail(`Missing work-item coverage: ${item.id}`);
     contains(
       draft.acceptances.filter((x) => x.status === "active").map((x) => x.id),
       coverage.acceptanceRefs,
@@ -108,13 +109,12 @@ export function checkSpecification(state: SpecificationState) {
       !coverage.constraintRefs.length
     )
       fail("Each work item requires a verifiable target.");
-    for (const ref of coverage.acceptanceRefs)
-      if (
-        !item.requirementRefs.includes(
-          draft.acceptances.find((x) => x.id === ref)!.requirementRef,
-        )
-      )
+    for (const ref of coverage.acceptanceRefs) {
+      const acceptance = draft.acceptances.find((x) => x.id === ref);
+      if (!acceptance) fail(`Missing acceptance: ${ref}`);
+      if (!item.requirementRefs.includes(acceptance.requirementRef))
         fail("Acceptance must belong to the work item's Requirements.");
+    }
     if (item.action === "remove" && !coverage.roundCriteriaRefs.length)
       fail("Removal requires a round-specific completion criterion.");
   }

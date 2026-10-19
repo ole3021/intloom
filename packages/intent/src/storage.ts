@@ -18,22 +18,26 @@ export async function baseline(
 export async function assertBaseline(
   access: StageAccess,
   stage: string,
-  expected: Baseline,
+  expected: Baseline | undefined,
 ) {
+  if (expected === undefined)
+    fail(`Missing ${stage} baseline.`, "INVALID_INTENT_BASIS");
   if (digest(await baseline(access.storage, stage)) !== digest(expected))
     fail(
       `The ${stage} baseline changed; reassess before publishing.`,
       "STALE_INTENT_BASIS",
     );
+  return expected;
 }
 export async function loadRecord(
   storage: StorageReadAccess,
-  ref: RecordRef,
+  ref: RecordRef | undefined,
   stage: string,
   runId?: string,
 ) {
+  if (!ref) fail(`Missing ${stage} Record reference.`, "INVALID_INTENT_BASIS");
   const stored = await storage.getRecordById(ref.recordRef);
-  if (!stored || stored.loomName !== "intent" || stored.stageName !== stage)
+  if (stored?.loomName !== "intent" || stored.stageName !== stage)
     fail(`Missing ${stage} Record.`, "INVALID_INTENT_BASIS");
   const data = json(stored.data);
   if (!data || typeof data !== "object" || Array.isArray(data))

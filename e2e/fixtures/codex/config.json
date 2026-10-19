@@ -1,7 +1,0 @@
-{
-  "storage": "file",
-  "limits": {
-    "maxDurationMs": 600000,
-    "commandTimeoutMs": 30000
-  }
-}

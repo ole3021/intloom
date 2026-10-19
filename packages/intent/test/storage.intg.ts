@@ -44,9 +44,9 @@ for (const backend of ["file", "sqlite"] as const)
       await inputRecord(handle.access, runId, "specification"),
       original,
     );
-    assert.equal(
-      (await handle.access.getRecordById(recordId(runId, "specification")))!
-        .data !== undefined,
-      true,
+    const stored = await handle.access.getRecordById(
+      recordId(runId, "specification"),
     );
+    assert.ok(stored);
+    assert.notEqual(stored.data, undefined);
   });

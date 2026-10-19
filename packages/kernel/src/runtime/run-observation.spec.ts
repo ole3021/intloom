@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { runtimeFixture, deferred } from "../../test/runtime-fixture.ts";
-import { createRuntime } from "./create-runtime.ts";
+import { createRuntimeHarness } from "../../test/runtime-harness.ts";
 import { createRuntimeObservation } from "./run-observation.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import { ERRORS } from "../errors.ts";
 
 test("Kernel metrics retain actual commit references and exclude long human waits from execution budget", async (t) => {
   const f = runtimeFixture();
@@ -32,7 +32,7 @@ test("Kernel metrics retain actual commit references and exclude long human wait
     removedArtifactIds: [],
     removedRecordIds: [],
   });
-  const runtime = createRuntime({ ...f.options, observation });
+  const runtime = createRuntimeHarness({ ...f.options, observation });
   t.after(() => runtime.suspend());
   const waiting = await runtime.run(f.blueprint, { prompt: "fixed fixture" });
   assert.equal(waiting.status, "waiting");
@@ -89,7 +89,7 @@ test("stable request identities deduplicate usage, retain unknown fields, and ga
     await observation.observer.beforeStep({ requestId: "two" });
     assert.fail("a second request must be blocked");
   };
-  const runtime = createRuntime({ ...f.options, observation });
+  const runtime = createRuntimeHarness({ ...f.options, observation });
   t.after(() => runtime.suspend());
   const run = await runtime.run(f.blueprint, { prompt: "budget" });
   assert.equal(run.status, "failed");
@@ -139,9 +139,9 @@ test("a known late commit and usage update metadata after cancellation without r
         outputTokens: 2,
       });
     }
-    throw RUNTIME_ERRORS.create("STEP_EXECUTION_FAILED");
+    throw ERRORS.create("STEP_EXECUTION_FAILED");
   };
-  const runtime = createRuntime({ ...f.options, observation });
+  const runtime = createRuntimeHarness({ ...f.options, observation });
   t.after(() => runtime.suspend());
   const launched = await runtime.startRun(f.blueprint, {
     prompt: "late result",

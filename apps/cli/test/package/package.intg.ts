@@ -37,7 +37,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
   t.after(() => rm(temporary, { recursive: true, force: true }));
   const consumerRoot = join(temporary, "consumer");
   await mkdir(consumerRoot);
-  const root = fileURLToPath(new URL("../../../../", import.meta.url));
+  const root = fileURLToPath(new URL("../../../..", import.meta.url));
   const repositoryManifest = JSON.parse(
     await readFile(join(root, "package.json"), "utf8"),
   );
@@ -47,8 +47,9 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
   );
   const packages = await testArchives([
     "@intloom/cli",
+    "@intloom/compiler",
     "intloom",
-    "@intloom/workflow-sdk",
+    "@intloom/loom-sdk",
     "@intloom/utils",
   ]);
   function archiveFor(name: string): string {
@@ -149,11 +150,8 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
       const utilsManifest = JSON.parse(
         await readFile(resolve(root, "packages/utils/package.json"), "utf8"),
       );
-      const workflowSdkManifest = JSON.parse(
-        await readFile(
-          resolve(root, "packages/workflow-sdk/package.json"),
-          "utf8",
-        ),
+      const loomSdkManifest = JSON.parse(
+        await readFile(resolve(root, "packages/loom-sdk/package.json"), "utf8"),
       );
       assert.equal(
         manifest.dependencies["@intloom/kernel"],
@@ -164,8 +162,8 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
         utilsManifest.version,
       );
       assert.equal(
-        manifest.dependencies["@intloom/workflow-sdk"],
-        workflowSdkManifest.version,
+        manifest.dependencies["@intloom/loom-sdk"],
+        loomSdkManifest.version,
       );
       assert.deepEqual(manifest.bundleDependencies, ["@intloom/kernel"]);
       assert.match(
@@ -177,7 +175,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
         [join(project, "node_modules/.bin/intloom"), "--help", "--no-color"],
         { cwd: project },
       );
-      assert.match(result.stdout, /flow\s+Submit complete intent/u);
+      assert.match(result.stdout, /run\s+Run a Loom with the supplied inputs/u);
       assert.equal(result.stdout.includes(String.fromCharCode(27)), false);
       const version = await run(
         process.execPath,
@@ -203,7 +201,7 @@ test("isolated tarball installation exposes the Node bin and public ESM entry wi
       assert.ok(
         (
           await readFile(join(scaffold.projectRoot, "intloom.yaml"), "utf8")
-        ).includes("workflows: []"),
+        ).includes("looms: []"),
       );
       assert.equal(
         (await readdir(scaffold.projectRoot)).includes("package.json"),
@@ -218,8 +216,8 @@ import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { runCli, startService, stopService, startProjectHost, connectProject, connectProjectClient, discoverProjectConnection, addWorkflow, removeWorkflow, listInstalledWorkflows, doctorProject } from "@intloom/cli";
-for (const item of [runCli, startService, startProjectHost, connectProject, connectProjectClient, discoverProjectConnection, addWorkflow, removeWorkflow, listInstalledWorkflows, doctorProject]) assert.equal(typeof item, "function");
+import { runCli, startService, stopService, startProjectHost, connectProject, connectProjectClient, discoverProjectConnection, addLoom, removeLoom, listInstalledLooms, doctorProject } from "@intloom/cli";
+for (const item of [runCli, startService, startProjectHost, connectProject, connectProjectClient, discoverProjectConnection, addLoom, removeLoom, listInstalledLooms, doctorProject]) assert.equal(typeof item, "function");
 await assert.rejects(import("@intloom/kernel"), { code: "ERR_MODULE_NOT_FOUND" });
 const require = createRequire(import.meta.resolve("@intloom/cli"));
 for (const backend of ["file", "sqlite"]) {
@@ -230,7 +228,7 @@ for (const backend of ["file", "sqlite"]) {
   const open = backend === "file" ? storage.openFileStorage : storage.openSqliteStorage;
   const handle = await open(options);
   try {
-    await handle.access.commit([{ type: "append_record", id: "consumer", payload: { flowName: "fixture", stageName: "first", data: "persisted" } }]);
+    await handle.access.commit([{ type: "append_record", id: "consumer", payload: { loomName: "fixture", stageName: "first", data: "persisted" } }]);
   } finally {
     await handle.dispose();
   }
@@ -240,7 +238,7 @@ for (const backend of ["file", "sqlite"]) {
   } finally {
     await reopened.dispose();
   }
-  await writeFile(resolve(projectRoot, "intloom.yaml"), "localStorage: " + backend + "\\nworkflows: []\\nintent: { apps: [] }\\n");
+  await writeFile(resolve(projectRoot, "intloom.yaml"), "localStorage: " + backend + "\\nlooms: []\\n");
   await startService({ projectRoot });
   try {
     const client = await connectProject(projectRoot);
@@ -262,7 +260,10 @@ for (const backend of ["file", "sqlite"]) {
       const types = join(project, "consumer.ts");
       await writeFile(
         types,
-        'import { connectProject, createCliCore, type ServiceRunView } from "@intloom/cli"; export type Client = Awaited<ReturnType<typeof connectProject>>; export type Core = ReturnType<typeof createCliCore>; export type Snapshot = ServiceRunView; export type RunQuery = Awaited<ReturnType<Core["getRun"]>>;',
+        await readFile(
+          new URL("../fixtures/public-api.ts", import.meta.url),
+          "utf8",
+        ),
       );
       await run(
         process.execPath,
@@ -287,13 +288,13 @@ for (const backend of ["file", "sqlite"]) {
           join(project, "node_modules/.bin/intloom"),
           "--project",
           scaffold.projectRoot,
-          "workflow",
+          "loom",
           "list",
           "--json",
         ],
         { cwd: project },
       );
-      assert.deepEqual(JSON.parse(listed.stdout).data.workflows, []);
+      assert.deepEqual(JSON.parse(listed.stdout).data.looms, []);
       const doctor = await run(
         process.execPath,
         [
@@ -326,8 +327,9 @@ for (const backend of ["file", "sqlite"]) {
           "--no-fund",
           archiveFor(launcher),
           archiveFor("@intloom/cli"),
+          archiveFor("@intloom/compiler"),
           archiveFor("@intloom/utils"),
-          archiveFor("@intloom/workflow-sdk"),
+          archiveFor("@intloom/loom-sdk"),
         ],
         { cwd: project, timeout: 90_000, maxBuffer: 1024 * 1024 },
       );

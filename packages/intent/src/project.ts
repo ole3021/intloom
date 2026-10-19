@@ -22,8 +22,9 @@ export async function snapshot(access: StageAccess) {
 }
 export async function assertCandidate(
   access: StageAccess,
-  expected: Candidate,
+  expected: Candidate | undefined,
 ) {
+  if (!expected) fail("Missing fixed candidate.", "INVALID_INTENT_BASIS");
   if (
     digest(expected.files) !== expected.digest ||
     expected.id !== `CAND-${expected.digest}` ||
@@ -33,6 +34,7 @@ export async function assertCandidate(
       "The project differs from the fixed candidate. Start a new Run for product changes.",
       "INTENT_CANDIDATE_CHANGED",
     );
+  return expected;
 }
 export function evidence(
   state: BaseState,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as z from "zod";
-import type { BlueprintStage } from "../loom/blueprint.ts";
+import type { BlueprintStage } from "@intloom/loom-sdk";
 import { createStageState } from "./stage-state.ts";
 import type { RunState } from "./run-state.ts";
 

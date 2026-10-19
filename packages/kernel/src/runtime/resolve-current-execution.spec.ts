@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import { ERRORS } from "../errors.ts";
 import { resolveCurrentExecution } from "./resolve-current-execution.ts";
 
 import {
@@ -36,8 +36,7 @@ describe("resolveCurrentExecution", () => {
           createdAt: run.updatedAt.toISOString(),
         };
       }
-      if (status === "failed")
-        run.lastError = RUNTIME_ERRORS.create("RUN_STOPPED");
+      if (status === "failed") run.lastError = ERRORS.create("RUN_STOPPED");
       assert.deepEqual(resolveCurrentExecution(blueprint, run), {
         kind: "halt",
       });
@@ -90,7 +89,7 @@ describe("resolveCurrentExecution", () => {
     }
   });
 
-  test("rejects a different Flow and inconsistent Run state", () => {
+  test("rejects a different Loom and inconsistent Run state", () => {
     const { blueprint, run } = routingFixture();
     run.loomName = "other";
     rejectsUnchanged(run, "RUN_STATE_INVALID", () =>

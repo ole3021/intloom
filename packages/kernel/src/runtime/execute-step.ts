@@ -1,18 +1,18 @@
-import { codeRecoverySchema } from "@intloom/loom-sdk";
+import { observeExternalTool } from "./run-observation.ts";
 import { createAgentAccess, createCodeAccess } from "./execution-access.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import { ERRORS } from "../errors.ts";
 import type { RunEntry } from "./run-entry.ts";
 import type { Resolution } from "./routing.ts";
 import type { RuntimeOptions } from "./contracts.ts";
-import type { StepResult } from "../effector/execution.ts";
-import { suspendAgentCall } from "./agent-call.ts";
+import type { StepResult } from "@intloom/loom-sdk";
+import { beginAgentWait } from "./agent-call.ts";
 
-/** Dispatches to the environment's Effector without advancing the Run, reassembling Agents, or mapping business input. */
+/** Dispatches to the environment's Execution without advancing the Run, reassembling Agents, or mapping business input. */
 export async function executeStep(
   options: RuntimeOptions,
   entry: RunEntry,
   executed: Extract<Resolution, { kind: "execute" }>,
-  call: AbortController,
+  call: import("./call-scope.ts").RuntimeCall,
 ): Promise<StepResult> {
   const execution = executed.step.execution;
   switch (execution.kind) {
@@ -21,29 +21,23 @@ export async function executeStep(
         ? options.codes[execution.codeId]
         : undefined;
       if (typeof code !== "function")
-        throw RUNTIME_ERRORS.create("STEP_EXECUTION_FAILED", {
+        throw ERRORS.create("STEP_EXECUTION_FAILED", {
           message: `Code ${execution.codeId} is unavailable.`,
         });
       if (entry.recoveredAnswer) {
         const { action, answer } = entry.recoveredAnswer;
-        const saved = codeRecoverySchema.parse({
-          actionId: action.id,
-          kind: action.kind,
-          request: action.request,
-          answer,
-        });
-        const recover = code.recover;
-        if (!recover)
-          throw RUNTIME_ERRORS.create("RUN_INTERRUPTED", {
-            message:
-              "This Code does not provide an interaction recovery entry.",
-          });
-        return options.effector.executeCode(
-          (access) => recover(saved, access),
+        return options.executor.recoverCode(
+          code,
+          {
+            actionId: action.id,
+            kind: action.kind,
+            request: action.request,
+            answer,
+          },
           createCodeAccess(entry, call, options.storage, options.project),
         );
       }
-      return options.effector.executeCode(
+      return options.executor.executeCode(
         code,
         createCodeAccess(entry, call, options.storage, options.project),
       );
@@ -56,22 +50,36 @@ export async function executeStep(
             ? options.agentResources[execution.agentId]
             : undefined;
         if (!resource)
-          throw RUNTIME_ERRORS.create("STEP_EXECUTION_FAILED", {
+          throw ERRORS.create("STEP_EXECUTION_FAILED", {
             message: "Agent resources are unavailable.",
           });
-        return options.effector.executeAgent(
+        return options.executor.executeAgent(
           {
             outputSchema: resource.spec.outputSchema,
             execute: async () =>
-              suspendAgentCall(entry, call, resource, (assertTool) =>
-                createAgentAccess(
-                  entry,
-                  call,
-                  options.storage,
-                  assertTool,
-                  options.project,
-                ),
-              ),
+              options.executor.delegated.begin(resource, {
+                scope: call,
+                cursor: { ...entry.state.cursor },
+                logger: entry.activeLog ?? entry.logger,
+                closedAndSettled: call.closedAndSettled,
+                beginWait: (pending) => beginAgentWait(entry, call, pending),
+                observeTool: (toolCallId) => {
+                  const settled = call.trackActivity();
+                  const observed = observeExternalTool(entry, toolCallId);
+                  return () => {
+                    observed();
+                    settled();
+                  };
+                },
+                access: (assertTool) =>
+                  createAgentAccess(
+                    entry,
+                    call,
+                    options.storage,
+                    assertTool,
+                    options.project,
+                  ),
+              }),
           },
           null,
           createAgentAccess(
@@ -87,10 +95,10 @@ export async function executeStep(
         ? options.agents[execution.agentId]
         : undefined;
       if (!agent)
-        throw RUNTIME_ERRORS.create("STEP_EXECUTION_FAILED", {
+        throw ERRORS.create("STEP_EXECUTION_FAILED", {
           message: `Agent ${execution.agentId} is unavailable.`,
         });
-      return options.effector.executeAgent(
+      return options.executor.executeAgent(
         agent,
         null,
         createAgentAccess(
@@ -103,6 +111,6 @@ export async function executeStep(
       );
     }
     default:
-      throw RUNTIME_ERRORS.create("STEP_EXECUTION_FAILED");
+      throw ERRORS.create("STEP_EXECUTION_FAILED");
   }
 }

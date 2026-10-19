@@ -16,6 +16,12 @@ const transformed = defineAgentTool({
   description: "Return raw output for the host parser.",
   inputSchema: z.string().transform(Number),
   outputSchema: z.string().transform(Number).pipe(z.number()),
+  endsAgent(output) {
+    output satisfies number;
+    // @ts-expect-error Completion checks receive parsed output, not raw parser input.
+    output satisfies string;
+    return output > 0;
+  },
   execute(input) {
     input satisfies number;
     // @ts-expect-error Input has already been parsed.
@@ -131,7 +137,7 @@ function checkModule(module: LoomModule) {
     codes: module.codes,
     agentSpecs: module.agentSpecs,
   };
-  // @ts-expect-error Compiled Workflows must include Agent specifications.
+  // @ts-expect-error Compiled Looms must include Agent specifications.
   const incomplete: LoomModule = {
     blueprint: module.blueprint,
     codes: module.codes,

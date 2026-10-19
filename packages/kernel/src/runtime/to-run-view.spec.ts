@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import { ERRORS } from "../errors.ts";
 import { toRunView } from "./to-run-view.ts";
 import type { RunState } from "./run-state.ts";
 
@@ -36,7 +36,7 @@ function waitingState(): RunState {
 test("projects Runtime errors and ISO times without exposing Error internals", () => {
   const run = runState();
   run.status = "failed";
-  run.lastError = RUNTIME_ERRORS.wrap(
+  run.lastError = ERRORS.wrap(
     "STEP_EXECUTION_FAILED",
     new Error("private cause"),
     { message: "Code failed", retryable: true },
@@ -77,7 +77,7 @@ test("preserves the final cursor and exposes stopped Runs as failed", () => {
   assert.deepEqual(toRunView(run).cursor, run.cursor);
   assert.equal(Object.hasOwn(toRunView(run), "lastError"), false);
   run.status = "failed";
-  run.lastError = RUNTIME_ERRORS.create("RUN_STOPPED");
+  run.lastError = ERRORS.create("RUN_STOPPED");
   const view = toRunView(run);
   assert.equal(view.status, "failed");
   assert.equal(view.lastError?.code, "RUN_STOPPED");
@@ -112,7 +112,7 @@ test("rejects inconsistent errors and invalid projection dates", () => {
     () =>
       toRunView({
         ...runState(),
-        lastError: RUNTIME_ERRORS.create("RUN_STOPPED"),
+        lastError: ERRORS.create("RUN_STOPPED"),
       }),
     { code: "RUN_STATE_INVALID" },
   );

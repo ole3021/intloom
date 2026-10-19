@@ -60,8 +60,10 @@ test("analyze and draft have separate capabilities; batch IDs resolve atomically
   const first = await edit({ revision: s.revision, edits }, f.access);
   assert.equal(first.saved, true);
   s = readState(f.access);
-  assert.equal(s.draft!.domains.length, 0);
-  assert.equal(s.draft!.requirements[0]!.featureRef, s.aliases.$feature);
+  assert.ok(s.draft);
+  assert.ok(s.aliases.$feature);
+  assert.equal(s.draft.domains.length, 0);
+  assert.equal(s.draft.requirements[0]?.featureRef, s.aliases.$feature);
   const before = f.value();
   assert.equal(
     (
@@ -107,7 +109,7 @@ test("zero requirement change retains explicit scope and full immutable snapshot
   await confirm(f.access);
   await commit(f.access);
   const record = specificationRecordSchema.parse(
-    f.records.get(recordId(runId, "specification"))!.data,
+    f.records.get(recordId(runId, "specification"))?.data,
   );
   assert.deepEqual(record.snapshot, requirements);
   assert.equal(record.edits.length, 0);
@@ -129,7 +131,8 @@ test("confirmation feedback and stale review never authorize publication", async
   await assert.rejects(commit(f.access), /confirmation/);
   await check(f.access);
   const s = readState(f.access);
-  s.scope!.excluded.push("new exclusion");
+  assert.ok(s.scope);
+  s.scope.excluded.push("new exclusion");
   await f.set(s);
   await assert.rejects(confirm(f.access), /stale/);
 });
@@ -163,9 +166,11 @@ test("removal needs round-specific completion criteria; unmet questions block ch
     scope,
   });
   const s = readState(f.access);
-  s.scope!.workItems[0]!.action = "remove";
+  const work = s.scope?.workItems[0];
+  assert.ok(work);
+  work.action = "remove";
   assert.throws(() => checkSpecification(s), /round-specific/);
-  s.scope!.workItems[0]!.action = "fix";
+  work.action = "fix";
   s.questions = [{ key: "q", question: "What should happen?" }];
   assert.throws(() => checkSpecification(s), /unanswered/);
 });
@@ -183,16 +188,23 @@ test("round identities are Code-owned and cannot reuse an artifact's alias", asy
     false,
   );
   const proposal = structuredClone(scope);
-  proposal.workItems[0]!.id = "$work";
-  proposal.coverage[0]!.workItemRef = "$work";
+  const work = proposal.workItems[0];
+  const coverage = proposal.coverage[0];
+  assert.ok(work);
+  assert.ok(coverage);
+  work.id = "$work";
+  coverage.workItemRef = "$work";
   assert.equal(
     (await submit({ revision: s.revision, scope: proposal }, f.access)).saved,
     true,
   );
   s = readState(f.access);
-  assert.match(s.scope!.workItems[0]!.id, /^WORK-/);
+  assert.ok(s.scope);
+  const savedWork = s.scope.workItems[0];
+  assert.ok(savedWork);
+  assert.match(savedWork.id, /^WORK-/);
   assert.equal(
-    (await submit({ revision: s.revision, scope: s.scope! }, f.access)).saved,
+    (await submit({ revision: s.revision, scope: s.scope }, f.access)).saved,
     true,
   );
 });
@@ -207,7 +219,8 @@ test("confirmation recovery uses the saved request and rejects another reply", a
   });
   await check(f.access);
   await assert.rejects(confirm(f.access), /No fabricated user reply/);
-  const pending = readState(f.access).pendingInteraction!;
+  const pending = readState(f.access).pendingInteraction;
+  assert.ok(pending);
   await assert.rejects(
     confirm(f.access, {
       actionId: "host-confirmation",

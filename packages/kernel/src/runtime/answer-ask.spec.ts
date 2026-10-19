@@ -1,11 +1,12 @@
+import { waitForEntry } from "../../test/runtime-harness.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { deferred, runtimeFixture } from "../../test/runtime-fixture.ts";
-import type { ReadonlyJsonValue } from "../shared/json.ts";
-import { createRuntime } from "./create-runtime.ts";
-import { answerAsk } from "./answer-ask.ts";
+import type { ReadonlyJsonValue } from "@intloom/loom-sdk";
+import { createRuntimeHarness } from "../../test/runtime-harness.ts";
+import { submitAnswer } from "./answer-ask.ts";
 import { createRun } from "./create-run.ts";
-import { createRunEntry, waitUntilStable } from "./run-entry.ts";
+import { createRunEntry } from "./run-entry.ts";
 import { launchRunLoop } from "./run-loop.ts";
 
 test("public answers resume the same Code across successive actions without repeating effects", async (t) => {
@@ -23,7 +24,7 @@ test("public answers resume the same Code across successive actions without repe
     continued++;
     return { outcome: "complete" };
   };
-  const runtime = createRuntime(f.options);
+  const runtime = createRuntimeHarness(f.options);
   t.after(() => runtime.cancelAllRuns());
   const first = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(first.pendingAction);
@@ -55,7 +56,10 @@ test("public answers resume the same Code across successive actions without repe
     }),
     { code: "CONFLICT" },
   );
-  assert.deepEqual(await runtime.getRun(first.runId), done);
+  assert.deepEqual(await runtime.getRun(first.runId), {
+    ...done,
+    settled: true,
+  });
 });
 
 test("invalid confirmation submissions retain the exact action and timestamps", async (t) => {
@@ -64,7 +68,7 @@ test("invalid confirmation submissions retain the exact action and timestamps", 
     await access.interaction.confirm("continue?");
     return { outcome: "complete" };
   };
-  const runtime = createRuntime(f.options);
+  const runtime = createRuntimeHarness(f.options);
   t.after(() => runtime.cancelAllRuns());
   const view = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(view.pendingAction);
@@ -120,7 +124,7 @@ test("question replies match the whole request once, respect skipping, and prese
     ]);
     return { outcome: "complete" };
   };
-  const runtime = createRuntime(f.options);
+  const runtime = createRuntimeHarness(f.options);
   t.after(() => runtime.cancelAllRuns());
   const view = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(view.pendingAction);
@@ -186,7 +190,7 @@ test("duplicate question or per-question option IDs fail before creating an acti
       );
       return { outcome: "complete" };
     };
-    const view = await createRuntime(f.options).run(f.blueprint, {
+    const view = await createRuntimeHarness(f.options).run(f.blueprint, {
       prompt: "text",
     });
     assert.equal(view.status, "failed");
@@ -205,7 +209,7 @@ test("concurrent answers consume an action only once and do not affect the next 
     answers++;
     return { outcome: "complete" };
   };
-  const runtime = createRuntime(f.options);
+  const runtime = createRuntimeHarness(f.options);
   t.after(() => runtime.cancelAllRuns());
   const view = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(view.pendingAction);
@@ -236,7 +240,7 @@ test("submitAnswer acknowledges consumption while continuation is running", asyn
     await release.promise;
     return { outcome: "complete" };
   };
-  const runtime = createRuntime(f.options);
+  const runtime = createRuntimeHarness(f.options);
   t.after(() => runtime.cancelAllRuns());
   const waiting = await runtime.run(f.blueprint, { prompt: "text" });
   const action = waiting.pendingAction;
@@ -273,7 +277,7 @@ test("an accepted answer waits for stable execution and Code failures become Run
     await release.promise;
     throw new Error("business failure after answer");
   };
-  const runtime = createRuntime(f.options);
+  const runtime = createRuntimeHarness(f.options);
   t.after(() => runtime.cancelAllRuns());
   const view = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(view.pendingAction);
@@ -306,7 +310,7 @@ test("answer identities isolate Runs even when they ask the same question", asyn
     await access.interaction.confirm("same question");
     return { outcome: "complete" };
   };
-  const runtime = createRuntime(f.options);
+  const runtime = createRuntimeHarness(f.options);
   t.after(() => runtime.cancelAllRuns());
   const a = await runtime.run(f.blueprint, { prompt: "A" });
   const b = await runtime.run(f.blueprint, { prompt: "B" });
@@ -336,7 +340,7 @@ test("answer parsing cannot consume an action stopped by a reentrant input gette
     continued = true;
     return { outcome: "complete" };
   };
-  const runtime = createRuntime(f.options);
+  const runtime = createRuntimeHarness(f.options);
   const view = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(view.pendingAction);
   await assert.rejects(
@@ -365,14 +369,15 @@ test("a broken waiting continuation fails the Run instead of replaying or consum
     f.blueprint,
     createRun(f.blueprint, { prompt: "text" }),
   );
-  const waiting = waitUntilStable(entry);
+  const waiting = waitForEntry(entry);
   launchRunLoop(entry, f.options);
   const task = entry.task;
   const view = await waiting;
   assert.ok(view.pendingAction);
   delete entry.activeCall;
   assert.throws(
-    () => answerAsk(entry, view.pendingAction?.id ?? "", { isConfirmed: true }),
+    () =>
+      submitAnswer(entry, view.pendingAction?.id ?? "", { isConfirmed: true }),
     {
       code: "KERNEL_UNAVAILABLE",
     },

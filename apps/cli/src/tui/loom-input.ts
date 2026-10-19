@@ -1,5 +1,5 @@
-import type { LoomInput, LoomInputKind } from "@intloom/kernel";
-import { runRequestSchema } from "@intloom/kernel/service";
+import type { LoomInput, LoomInputKind } from "@intloom/loom-sdk";
+import { runRequestSchema } from "@intloom/kernel/operations";
 
 /** The description-only case stays plain text; other fixed slots use an explicit JSON form. */
 export function parseLoomDraft(

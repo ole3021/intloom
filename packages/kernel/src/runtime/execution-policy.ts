@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { KERNEL_ERRORS } from "../errors/kernel.ts";
+import { ERRORS } from "../errors.ts";
 
 export const runSourceSchema = z.enum(["cli", "studio", "agent_ide"]);
 export type RunSource = z.infer<typeof runSourceSchema>;
@@ -13,7 +13,7 @@ export function resolveRunExecution(
   useMcpAgent: boolean,
 ): RunExecution {
   if (!runSourceSchema.safeParse(source).success)
-    throw KERNEL_ERRORS.create("INVALID_REQUEST", {
+    throw ERRORS.create("INVALID_REQUEST", {
       message: "Unknown Run source.",
     });
   return Object.freeze({
@@ -28,7 +28,7 @@ export function freezeRunExecution(execution: RunExecution): RunExecution {
     !["mcp_client", "service"].includes(execution.agentExecutor) ||
     (execution.source !== "agent_ide" && execution.agentExecutor !== "service")
   )
-    throw KERNEL_ERRORS.create("INVALID_REQUEST", {
+    throw ERRORS.create("INVALID_REQUEST", {
       message: "Invalid Run execution policy.",
     });
   return Object.freeze({

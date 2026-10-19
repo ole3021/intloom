@@ -1,4 +1,4 @@
-import type { Blueprint } from "./blueprint.ts";
+import type { Blueprint } from "@intloom/loom-sdk";
 
 /** Includes every declared branch so missing resources cannot surface after earlier business effects. */
 export function referencedAgentIds(blueprint: Blueprint): string[] {

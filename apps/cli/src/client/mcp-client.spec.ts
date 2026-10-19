@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { Client } from "@modelcontextprotocol/client";
 import { connectProjectClient } from "./mcp-client.ts";
-import { view } from "../../test/unit-fixture.ts";
+import { view as baseView } from "../../test/unit-fixture.ts";
 
+const instanceId = "00000000-0000-4000-8000-000000000001";
+const view = { ...baseView, serviceInstanceId: instanceId, revision: 1 };
+const status = { content: [], structuredContent: { service: { instanceId } } };
 const connection = {
   url: "http://127.0.0.1:32123/internal/mcp/studio",
   token: "test-token",
@@ -18,15 +21,31 @@ test("business calls decode structured results and preserve exact human answers"
   connected(t);
   const calls: unknown[] = [];
   t.mock.method(Client.prototype, "callTool", async (request: unknown) => {
+    if ((request as { name: string }).name === "status") return status;
     calls.push(request);
     return {
-      structuredContent: { run: view },
+      structuredContent: {
+        run: view,
+        receipt: {
+          status: "accepted",
+          serviceInstanceId: instanceId,
+          operationId: (request as { arguments: { operationId: string } })
+            .arguments.operationId,
+          kind: (request as { name: string }).name === "run" ? "run" : "answer",
+          runId: view.runId,
+          acceptedAt: view.createdAt,
+          acceptedRevision: 1,
+        },
+      },
       content: [{ type: "text", text: "not JSON" }],
     };
   });
   const client = await connectProjectClient(connection);
   t.after(() => client.close());
-  assert.deepEqual(await client.flow("test", "  original\n意图  "), view);
+  assert.deepEqual(
+    await client.run("test", { prompt: "  original\n意图  " }),
+    view,
+  );
   const answer = [
     { questionId: "required", isSkipped: false, answer: "  human\nanswer  " },
   ];
@@ -34,14 +53,30 @@ test("business calls decode structured results and preserve exact human answers"
     await client.answerAsk(view.runId, "ACTION-original", answer),
     view,
   );
+  const ids = calls.map(
+    (request) =>
+      (request as { arguments: { operationId: string } }).arguments.operationId,
+  );
+  assert.equal(new Set(ids).size, 2);
   assert.deepEqual(calls, [
     {
-      name: "flow",
-      arguments: { flowName: "test", intent: "  original\n意图  " },
+      name: "run",
+      arguments: {
+        loomName: "test",
+        input: { prompt: "  original\n意图  " },
+        serviceInstanceId: instanceId,
+        operationId: ids[0],
+      },
     },
     {
       name: "answer_ask",
-      arguments: { runId: view.runId, actionId: "ACTION-original", answer },
+      arguments: {
+        runId: view.runId,
+        actionId: "ACTION-original",
+        answer,
+        serviceInstanceId: instanceId,
+        operationId: ids[1],
+      },
     },
   ]);
 });
@@ -51,7 +86,12 @@ test("text fallback is validated and malformed successes or errors stay protocol
   let response: unknown = {
     content: [{ type: "text", text: JSON.stringify({ run: view }) }],
   };
-  t.mock.method(Client.prototype, "callTool", async () => response);
+  t.mock.method(
+    Client.prototype,
+    "callTool",
+    async (request: { name: string }) =>
+      request.name === "status" ? status : response,
+  );
   const client = await connectProjectClient(connection);
   t.after(() => client.close());
   assert.deepEqual(await client.getRun(view.runId), view);
@@ -92,16 +132,23 @@ test("text fallback is validated and malformed successes or errors stay protocol
 test("Record results are typed, validated and distinguish missing data", async (t) => {
   connected(t);
   let record: unknown = null;
-  t.mock.method(Client.prototype, "callTool", async () => ({
-    content: [],
-    structuredContent: { record },
-  }));
+  t.mock.method(
+    Client.prototype,
+    "callTool",
+    async (request: { name: string }) =>
+      request.name === "status"
+        ? status
+        : {
+            content: [],
+            structuredContent: { record },
+          },
+  );
   const client = await connectProjectClient(connection);
   t.after(() => client.close());
   assert.equal(await client.getRecord("missing"), null);
   record = {
     id: "REC-1",
-    flowName: "test",
+    loomName: "test",
     stageName: "first",
     data: { value: "正文" },
     createdAt: view.createdAt,
@@ -115,27 +162,37 @@ test("Record results are typed, validated and distinguish missing data", async (
 
 test("uncertain mutations are attempted once and close is idempotent without cancelling Runs", async (t) => {
   const closed = connected(t);
-  const calls = t.mock.method(Client.prototype, "callTool", async () => {
-    throw new Error("connection lost after acceptance");
-  });
+  const calls = t.mock.method(
+    Client.prototype,
+    "callTool",
+    async (request: { name: string }) => {
+      if (request.name === "status") return status;
+      throw new Error("connection lost after acceptance");
+    },
+  );
   const client = await connectProjectClient(connection);
-  await assert.rejects(client.flow("test", "once"), {
+  await assert.rejects(client.run("test", { prompt: "once" }), {
     code: "PROJECT_REQUEST_FAILED",
   });
-  assert.equal(calls.mock.callCount(), 1);
+  assert.equal(calls.mock.callCount(), 2);
   const first = client.close();
   assert.equal(client.close(), first);
   await first;
   assert.equal(closed.mock.callCount(), 1);
   await assert.rejects(client.listRuns(), { code: "PROJECT_CLIENT_CLOSED" });
-  assert.equal(calls.mock.callCount(), 1);
+  assert.equal(calls.mock.callCount(), 2);
 });
 
 test("transport failures retain a known Run ID without treating request ID as deduplication", async (t) => {
   connected(t);
-  const calls = t.mock.method(Client.prototype, "callTool", async () => {
-    throw new Error("connection lost after acceptance");
-  });
+  const calls = t.mock.method(
+    Client.prototype,
+    "callTool",
+    async (request: { name: string }) => {
+      if (request.name === "status") return status;
+      throw new Error("connection lost after acceptance");
+    },
+  );
   const client = await connectProjectClient(connection, {
     requestId: "correlation-only",
   });
@@ -147,12 +204,12 @@ test("transport failures retain a known Run ID without treating request ID as de
       message: /Run RUN-original.*get_run or attach/u,
     },
   );
-  assert.equal(calls.mock.callCount(), 1);
-  await assert.rejects(client.flow("test", "once"), {
+  assert.equal(calls.mock.callCount(), 2);
+  await assert.rejects(client.run("test", { prompt: "once" }), {
     code: "PROJECT_REQUEST_FAILED",
     message: /no Run ID was received.*list_runs/u,
   });
-  assert.equal(calls.mock.callCount(), 2);
+  assert.equal(calls.mock.callCount(), 3);
 });
 
 test("connection failures release the client and invalid settings are rejected before connecting", async (t) => {

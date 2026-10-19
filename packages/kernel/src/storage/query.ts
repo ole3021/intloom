@@ -7,7 +7,8 @@ import {
   querySchema,
   timestampSchema,
 } from "./schemas.ts";
-import type { ListPage, StorageQuery, StorageCategory } from "./types.ts";
+import type { ListPage, StorageQuery } from "@intloom/loom-sdk";
+import type { StorageCategory } from "./types.ts";
 
 interface Position {
   readonly createdAt: string;

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { openLog, getLogger, withLogger, silentLogger } from "@intloom/utils";
 import { runtimeFixture } from "../../test/runtime-fixture.ts";
-import { createRuntime } from "./create-runtime.ts";
+import { createRuntimeHarness } from "../../test/runtime-harness.ts";
 
 test("repeated steps and resumed Code retain distinct execution identities across concurrent Runs", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "intloom-runtime-log-"));
@@ -24,7 +24,7 @@ test("repeated steps and resumed Code retain distinct execution identities acros
     getLogger().debug("after_wait");
     return { outcome: "complete" };
   };
-  const runtime = createRuntime({ ...f.options, logger: logs.logger });
+  const runtime = createRuntimeHarness({ ...f.options, logger: logs.logger });
   const requestEvents: string[] = [];
   const requestLogger = {
     ...silentLogger,

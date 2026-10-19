@@ -1,17 +1,19 @@
 import type { SolutionState } from "../schema/state.ts";
 import { bullets, section, answers } from "../../../src/review.ts";
+import { fail } from "../../../src/errors.ts";
 export function formatReview(s: SolutionState) {
-  const draft = s.draft!,
-    plan = s.plan!;
+  const { draft, plan, specification, analysis } = s;
+  if (!draft || !plan || !specification || !analysis)
+    fail("Missing solution review data.");
   return [
     section("Round goal", s.prompt),
     section(
       "Fixed requirements",
-      bullets(s.specification!.scope.workItems.map((item) => item.description)),
+      bullets(specification.scope.workItems.map((item) => item.description)),
     ),
     section(
       "Analysis and trade-offs",
-      `${s.analysis!.summary}\n\n${s.analysis!.rationale}`,
+      `${analysis.summary}\n\n${analysis.rationale}`,
     ),
     section(
       "Design baseline",
@@ -66,11 +68,11 @@ export function formatReview(s: SolutionState) {
       bullets(
         plan.coverage.map(
           (item) =>
-            `${s.specification!.scope.workItems.find((work) => work.id === item.workItemRef)?.description}: ${item.target.kind}/${item.target.id}. ${item.explanation}`,
+            `${specification.scope.workItems.find((work) => work.id === item.workItemRef)?.description}: ${item.target.kind}/${item.target.id}. ${item.explanation}`,
         ),
       ),
     ),
-    section("Assumptions and risks", bullets(s.analysis!.assumptions)),
+    section("Assumptions and risks", bullets(analysis.assumptions)),
     section("User answers", bullets(answers(s))),
     section("Review feedback", bullets(s.feedback)),
   ].join("\n\n");

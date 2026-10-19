@@ -1,3 +1,4 @@
+import { runFacts, isRunSettled } from "./run-facts.ts";
 import { sampleRunObservation } from "./run-observation.ts";
 import type { RunView } from "./run-view.ts";
 import { assertRunState } from "./assert-run-state.ts";
@@ -8,6 +9,10 @@ export function toRunView(run: RunState): RunView {
   assertRunState(run);
   sampleRunObservation(run);
   return {
+    ...(run.pauseRequested ? { pauseRequested: true } : {}),
+    results: structuredClone(runFacts(run).results),
+    settled: isRunSettled(run),
+    ...(run.startedBy ? { startedBy: { ...run.startedBy } } : {}),
     ...(run.observation
       ? {
           serviceInstanceId: run.observation.serviceInstanceId,
@@ -15,8 +20,6 @@ export function toRunView(run: RunState): RunView {
           metrics: structuredClone(run.observation.metrics),
           limits: structuredClone(run.observation.limits),
           activity: structuredClone(run.observation.activity),
-          results: structuredClone(run.observation.results),
-          settled: run.observation.settled,
           ...(run.observation.stopReason
             ? { stopReason: run.observation.stopReason }
             : {}),

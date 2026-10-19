@@ -1,6 +1,6 @@
 import * as z from "zod";
-import { KERNEL_ERRORS } from "../errors/kernel.ts";
-import type { StorageOperation } from "./types.ts";
+import { ERRORS } from "../errors.ts";
+import type { StorageOperation } from "@intloom/loom-sdk";
 import { invalid } from "./errors.ts";
 
 export const nameSchema = z
@@ -82,7 +82,7 @@ export function parseInput<T>(schema: z.ZodType<T>, value: unknown): T {
   try {
     return schema.parse(value);
   } catch (cause) {
-    throw KERNEL_ERRORS.wrap("INVALID_REQUEST", cause);
+    throw ERRORS.wrap("INVALID_REQUEST", cause);
   }
 }
 

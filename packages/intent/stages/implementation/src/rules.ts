@@ -4,7 +4,13 @@ import { linkedEvidence } from "../../../src/project.ts";
 import { verificationFailures } from "../../../src/verification.ts";
 import { digest } from "../../../src/json.ts";
 import { fail } from "../../../src/errors.ts";
-export function checkSubmission(s: ImplementationState) {
+export function checkSubmission(
+  s: ImplementationState,
+): asserts s is ImplementationState & {
+  [K in "submission" | "candidate" | "solution" | "baseline"]: NonNullable<
+    ImplementationState[K]
+  >;
+} {
   if (!s.submission || !s.candidate || !s.solution || !s.baseline)
     fail("Missing implementation submission or fixed basis.");
   if (s.submission.candidateRef !== s.candidate.id)
@@ -41,15 +47,17 @@ export function checkSubmission(s: ImplementationState) {
       fail("Reuse needs current source evidence.");
     if (item.outcome === "incomplete" && !item.remaining.trim())
       fail("Incomplete work needs an explicit remaining scope.");
-    if (item.outcome !== "incomplete")
-      for (const dependency of items.find(
-        (i) => i.id === item.implementationRef,
-      )!.dependsOn)
+    if (item.outcome !== "incomplete") {
+      const planned = items.find((i) => i.id === item.implementationRef);
+      if (!planned)
+        fail(`Unknown implementation item: ${item.implementationRef}`);
+      for (const dependency of planned.dependsOn)
         if (
           s.submission.items.find((i) => i.implementationRef === dependency)
             ?.outcome === "incomplete"
         )
           fail("Completed work depends on incomplete work.");
+    }
   }
   for (const change of s.changes)
     if (!s.submission.items.some((i) => i.changeRefs.includes(change.id)))

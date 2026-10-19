@@ -1,13 +1,11 @@
 import type { TestContext } from "node:test";
 import { initializationProject } from "./initialization-fixture.ts";
 
-export const configText = `intent:
-  apps: []
-llms:
+export const configText = `llms:
   default:
     provider: openai-compatible
     model: test-model
-    secret: ENV.INTLOOM_WORKFLOW_TEST_KEY
+    secret: ENV.INTLOOM_LOOM_TEST_KEY
     baseURL: https://model.invalid/v1
 `;
 

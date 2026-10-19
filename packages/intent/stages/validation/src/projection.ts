@@ -48,11 +48,12 @@ export function accumulate(
     const index = next.findingIndex.findIndex(
       (f) => f.findingRef === update.findingRef,
     );
-    if (index < 0)
+    const finding = next.findingIndex[index];
+    if (!finding)
       throw new Error(`Unknown historical finding ${update.findingRef}`);
     const ref = assessmentRef(recordRef, "findingUpdates", update.findingRef);
     next.findingIndex[index] = {
-      ...next.findingIndex[index]!,
+      ...finding,
       latestAssessmentRef: ref,
       ...(update.outcome !== "unverified"
         ? { lastDefiniteAssessmentRef: ref }

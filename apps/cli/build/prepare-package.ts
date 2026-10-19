@@ -82,4 +82,4 @@ async function prepareCliPackage(root: string): Promise<void> {
   await cp(resolve(root, "LICENSE"), resolve(launcher, "LICENSE"));
 }
 
-await prepareCliPackage(fileURLToPath(new URL("../", import.meta.url)));
+await prepareCliPackage(fileURLToPath(new URL("..", import.meta.url)));

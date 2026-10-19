@@ -1,8 +1,9 @@
+import { createDelegatedSessions } from "../src/execution/delegated/sessions.ts";
 import * as z from "zod";
-import type { Blueprint, BlueprintStage } from "../src/loom/blueprint.ts";
-import type { Effector } from "../src/effector/contracts.ts";
-import type { ExecutableCode } from "../src/effector/execution.ts";
-import type { StorageAccess } from "../src/storage/contracts.ts";
+import type { Blueprint, BlueprintStage } from "@intloom/loom-sdk";
+import type { Execution } from "../src/execution/contracts.ts";
+import type { ExecutableCode } from "@intloom/loom-sdk";
+import type { StorageAccess } from "@intloom/loom-sdk";
 import type { RuntimeOptions } from "../src/runtime/contracts.ts";
 
 export const fixtureStateSchema = z.object({
@@ -105,7 +106,15 @@ export function runtimeFixture() {
       };
     },
   };
-  const effector: Effector = {
+  const executor: Execution = {
+    delegated: createDelegatedSessions(),
+    async recoverCode(code, saved, access) {
+      if (!code.recover) throw new Error("Missing recovery fixture");
+      return code.recover(
+        saved as import("@intloom/loom-sdk").CodeRecovery,
+        access,
+      );
+    },
     async executeCode(code, access) {
       return code(access);
     },
@@ -113,7 +122,7 @@ export function runtimeFixture() {
       throw new Error("Unexpected Agent execution");
     },
   };
-  const options: RuntimeOptions = { codes, agents: {}, effector, storage };
+  const options: RuntimeOptions = { codes, agents: {}, executor, storage };
   return {
     blueprint,
     first,

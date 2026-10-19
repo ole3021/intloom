@@ -3,33 +3,34 @@ import { test } from "node:test";
 import {
   answerAsk,
   getRun,
-  initializeProject,
   listRuns,
-  listWorkflows,
-  flow,
+  listLooms,
+  run,
   cancelRun,
-} from "@intloom/kernel";
-import { compiledWorkflow } from "./initialization-fixture.ts";
+} from "./operations-harness.ts";
+import { initializeProject } from "../src/host/create-project-execution.ts";
+import { compiledLoom } from "./initialization-fixture.ts";
 import { askingCode, projectFixture } from "./project-fixture.ts";
 import { runtimeFixture } from "./runtime-fixture.ts";
-import { codeId } from "./workflow-fixture.ts";
+import { codeId } from "./loom-fixture.ts";
 
-test("built project API loads a compiled dependency and resumes its retained Runtime", async (t) => {
+test("Host loads a compiled dependency and resumes its retained Runtime", async (t) => {
   const project = await projectFixture(t);
   await project.add(
-    "fixture-flow",
-    compiledWorkflow("fixture", codeId).replace(
+    "fixture-run",
+    compiledLoom("fixture", codeId).replace(
       /export const codes = .*;/u,
       askingCode(codeId),
     ),
   );
   const fixture = runtimeFixture();
   const execution = await initializeProject(project.root, fixture.options);
-  assert.deepEqual(await listWorkflows(execution), [
+  assert.deepEqual(await listLooms(execution), [
     {
-      packageName: "fixture-flow",
-      flowName: "fixture",
+      packageName: "fixture-run",
+      loomName: "fixture",
       isAvailable: true,
+      inputs: ["prompt"],
       readiness: {
         source: "cli",
         agentExecutor: "service",
@@ -37,7 +38,7 @@ test("built project API loads a compiled dependency and resumes its retained Run
       },
     },
   ]);
-  const waiting = await flow(execution, "fixture", "build input");
+  const waiting = await run(execution, "fixture", { prompt: "build input" });
   assert.equal(waiting.status, "waiting");
   assert.ok(waiting.pendingAction);
   assert.deepEqual(await getRun(execution, waiting.runId), waiting);
@@ -51,7 +52,7 @@ test("built project API loads a compiled dependency and resumes its retained Run
   assert.deepEqual(await execution.runtime.getRun(waiting.runId), completed);
   assert.deepEqual(await listRuns(execution), [completed]);
 
-  const second = await flow(execution, "fixture", "stop input");
+  const second = await run(execution, "fixture", { prompt: "stop input" });
   await cancelRun(execution, second.runId);
   const stopped = await getRun(execution, second.runId);
   assert.equal(stopped.status, "failed");

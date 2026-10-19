@@ -25,18 +25,21 @@ test("actual source changes are host-owned; writes require a current read", asyn
   await readContext({}, f.access);
   const s = readState(f.access);
   assert.equal(s.changes.length, 1);
-  assert.equal(s.changes[0]!.operationRefs.length, 1);
+  const change = s.changes[0];
+  assert.ok(change);
+  assert.ok(s.candidate);
+  assert.equal(change.operationRefs.length, 1);
   const result = await submit(
     {
       revision: s.revision,
-      candidateRef: s.candidate!.id,
+      candidateRef: s.candidate.id,
       kind: "ready",
       items: [
         {
           implementationRef: "IMPL-a",
           outcome: "implemented",
           explanation: "Actual implementation",
-          changeRefs: [s.changes[0]!.id],
+          changeRefs: [change.id],
           sourceRefs: [],
           remaining: "",
         },
@@ -56,10 +59,11 @@ test("actual source changes are host-owned; writes require a current read", asyn
 test("incomplete delivery requires a real choice and preserves all implementation items", async () => {
   const f = await fixture();
   const s = readState(f.access);
+  assert.ok(s.candidate);
   await submit(
     {
       revision: s.revision,
-      candidateRef: s.candidate!.id,
+      candidateRef: s.candidate.id,
       kind: "needs_attention",
       items: [
         {
@@ -83,21 +87,23 @@ test("incomplete delivery requires a real choice and preserves all implementatio
   await check(f.access);
   await commit(f.access);
   const record = implementationRecordSchema.parse(
-    f.records.get(recordId(s.id, "implementation"))!.data,
+    f.records.get(recordId(s.id, "implementation"))?.data,
   );
   assert.equal(record.delivery.kind, "partial");
-  assert.equal(record.submission.items[0]!.outcome, "incomplete");
+  assert.equal(record.submission.items[0]?.outcome, "incomplete");
 });
 
 test("an unsettled verification is never automatically replayed or handed off", async () => {
   const f = await fixture();
   await readProject.execute({ path: "greet.mjs" }, f.access);
   let s = readState(f.access);
-  const source = s.evidence.find((e) => e.kind === "project_read")!;
+  const source = s.evidence.find((e) => e.kind === "project_read");
+  assert.ok(source);
+  assert.ok(s.candidate);
   await submit(
     {
       revision: s.revision,
-      candidateRef: s.candidate!.id,
+      candidateRef: s.candidate.id,
       kind: "ready",
       items: [
         {
@@ -114,7 +120,9 @@ test("an unsettled verification is never automatically replayed or handed off", 
     f.access,
   );
   s = readState(f.access);
-  s.verifications[0]!.disposition = "executing";
+  const verification = s.verifications[0];
+  assert.ok(verification);
+  verification.disposition = "executing";
   await f.set(s);
   await assert.rejects(verify(f.access), /no settled receipt/);
   await assert.rejects(check(f.access), /no settled receipt/);

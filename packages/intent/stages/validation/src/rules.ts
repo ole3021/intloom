@@ -24,7 +24,8 @@ function checkEvidenceUses(
     uses.map((use) => use.evidenceRef),
   );
   for (const [index, source] of sources.entries()) {
-    const use = uses[index]!;
+    const use = uses[index];
+    if (!use) fail("Missing evidence use.");
     if (use.relation === "context") continue;
     if (source.candidateRef !== s.candidate?.id)
       fail(
@@ -79,6 +80,7 @@ export function checkAssessment(
 ) {
   if (!s.candidate || submission.candidateRef !== s.candidate.id)
     fail("Assessment belongs to another candidate.");
+  const candidate = s.candidate;
   const targets = s.targets.map((t) => t.id);
   unique(
     submission.assessments.map((a) => a.targetRef),
@@ -166,7 +168,7 @@ export function checkAssessment(
       if (
         !sources.some(
           (e) =>
-            e.candidateRef === s.candidate!.id &&
+            e.candidateRef === candidate.id &&
             [
               "execution",
               "observation",

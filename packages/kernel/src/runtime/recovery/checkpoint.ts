@@ -1,8 +1,9 @@
-import { checkpointSchema } from "./store.ts";
-import { jsonCopy } from "../../mirror/contracts.ts";
+import { runFacts } from "../run-facts.ts";
+import { checkpointSnapshotSchema } from "./contracts.ts";
+import { jsonCopy } from "../../shared/json.ts";
 import type { RunEntry } from "../run-entry.ts";
-import { RUNTIME_ERRORS } from "../../errors/runtime.ts";
-import type { CheckpointPhase, RunCheckpointStore } from "./store.ts";
+import { ERRORS } from "../../errors.ts";
+import type { CheckpointPhase, RunCheckpointStore } from "./contracts.ts";
 
 export interface RunRecoveryControl {
   readonly store: RunCheckpointStore;
@@ -16,19 +17,24 @@ export interface RunRecoveryControl {
 export function checkpointData(
   entry: RunEntry,
   phase: CheckpointPhase,
-): import("./store.ts").RunCheckpoint {
+): import("./contracts.ts").CheckpointSnapshot {
   const state = entry.state;
   const stage = entry.exitedStage ?? entry.stageState.checkpoint();
-  return checkpointSchema.parse(
+  return checkpointSnapshotSchema.parse(
     jsonCopy({
-      version: 2,
-      schemaVersion: 2,
+      version: 3,
+      schemaVersion: 3,
       loomIdentity: entry.recovery?.loomIdentity ?? "untracked",
       ...(entry.recovery?.sourceLoomIdentity
         ? { sourceLoomIdentity: entry.recovery.sourceLoomIdentity }
         : {}),
+      stageVisitId: entry.stageVisitId,
+      ...(entry.state.pauseRequested ? { pauseRequested: true } : {}),
+      ...(entry.activeCall ? { callId: entry.activeCall.callId } : {}),
       phase,
       run: {
+        results: runFacts(state).results,
+        ...(state.startedBy ? { startedBy: state.startedBy } : {}),
         id: state.id,
         loomName: state.loomName,
         execution: state.execution,
@@ -70,6 +76,12 @@ export function checkpointData(
       ...(entry.savedRoute ? { validatedRoute: entry.savedRoute } : {}),
       ...(entry.recoveredAnswer
         ? {
+            ...(entry.recoveredAnswer.acceptedAt
+              ? { acceptedAt: entry.recoveredAnswer.acceptedAt }
+              : {}),
+            ...(entry.recoveredAnswer.operation
+              ? { answerOperation: entry.recoveredAnswer.operation }
+              : {}),
             answer: entry.recoveredAnswer.answer,
             answeredAction: entry.recoveredAnswer.action,
           }
@@ -88,7 +100,7 @@ export function saveCheckpoint(entry: RunEntry, phase: CheckpointPhase): void {
   try {
     recovery.store.write(checkpointData(entry, phase));
   } catch (cause) {
-    const error = RUNTIME_ERRORS.wrap("RUN_CHECKPOINT_FAILED", cause);
+    const error = ERRORS.wrap("RUN_CHECKPOINT_FAILED", cause);
     recovery.error = error;
     state.status = "failed";
     state.lastError = error;
@@ -96,14 +108,20 @@ export function saveCheckpoint(entry: RunEntry, phase: CheckpointPhase): void {
     delete state.pendingAgentCall;
     const call = entry.activeCall;
     const reply = entry.reply;
-    const agent = entry.agentCall;
+
     delete entry.activeCall;
     delete entry.reply;
-    delete entry.agentCall;
+
     reply?.reject(error);
-    agent?.reject(error);
+
     call?.abort(error);
-    for (const observe of entry.observers) observe();
+    for (const observe of entry.observers) {
+      try {
+        observe();
+      } catch {
+        entry.observers.delete(observe);
+      }
+    }
     throw error;
   }
 }

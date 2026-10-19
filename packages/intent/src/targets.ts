@@ -35,10 +35,12 @@ export function specificationTargets(record: SpecificationRecord): Target[] {
       if (!acceptance) fail("Missing acceptance.");
       const requirement = record.snapshot.requirements.find(
         (r) => r.id === acceptance.requirementRef,
-      )!;
+      );
+      if (!requirement) fail("Missing acceptance requirement.");
       const feature = record.snapshot.features.find(
         (f) => f.id === requirement.featureRef,
-      )!;
+      );
+      if (!feature) fail("Missing requirement feature.");
       add(
         "acceptance",
         id,
@@ -47,22 +49,22 @@ export function specificationTargets(record: SpecificationRecord): Target[] {
         true,
       );
     }
-    for (const id of coverage.roundCriteriaRefs)
+    for (const id of coverage.roundCriteriaRefs) {
+      const criterion = record.scope.roundCriteria.find((c) => c.id === id);
+      if (!criterion) fail("Missing round criterion.");
       add(
         "round_criterion",
         id,
-        record.scope.roundCriteria.find((c) => c.id === id)!.description,
+        criterion.description,
         { runId: record.runId },
         false,
       );
-    for (const id of coverage.constraintRefs)
-      add(
-        "engineering_constraint",
-        id,
-        record.snapshot.constraints.find((c) => c.id === id)!.description,
-        {},
-        true,
-      );
+    }
+    for (const id of coverage.constraintRefs) {
+      const constraint = record.snapshot.constraints.find((c) => c.id === id);
+      if (!constraint) fail("Missing engineering constraint.");
+      add("engineering_constraint", id, constraint.description, {}, true);
+    }
   }
   return [...targets.values()];
 }

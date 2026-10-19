@@ -48,15 +48,14 @@ export async function prepare(access: StageCodeAccess) {
     );
     s.baseline = await snapshot(access);
     s.candidate = s.baseline;
-    s.verifications = s.solution.plan.verifications
+    const solution = s.solution;
+    s.verifications = solution.plan.verifications
       .filter((v) => v.executionStage !== "validation")
       .map((v) => ({
         definition: v,
         origin: "solution",
-        targetRefs: s
-          .solution!.plan.coverage.filter((c) =>
-            c.verificationRefs.includes(v.id),
-          )
+        targetRefs: solution.plan.coverage
+          .filter((c) => c.verificationRefs.includes(v.id))
           .map((c) => `${c.target.kind}:${c.target.id}`),
         disposition: "pending",
         evidenceRefs: [],
@@ -77,8 +76,8 @@ export async function verify(access: StageCodeAccess) {
 export async function check(access: StageCodeAccess) {
   const s = readState(access);
   assertSettled(s);
-  await assertCandidate(access, s.candidate!);
-  await loadRecord(access.storage, s.solutionRef!, "solution", s.id);
+  await assertCandidate(access, s.candidate);
+  await loadRecord(access.storage, s.solutionRef, "solution", s.id);
   try {
     checkSubmission(s);
   } catch (e) {
@@ -87,7 +86,7 @@ export async function check(access: StageCodeAccess) {
     await save(access, s);
     return { outcome: "implement" };
   }
-  s.changes = changes(s.baseline!, s.candidate!, s.evidence);
+  s.changes = changes(s.baseline, s.candidate, s.evidence);
   if (
     unexplainedChanges(s).length &&
     s.externalApproval?.reviewDigest !== reviewDigest(s)
@@ -107,7 +106,7 @@ export async function check(access: StageCodeAccess) {
     const alreadySeen = s.feedback.includes(message);
     s.feedback.push(message);
     s.task =
-      s.submission!.kind === "needs_attention" || alreadySeen
+      s.submission.kind === "needs_attention" || alreadySeen
         ? "resolve"
         : "implement";
     await save(access, s);
@@ -124,7 +123,7 @@ export async function resolve(
 ) {
   const s = readState(access);
   assertSettled(s);
-  await assertCandidate(access, s.candidate!);
+  await assertCandidate(access, s.candidate);
   if (s.questions.length) {
     await answerQuestions(access, s, recovery);
     s.task = s.resumeTask === "observe" ? "observe" : "implement";
@@ -150,7 +149,7 @@ ${formatReview(s)}`,
     },
     recovery,
   );
-  await assertCandidate(access, s.candidate!);
+  await assertCandidate(access, s.candidate);
   if (approved(receipt.answer)) {
     const approval = {
       reviewDigest: reviewDigest(s),
@@ -171,8 +170,8 @@ export async function commit(access: StageCodeAccess) {
   if (await resumeCommitted(access, s.id, "implementation"))
     return { outcome: "complete" };
   assertSettled(s);
-  await assertCandidate(access, s.candidate!);
-  await loadRecord(access.storage, s.solutionRef!, "solution", s.id);
+  await assertCandidate(access, s.candidate);
+  await loadRecord(access.storage, s.solutionRef, "solution", s.id);
   checkSubmission(s);
   if (s.checkedDigest !== checkDigest(s))
     fail("Implementation must pass a current handoff check.");
@@ -188,7 +187,7 @@ export async function commit(access: StageCodeAccess) {
       runId: s.id,
       prompt: s.prompt,
       basis: {
-        specification: s.solution!.basis.specification,
+        specification: s.solution.basis.specification,
         solution: s.solutionRef,
       },
       workspace: { baseline: s.baseline, candidate: s.candidate },

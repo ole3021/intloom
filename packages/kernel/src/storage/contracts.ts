@@ -1,6 +1,6 @@
 import type { StorageAccess } from "@intloom/loom-sdk";
+
 import type { StorageCategory, SnapshotResult } from "./types.ts";
-export type { StorageAccess, StorageReadAccess } from "@intloom/loom-sdk";
 
 /** The host owns the implementation lifecycle and injects only access into execution environments and business calls. */
 export interface StorageHandle {

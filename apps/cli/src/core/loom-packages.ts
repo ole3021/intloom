@@ -2,20 +2,23 @@ import { randomUUID } from "node:crypto";
 import { lstat, open, readFile, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { parseDocument } from "yaml";
-import { loomDependenciesSchema, type LoomDependency } from "@intloom/kernel";
+import {
+  loomDependenciesSchema,
+  type LoomDependency,
+} from "@intloom/kernel/host";
 import { inspectFileStorageLock } from "@intloom/kernel/storage/file";
 import { failure } from "../errors.ts";
 import {
   acquireServiceLock,
   projectRoot,
   readServiceInfo,
-} from "../service/discovery.ts";
-import { diagnoseProject } from "../service/recovery.ts";
+} from "@intloom/kernel/host";
+import { diagnoseProject } from "@intloom/kernel/host";
 import {
   buildInstallation,
   inspectInstallation,
   loomSource,
-} from "../looms/install.ts";
+} from "@intloom/kernel/host";
 
 export interface InstalledLoomList {
   readonly projectRoot: string;

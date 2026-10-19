@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { connectProject } from "@intloom/cli";
 import { openFileStorage } from "@intloom/kernel/storage/file";
 import { openSqliteStorage } from "@intloom/kernel/storage/sqlite";
-import { artifact, artifactWorkflow } from "./artifact-fixture.ts";
+import { artifact, artifactLoom } from "./artifact-fixture.ts";
 import {
   bin,
   cli,
@@ -25,11 +25,8 @@ for (const backend of ["file", "sqlite"] as const)
   }, async (t) => {
     const root = await projectFixture(t, true, backend);
     await writeFile(
-      join(
-        root,
-        ".intloom/workflows/node_modules/fixture-workflow/workflow.js",
-      ),
-      artifactWorkflow,
+      join(root, ".intloom/looms/node_modules/fixture-loom/loom.js"),
+      artifactLoom,
     );
     await refreshFixtureInstallation(root);
     const storage =
@@ -49,7 +46,7 @@ for (const backend of ["file", "sqlite"] as const)
           type: "create_artifact",
           id: artifact.id,
           payload: {
-            flowName: artifact.flowName,
+            loomName: artifact.loomName,
             stageName: artifact.stageName,
             data: artifact.data,
           },
@@ -58,7 +55,7 @@ for (const backend of ["file", "sqlite"] as const)
           type: "create_artifact",
           id: "ART-solution",
           payload: {
-            flowName: "fixture",
+            loomName: "fixture",
             stageName: "solution",
             data: { text: "large data ".repeat(1000) },
           },
@@ -67,7 +64,7 @@ for (const backend of ["file", "sqlite"] as const)
           type: "create_artifact",
           id: otherId,
           payload: {
-            flowName: "other",
+            loomName: "other",
             stageName: "first",
             data: { independent: true },
           },
@@ -76,7 +73,7 @@ for (const backend of ["file", "sqlite"] as const)
           type: "append_record",
           id: "REC-seeded",
           payload: {
-            flowName: "fixture",
+            loomName: "fixture",
             stageName: "first",
             data: { previous: true },
           },
@@ -93,18 +90,18 @@ for (const backend of ["file", "sqlite"] as const)
     assert.ok(before);
     assert.deepEqual(before.data, artifact.data);
     assert.deepEqual(
-      await client.getArtifact({ flowName: "fixture", stageName: "first" }),
+      await client.getArtifact({ loomName: "fixture", stageName: "first" }),
       before,
     );
     assert.equal(await client.getArtifact({ artifactId: "missing" }), null);
     assert.deepEqual(await client.listRuns(), []);
 
-    const page = await client.listArtifacts({ flowName: "fixture", limit: 1 });
+    const page = await client.listArtifacts({ loomName: "fixture", limit: 1 });
     assert.equal(page.data.length, 1);
     assert.ok(page.nextCursor);
     assert.ok(page.data.every((row) => !("data" in row)));
     const next = await client.listArtifacts({
-      flowName: "fixture",
+      loomName: "fixture",
       limit: 1,
       cursor: page.nextCursor,
     });
@@ -113,7 +110,7 @@ for (const backend of ["file", "sqlite"] as const)
     assert.equal(next.nextCursor, undefined);
     await assert.rejects(
       client.listArtifacts({
-        flowName: "other",
+        loomName: "other",
         limit: 1,
         cursor: page.nextCursor,
       }),
@@ -122,7 +119,7 @@ for (const backend of ["file", "sqlite"] as const)
     const stage = await client.listArtifacts({ stageName: "first" });
     assert.equal(stage.data.length, 2);
     assert.ok(stage.data.every((row) => row.stageName === "first"));
-    assert.deepEqual(await client.listArtifacts({ flowName: "empty" }), {
+    assert.deepEqual(await client.listArtifacts({ loomName: "empty" }), {
       data: [],
     });
 
@@ -135,13 +132,13 @@ for (const backend of ["file", "sqlite"] as const)
     }
     const detail = await protocol.callTool({
       name: "get_artifact",
-      arguments: { flowName: "fixture", stageName: "first" },
+      arguments: { loomName: "fixture", stageName: "first" },
     });
     assert.equal(detail.isError, undefined);
     assert.deepEqual(detail.structuredContent, { artifact: before });
     const listing = await protocol.callTool({
       name: "list_artifacts",
-      arguments: { flowName: "fixture", limit: 1 },
+      arguments: { loomName: "fixture", limit: 1 },
     });
     assert.deepEqual(listing.structuredContent, { artifacts: page });
     const missing = await cli(root, ["artifact", "missing", "--json"]);
@@ -149,7 +146,7 @@ for (const backend of ["file", "sqlite"] as const)
     assert.deepEqual(JSON.parse(missing.stdout).data, null);
     const byPosition = await cli(root, [
       "artifact",
-      "--flow",
+      "--loom",
       "fixture",
       "--stage",
       "first",
@@ -158,7 +155,7 @@ for (const backend of ["file", "sqlite"] as const)
     assert.deepEqual(JSON.parse(byPosition.stdout).data, before);
     const list = await cli(root, [
       "artifacts",
-      "--flow",
+      "--loom",
       "fixture",
       "--limit",
       "1",
@@ -170,8 +167,8 @@ for (const backend of ["file", "sqlite"] as const)
     assert.equal(list.stdout.includes("\u001b"), false);
     assert.doesNotMatch(list.stdout, /large data/u);
     for (const args of [
-      ["artifact", artifact.id, "--flow", "fixture", "--stage", "first"],
-      ["artifact", "--flow", "fixture"],
+      ["artifact", artifact.id, "--loom", "fixture", "--stage", "first"],
+      ["artifact", "--loom", "fixture"],
       ["artifact"],
       ["artifacts", "--limit", "0"],
       ["artifacts", "--limit", "201"],
@@ -229,9 +226,9 @@ for (const backend of ["file", "sqlite"] as const)
     assert.deepEqual(await client.listRuns(), []);
 
     const first = await cli(root, [
-      "flow",
+      "run",
       "fixture",
-      "--intent",
+      "--prompt",
       "Todo first iteration",
       "--json",
     ]);
@@ -248,9 +245,9 @@ for (const backend of ["file", "sqlite"] as const)
     assert.notEqual(firstRecord, null);
     assert.equal(await client.getRecord(firstRun.runId), null);
     const second = await cli(root, [
-      "flow",
+      "run",
       "fixture",
-      "--intent",
+      "--prompt",
       "Todo second iteration",
     ]);
     assert.equal(second.code, 0, second.stdout);
@@ -315,7 +312,14 @@ for (const backend of ["file", "sqlite"] as const)
     assert.equal((await cli(root, ["start", "--json"])).code, 0);
     const restarted = await connectProject(root);
     try {
-      assert.deepEqual(await restarted.listRuns(), []);
+      const history = await restarted.listRuns();
+      assert.deepEqual(
+        history.map((run) => run.runId).sort(),
+        completedRuns.map((run) => run.runId).sort(),
+      );
+      assert.ok(
+        history.every((run) => run.historical && run.status === "completed"),
+      );
       assert.deepEqual(
         await restarted.getArtifact({ artifactId: artifact.id }),
         current,

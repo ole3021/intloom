@@ -35,7 +35,7 @@ test("fresh init without llms starts a real host without Looms", {
   assert.match(yaml, /^useMcpAgent: true$/m);
   assert.doesNotMatch(yaml, /^llms:/m);
   const { service } = await startService({ projectRoot: root });
-  assert.equal(service.availableWorkflowCount, 0);
+  assert.equal(service.availableLoomCount, 0);
   const local = await connectProject(root);
   const connection = await discoverProjectConnection(root);
   const ide = await connectProjectClient({
@@ -46,7 +46,7 @@ test("fresh init without llms starts a real host without Looms", {
     await local.close();
     await ide.close();
   });
-  assert.deepEqual(await ide.listWorkflows(), []);
+  assert.deepEqual(await ide.listLooms(), []);
   assert.equal((await ide.listRuns()).length, 0);
   const config = await cli(root, ["config", "codex"]);
   assert.equal(config.code, 0, config.stdout);
@@ -74,15 +74,20 @@ test("model-free Code Run uses MCP policy while CLI/Studio reject creation; cros
     await Promise.all([cliClient.close(), studio.close(), ide.close()]);
   });
   for (const client of [cliClient, studio]) {
-    await assert.rejects(client.flow("fixture", "No configuration"), {
-      code: "INVALID_REQUEST",
-    });
-    const [workflow] = await client.listWorkflows();
-    assert.ok(workflow?.isAvailable);
-    assert.equal(workflow.readiness?.status, "configuration_required");
+    await assert.rejects(
+      client.run("fixture", { prompt: "No configuration" }),
+      {
+        code: "INVALID_REQUEST",
+      },
+    );
+    const [loom] = await client.listLooms();
+    assert.ok(loom?.isAvailable);
+    assert.equal(loom.readiness?.status, "configuration_required");
   }
   assert.deepEqual(await ide.listRuns(), []);
-  const receipt = await ide.flow("fixture", "MCP without model config");
+  const receipt = await ide.run("fixture", {
+    prompt: "MCP without model config",
+  });
   const waiting = await untilRun(
     ide,
     receipt.runId,
@@ -110,8 +115,13 @@ test("model-free Code Run uses MCP policy while CLI/Studio reject creation; cros
     url: restarted.service.url,
   });
   t.after(() => serviceIde.close());
-  await assert.rejects(serviceIde.flow("fixture", "MCP service mode"), {
-    code: "INVALID_REQUEST",
-  });
-  assert.deepEqual(await serviceIde.listRuns(), []);
+  await assert.rejects(
+    serviceIde.run("fixture", { prompt: "MCP service mode" }),
+    {
+      code: "INVALID_REQUEST",
+    },
+  );
+  const history = await serviceIde.listRuns();
+  assert.equal(history.length, 1);
+  assert.equal(history[0]?.historical, true);
 });

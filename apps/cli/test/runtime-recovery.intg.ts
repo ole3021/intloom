@@ -13,20 +13,17 @@ for (const storage of ["file", "sqlite"] as const) {
   test(`${storage}: host stop/start restores a question without repeating a committed effect; deletion abandons recovery`, async (t) => {
     const root = await projectFixture(t, true, storage);
     await appendFile(
-      join(
-        root,
-        ".intloom/workflows/node_modules/fixture-workflow/workflow.js",
-      ),
+      join(root, ".intloom/looms/node_modules/fixture-loom/loom.js"),
       `
 const finish = async (saved, access) => {
   if (!saved.answer.isConfirmed) throw new Error('Confirmation required');
   const {id,intent} = access.state.value;
-  await access.storage.commit([{type:'append_record',id,payload:{flowName:'fixture',stageName:'first',data:{intent}}}]);
+  await access.storage.commit([{type:'append_record',id,payload:{loomName:'fixture',stageName:'first',data:{intent}}}]);
   return {outcome:'complete'};
 };
 const recoverable = async (access) => {
   const {id,intent}=access.state.value;
-  await access.storage.commit([{type:'append_record',id:'once-'+id,payload:{flowName:'fixture',stageName:'first',data:{intent}}}]);
+  await access.storage.commit([{type:'append_record',id:'once-'+id,payload:{loomName:'fixture',stageName:'first',data:{intent}}}]);
   return finish({answer:await access.interaction.confirm('Save?')},access);
 };
 recoverable.recover=finish;
@@ -37,7 +34,7 @@ codes['CODE-123456789012345678901']=recoverable;
     await startService({ projectRoot: root });
     let client = await connectProject(root);
     t.after(() => client.close());
-    const receipt = await client.flow("fixture", "survive restart");
+    const receipt = await client.run("fixture", { prompt: "survive restart" });
     const waiting = await untilRun(
       client,
       receipt.runId,
@@ -59,7 +56,7 @@ codes['CODE-123456789012345678901']=recoverable;
     assert.notEqual(recovered.serviceInstanceId, waiting.serviceInstanceId);
     assert.equal(recovered.metrics?.recovered, true);
     assert.equal(recovered.metrics?.calls.modelRequests, 0);
-    assert.deepEqual(recovered.results, []);
+    assert.deepEqual(recovered.results, waiting.results);
     assert.deepEqual(await client.getRecord(`once-${waiting.runId}`), once);
     const doneReceipt = await client.answerAsk(
       waiting.runId,
@@ -76,10 +73,9 @@ codes['CODE-123456789012345678901']=recoverable;
     const record = await client.getRecord(done.runId);
     assert.ok(record);
 
-    const abandonedReceipt = await client.flow(
-      "fixture",
-      "abandon by deleting files",
-    );
+    const abandonedReceipt = await client.run("fixture", {
+      prompt: "abandon by deleting files",
+    });
     const abandoned = await untilRun(
       client,
       abandonedReceipt.runId,

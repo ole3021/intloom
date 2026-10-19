@@ -1,13 +1,13 @@
 import { and, eq } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { KERNEL_ERRORS } from "../../errors/kernel.ts";
+import { ERRORS } from "../../errors.ts";
 import { conflict, missing } from "../errors.ts";
 import type {
   StorageOperation,
   StorageCommitResult,
   StoredArtifact,
   StoredRecord,
-} from "../types.ts";
+} from "@intloom/loom-sdk";
 import { artifactKey, recordKey, readArtifact } from "./query.ts";
 import { artifacts, records, projects } from "./schema.ts";
 
@@ -39,7 +39,7 @@ export function commitOperations(
         !Number.isSafeInteger(project.revision) ||
         project.revision < 0
       )
-        throw KERNEL_ERRORS.create("STORAGE_ERROR", {
+        throw ERRORS.create("STORAGE_ERROR", {
           message: "Invalid project revision metadata.",
         });
       let revision = project.revision;
@@ -98,7 +98,7 @@ export function commitOperations(
               conflict("Artifact Loom/Stage cannot change.");
           }
           if (revision === Number.MAX_SAFE_INTEGER)
-            throw KERNEL_ERRORS.create("STORAGE_ERROR", {
+            throw ERRORS.create("STORAGE_ERROR", {
               message: "Storage revision space exhausted.",
             });
           const entry: StoredArtifact = {

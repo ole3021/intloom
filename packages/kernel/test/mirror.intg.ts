@@ -1,6 +1,15 @@
-import { startProjectHost } from "../src/service/host.ts";
-import { initializeProject } from "../src/core/initialize-project.ts";
-import { createEffector } from "../src/effector/create-effector.ts";
+import { restoreMirror } from "../src/host/restore-mirror.ts";
+import { unwrapMutation } from "../src/runtime/mutation.ts";
+import type { Runtime } from "../src/runtime/contracts.ts";
+async function resume(
+  runtime: Runtime,
+  ...args: Parameters<Runtime["resumeRun"]>
+) {
+  return unwrapMutation(await runtime.resumeRun(...args));
+}
+import { startProjectHost } from "../src/host/project-host.ts";
+import { initializeProject } from "../src/host/create-project-execution.ts";
+import { createExecution } from "../src/execution/create-execution.ts";
 import { openFileStorage } from "../src/storage/file/open.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -18,23 +27,20 @@ import {
 } from "node:fs/promises";
 import {
   mirrorProject,
-  mirrorWorkflow,
+  mirrorLoom,
   openMirrorProject,
   snapshot,
   stable,
 } from "./mirror-fixture.ts";
-import { flow } from "../src/core/execution.ts";
+import { run } from "./operations-harness.ts";
 import {
-  restoreMirror,
   listMirrors,
   inspectMirror,
   exportMirrors,
-} from "../src/service/application/mirrors.ts";
+} from "../src/operations/mirrors.ts";
 import { findMirror, readMirrorDirectory } from "../src/mirror/coordinator.ts";
 import type { MirrorManifest } from "../src/mirror/contracts.ts";
-import { scanFiles, validateFilePaths } from "../src/mirror/files.ts";
-import { createWriteGate } from "../src/mirror/write-gate.ts";
-import { setImmediate } from "node:timers/promises";
+import { scanFiles } from "../src/mirror/files.ts";
 
 for (const backend of ["file", "sqlite"] as const)
   test(`${backend}: immutable full images, scopes, paused restart, current Code and upstream data`, async (t) => {
@@ -44,11 +50,9 @@ for (const backend of ["file", "sqlite"] as const)
     await chmod(join(source.root, "inputs/empty"), 0o700);
     const original = await openMirrorProject(source.root, backend);
     t.after(() => original.close());
-    const done = await flow(
-      original.execution,
-      "mirror-case",
-      "deterministic tiny project",
-    );
+    const done = await run(original.execution, "mirror-case", {
+      prompt: "deterministic tiny project",
+    });
     assert.equal(done.status, "completed", JSON.stringify(done));
     await stable(original.execution, done.runId);
     const images = (await listMirrors(source.root)) as MirrorManifest[];
@@ -98,11 +102,7 @@ for (const backend of ["file", "sqlite"] as const)
     const sourceBytes = await readFile(
       join(beforeImage.directory, "checkpoint.json"),
     );
-    const target = await mirrorProject(
-      t,
-      backend,
-      mirrorWorkflow({ delta: 10 }),
-    );
+    const target = await mirrorProject(t, backend, mirrorLoom({ delta: 10 }));
     const restored = await restoreMirror({
       sourceProject: source.root,
       mirrorId: before.mirrorId,
@@ -117,8 +117,8 @@ for (const backend of ["file", "sqlite"] as const)
       { valid: true },
     );
     assert.equal(
-      await readFile(join(target.workflowRoot, "workflow.js"), "utf8"),
-      mirrorWorkflow({ delta: 10 }),
+      await readFile(join(target.loomRoot, "loom.js"), "utf8"),
+      mirrorLoom({ delta: 10 }),
     );
     let branch = await openMirrorProject(target.root, backend);
     assert.equal(
@@ -134,7 +134,7 @@ for (const backend of ["file", "sqlite"] as const)
       expectedRevision: paused.revision,
       serviceInstanceId: paused.serviceInstanceId,
     };
-    const accepted = await branch.execution.runtime.resumeRun(done.runId, op);
+    const accepted = await resume(branch.execution.runtime, done.runId, op);
     const stopped = await stable(branch.execution, done.runId);
     assert.equal(stopped.status, "paused");
     assert.equal(stopped.control?.pauseReason, "scope_completed");
@@ -143,13 +143,13 @@ for (const backend of ["file", "sqlite"] as const)
       '{"n":11}',
     );
     assert.equal((await branch.storage.access.listRecords({})).data.length, 2);
-    assert.deepEqual(
-      await branch.execution.runtime.resumeRun(done.runId, op),
-      accepted,
-    );
+    assert.equal(accepted.status, "running");
+    await assert.rejects(resume(branch.execution.runtime, done.runId, op), {
+      code: "CONFLICT",
+    });
     assert.equal((await branch.storage.access.listRecords({})).data.length, 2);
     await assert.rejects(
-      branch.execution.runtime.resumeRun(done.runId, {
+      resume(branch.execution.runtime, done.runId, {
         operationId: randomUUID(),
       }),
       /explicit new scope/u,
@@ -166,12 +166,15 @@ for (const backend of ["file", "sqlite"] as const)
       await branch.storage.access.getLatestRecord("mirror-case", "second"),
       undefined,
     );
-    await assert.rejects(flow(branch.execution, "mirror-case", "another"), {
-      code: "BUSY",
-    });
-    await branch.execution.runtime.resumeRun(done.runId, {
+    await assert.rejects(
+      run(branch.execution, "mirror-case", { prompt: "another" }),
+      {
+        code: "BUSY",
+      },
+    );
+    await resume(branch.execution.runtime, done.runId, {
       operationId: randomUUID(),
-      scope: "workflow",
+      scope: "loom",
     });
     assert.equal(
       (await stable(branch.execution, done.runId)).status,
@@ -192,7 +195,7 @@ for (const backend of ["file", "sqlite"] as const)
     const stageTarget = await mirrorProject(
       t,
       backend,
-      mirrorWorkflow({ failInit: true }),
+      mirrorLoom({ failInit: true }),
     );
     await restoreMirror({
       sourceProject: source.root,
@@ -202,7 +205,7 @@ for (const backend of ["file", "sqlite"] as const)
     });
     const stageBranch = await openMirrorProject(stageTarget.root, backend);
     t.after(() => stageBranch.close());
-    await stageBranch.execution.runtime.resumeRun(done.runId, {
+    await resume(stageBranch.execution.runtime, done.runId, {
       operationId: randomUUID(),
     });
     const stageStopped = await stable(stageBranch.execution, done.runId);
@@ -226,7 +229,7 @@ for (const backend of ["file", "sqlite"] as const)
     const initTarget = await mirrorProject(
       t,
       backend,
-      mirrorWorkflow({ failInit: true }),
+      mirrorLoom({ failInit: true }),
     );
     await restoreMirror({
       sourceProject: source.root,
@@ -236,7 +239,7 @@ for (const backend of ["file", "sqlite"] as const)
     });
     const initBranch = await openMirrorProject(initTarget.root, backend);
     t.after(() => initBranch.close());
-    await initBranch.execution.runtime.resumeRun(done.runId, {
+    await resume(initBranch.execution.runtime, done.runId, {
       operationId: randomUUID(),
     });
     const initFailed = await stable(initBranch.execution, done.runId);
@@ -251,17 +254,17 @@ for (const backend of ["file", "sqlite"] as const)
       const target = await mirrorProject(
         t,
         backend,
-        mirrorWorkflow({ delta: 100 }),
+        mirrorLoom({ delta: 100 }),
       );
       await restoreMirror({
         sourceProject: source.root,
         mirrorId: image.mirrorId,
         targetProject: target.root,
-        scope: "workflow",
+        scope: "loom",
       });
       const branch = await openMirrorProject(target.root, backend);
       t.after(() => branch.close());
-      await branch.execution.runtime.resumeRun(done.runId, {
+      await resume(branch.execution.runtime, done.runId, {
         operationId: randomUUID(),
       });
       assert.equal(
@@ -298,14 +301,14 @@ for (const backend of ["file", "sqlite"] as const)
     const incompatible = await mirrorProject(
       t,
       backend,
-      mirrorWorkflow({ invalidSchema: true }),
+      mirrorLoom({ invalidSchema: true }),
     );
     await assert.rejects(
       restoreMirror({
         sourceProject: source.root,
         mirrorId: before.mirrorId,
         targetProject: incompatible.root,
-        scope: "workflow",
+        scope: "loom",
       }),
       { code: "MIRROR_RESTORE_FAILED" },
     );
@@ -317,7 +320,7 @@ for (const backend of ["file", "sqlite"] as const)
         sourceProject: source.root,
         mirrorId: before.mirrorId,
         targetProject: conflict.root,
-        scope: "workflow",
+        scope: "loom",
       }),
       { code: "MIRROR_RESTORE_FAILED" },
     );
@@ -333,7 +336,7 @@ for (const backend of ["file", "sqlite"] as const)
             sourceProject: source.root,
             mirrorId: before.mirrorId,
             targetProject: target.root,
-            scope: "workflow",
+            scope: "loom",
           },
           { failAt },
         ),
@@ -347,7 +350,7 @@ for (const backend of ["file", "sqlite"] as const)
     }
     const exportTarget = join(source.root, "..", `export-${randomUUID()}`);
     t.after(() => rm(exportTarget, { recursive: true, force: true }));
-    await rm(source.workflowRoot, { recursive: true });
+    await rm(source.loomRoot, { recursive: true });
     assert.equal(
       (await inspectMirror(source.root, before.mirrorId)).integrity.valid,
       true,
@@ -361,41 +364,6 @@ for (const backend of ["file", "sqlite"] as const)
       sourceBytes,
     );
   });
-
-test("safe file manifests reject case normalization, traversal and target Code conflicts", () => {
-  assert.throws(
-    () =>
-      validateFilePaths({
-        schemaVersion: 1,
-        entries: [
-          { type: "directory", path: "A" },
-          { type: "directory", path: "a" },
-        ],
-        includes: [],
-        excluded: [],
-      }),
-    /normalized/u,
-  );
-  for (const path of [
-    "../escape",
-    "/absolute",
-    "x/../escape",
-    ".intloom/workflows/file",
-    "src/file",
-  ]) {
-    assert.throws(() =>
-      validateFilePaths(
-        {
-          schemaVersion: 1,
-          entries: [{ type: "directory", path }],
-          includes: [],
-          excluded: [],
-        },
-        { protectedPaths: ["src/file"] },
-      ),
-    );
-  }
-});
 
 test("safe file scan rejects case collisions on case-sensitive filesystems", async (t) => {
   const p = await mirrorProject(t, "file");
@@ -419,35 +387,6 @@ test("safe file scan rejects symlinks", async (t) => {
   await symlink("/tmp", join(p.root, "external"));
   await assert.rejects(scanFiles(p.root, {}), /Symbolic link/u);
 });
-test("capture write gate waits for already admitted work and rejects new writes during capture", async () => {
-  const gate = createWriteGate();
-  let release!: () => void;
-  const accepted = new Promise<void>((r) => {
-    release = r;
-  });
-  let settled = false;
-  const project = gate.project({
-    snapshot: async () => ({}),
-    read: async () => "",
-    write: async () => {
-      await accepted;
-      settled = true;
-    },
-    remove: async () => {},
-    run: async () => {
-      throw new Error("unused");
-    },
-  });
-  const write = project.write("x", "value");
-  const capture = gate.capture(async () => {
-    assert.equal(settled, true);
-    assert.throws(() => gate.assertOpen(), { code: "BUSY" });
-  });
-  await setImmediate();
-  release();
-  await Promise.all([write, capture]);
-  gate.assertOpen();
-});
 
 test("corrupt manifests and data refuse executable restore; current imported Code files stay protected", async (t) => {
   const source = await mirrorProject(t, "file");
@@ -457,7 +396,9 @@ test("corrupt manifests and data refuse executable restore; current imported Cod
     "export const marker='snapshot business file';",
   );
   const host = await openMirrorProject(source.root, "file");
-  const done = await flow(host.execution, "mirror-case", "integrity");
+  const done = await run(host.execution, "mirror-case", {
+    prompt: "integrity",
+  });
   await stable(host.execution, done.runId);
   const images = (await listMirrors(source.root)) as MirrorManifest[];
   const image = images.find(
@@ -469,11 +410,11 @@ test("corrupt manifests and data refuse executable restore; current imported Cod
   await mkdir(join(target.root, "src"));
   await writeFile(
     join(target.root, "src/code.mjs"),
-    "export const marker='current Workflow Code';",
+    "export const marker='current Loom Code';",
   );
-  const code = await readFile(join(target.workflowRoot, "workflow.js"), "utf8");
+  const code = await readFile(join(target.loomRoot, "loom.js"), "utf8");
   await writeFile(
-    join(target.workflowRoot, "workflow.js"),
+    join(target.loomRoot, "loom.js"),
     `import {marker} from ${JSON.stringify(new URL(`file://${join(target.root, "src/code.mjs")}`).href)};\n${code}`,
   );
   await assert.rejects(
@@ -481,19 +422,19 @@ test("corrupt manifests and data refuse executable restore; current imported Cod
       sourceProject: source.root,
       mirrorId: image.mirrorId,
       targetProject: target.root,
-      scope: "workflow",
+      scope: "loom",
     }),
     /protected target path: src\/code.mjs/u,
   );
   assert.match(
     await readFile(join(target.root, "src/code.mjs"), "utf8"),
-    /current Workflow Code/u,
+    /current Loom Code/u,
   );
   const original = await readFile(join(directory, "checkpoint.json"));
   for (const corrupted of [
     "{",
     "{}",
-    original.toString().replace('"schemaVersion":2', '"schemaVersion":99'),
+    original.toString().replace('"schemaVersion":3', '"schemaVersion":99'),
   ]) {
     await writeFile(join(directory, "checkpoint.json"), corrupted);
     const target = await mirrorProject(t, "file");
@@ -502,7 +443,7 @@ test("corrupt manifests and data refuse executable restore; current imported Cod
         sourceProject: source.root,
         mirrorId: image.mirrorId,
         targetProject: target.root,
-        scope: "workflow",
+        scope: "loom",
       }),
       { code: "MIRROR_RESTORE_FAILED" },
     );
@@ -519,7 +460,7 @@ test("corrupt manifests and data refuse executable restore; current imported Cod
       sourceProject: source.root,
       mirrorId: images[0]?.mirrorId ?? "",
       targetProject: target2.root,
-      scope: "workflow",
+      scope: "loom",
     }),
     { code: "MIRROR_RESTORE_FAILED" },
   );
@@ -528,7 +469,9 @@ test("corrupt manifests and data refuse executable restore; current imported Cod
 test("two restores of one image stay independent; later initialization, entry stage scope and commit markers remain exact", async (t) => {
   const source = await mirrorProject(t, "file");
   const origin = await openMirrorProject(source.root, "file");
-  const done = await flow(origin.execution, "mirror-case", "remaining matrix");
+  const done = await run(origin.execution, "mirror-case", {
+    prompt: "remaining matrix",
+  });
   await stable(origin.execution, done.runId);
   const images = (await listMirrors(source.root)) as MirrorManifest[];
   const before = images.find(
@@ -540,17 +483,15 @@ test("two restores of one image stay independent; later initialization, entry st
       x.boundary.kind === "stage_before_init" && x.boundary.stageVisitId === 2,
   );
   assert.ok(laterInit);
-  const workflowStart = images.find(
-    (x) => x.boundary.kind === "workflow_start",
-  );
-  assert.ok(workflowStart);
+  const loomStart = images.find((x) => x.boundary.kind === "loom_start");
+  assert.ok(loomStart);
   const after = images.find(
     (x) => x.boundary.kind === "step_after" && x.boundary.stepVisitId === 2,
   );
   assert.ok(after);
   const twins = [];
   for (const delta of [10, 20]) {
-    const target = await mirrorProject(t, "file", mirrorWorkflow({ delta }));
+    const target = await mirrorProject(t, "file", mirrorLoom({ delta }));
     const restored = await restoreMirror({
       sourceProject: source.root,
       mirrorId: before.mirrorId,
@@ -558,7 +499,7 @@ test("two restores of one image stay independent; later initialization, entry st
       scope: "step",
     });
     const host = await openMirrorProject(target.root, "file");
-    await host.execution.runtime.resumeRun(done.runId, {
+    await resume(host.execution.runtime, done.runId, {
       operationId: randomUUID(),
     });
     const result = await stable(host.execution, done.runId);
@@ -587,7 +528,7 @@ test("two restores of one image stay independent; later initialization, entry st
       sourceProject: source.root,
       mirrorId: before.mirrorId,
       targetProject: first.target.root,
-      scope: "workflow",
+      scope: "loom",
     }),
     /existing business Storage or checkpoints/u,
   );
@@ -596,11 +537,7 @@ test("two restores of one image stay independent; later initialization, entry st
     '{"n":11}',
   );
   // A later Stage initializer is tested without running the earlier (now failing) initializer.
-  const second = await mirrorProject(
-    t,
-    "file",
-    mirrorWorkflow({ failInit: true }),
-  );
+  const second = await mirrorProject(t, "file", mirrorLoom({ failInit: true }));
   await restoreMirror({
     sourceProject: source.root,
     mirrorId: laterInit.mirrorId,
@@ -608,7 +545,7 @@ test("two restores of one image stay independent; later initialization, entry st
     scope: "stage",
   });
   const later = await openMirrorProject(second.root, "file");
-  await later.execution.runtime.resumeRun(done.runId, {
+  await resume(later.execution.runtime, done.runId, {
     operationId: randomUUID(),
   });
   const laterDone = await stable(later.execution, done.runId);
@@ -618,7 +555,7 @@ test("two restores of one image stay independent; later initialization, entry st
   const entry = await mirrorProject(t, "file");
   const entryRestored = await restoreMirror({
     sourceProject: source.root,
-    mirrorId: workflowStart.mirrorId,
+    mirrorId: loomStart.mirrorId,
     targetProject: entry.root,
     scope: "stage",
   });
@@ -627,7 +564,7 @@ test("two restores of one image stay independent; later initialization, entry st
     stageVisitId: 1,
   });
   const entryHost = await openMirrorProject(entry.root, "file");
-  await entryHost.execution.runtime.resumeRun(done.runId, {
+  await resume(entryHost.execution.runtime, done.runId, {
     operationId: randomUUID(),
   });
   const stopped = await stable(entryHost.execution, done.runId);
@@ -637,7 +574,7 @@ test("two restores of one image stay independent; later initialization, entry st
   const reordered = await mirrorProject(
     t,
     "file",
-    mirrorWorkflow().replace(
+    mirrorLoom().replace(
       "n:z.number(),runId:z.string()",
       "runId:z.string(),n:z.number()",
     ),
@@ -651,7 +588,7 @@ test("two restores of one image stay independent; later initialization, entry st
   const rerouted = await mirrorProject(
     t,
     "file",
-    mirrorWorkflow().replace(
+    mirrorLoom().replace(
       "done:{kind:'stage_end'}",
       "done:{kind:'step',stepName:'work'}",
     ),
@@ -661,7 +598,7 @@ test("two restores of one image stay independent; later initialization, entry st
       sourceProject: source.root,
       mirrorId: after.mirrorId,
       targetProject: rerouted.root,
-      scope: "workflow",
+      scope: "loom",
     }),
     /different route/u,
   );
@@ -669,7 +606,7 @@ test("two restores of one image stay independent; later initialization, entry st
   await assert.rejects(
     restoreMirror({
       sourceProject: source.root,
-      mirrorId: workflowStart.mirrorId,
+      mirrorId: loomStart.mirrorId,
       targetProject: sqlite.root,
       scope: "stage",
     }),
@@ -680,7 +617,7 @@ test("two restores of one image stay independent; later initialization, entry st
       sourceProject: source.root,
       mirrorId: before.mirrorId,
       targetProject: source.root,
-      scope: "workflow",
+      scope: "loom",
     }),
     /independent/u,
   );
@@ -691,7 +628,7 @@ test("two restores of one image stay independent; later initialization, entry st
       sourceProject: source.root,
       mirrorId: before.mirrorId,
       targetProject: shared.root,
-      scope: "workflow",
+      scope: "loom",
     }),
     /Symbolic link/u,
   );
@@ -728,7 +665,7 @@ test("two restores of one image stay independent; later initialization, entry st
       initializeProject(first.target.root, {
         storage: formal.access,
         storageHandle: formal,
-        effector: createEffector(),
+        executor: createExecution(),
         runtimeDirectory: join(first.target.root, ".intloom/runtime"),
       }),
     );
