@@ -57,4 +57,4 @@ The compiled distribution exports `blueprint`, `codes`, and `agentSpecs`. It con
 
 The previous Intent data format is replaced without a compatibility migration. Existing legacy Artifacts and Records cannot serve as the new flow's formal basis.
 
-This refactor does not update or run the existing E2E harness. Its historical cases are not proof of the new flow; real-model and two-round E2E validation remain deferred.
+The CMD/MCP E2E harness and S01/M01 cases use the current Loom contract. Harness integration tests use controlled providers; they do not establish real-model acceptance. Run fresh real-model cases against the release build and retain their reports before claiming acceptance. See [E2E usage](../../apps/cli/src/e2e/README.md).

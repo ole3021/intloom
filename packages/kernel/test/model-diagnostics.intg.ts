@@ -101,7 +101,7 @@ test("actual model request failures preserve safe HTTP and transport diagnostics
       responseBody: JSON.stringify({
         error: { code: "model_not_found", message: secret },
       }),
-      isRetryable: true,
+      isRetryable: false,
     }),
     Object.assign(new Error(secret), { code: "UND_ERR_HEADERS_TIMEOUT" }),
   ];
@@ -125,7 +125,7 @@ test("actual model request failures preserve safe HTTP and transport diagnostics
         return true;
       },
     );
-    assert.equal(executable.requests.length, 1);
+    assert.equal(executable.requests.length, index === 0 ? 1 : 4);
   }
   logs.flush();
   const raw = await readFile(logs.filePath, "utf8");

@@ -21,8 +21,8 @@ Shift+Enter requires modifier reporting through the Kitty keyboard protocol; inp
 
 | MVP command | Action |
 | --- | --- |
-| `/run [workflow]` | Create an intent draft; submitting intent creates the Run |
-| `/workflow` | Choose Workflow, equivalent to Ctrl+P |
+| `/run [loom]` | Create an intent draft; submitting intent creates the Run |
+| `/loom` | Choose Workflow, equivalent to Ctrl+P |
 | `/runs` | Switch Run, equivalent to Ctrl+O |
 | `/resume` | Continue a paused Run under existing scope/boundary rules |
 | `/stop` | Confirm stopping an unfinished Run, retaining committed resources |

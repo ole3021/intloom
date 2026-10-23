@@ -1,6 +1,6 @@
 {
   "name": "@intloom/loom-sdk",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "type": "module",
   "description": "Public contracts and stateless capabilities for compiled IntLoom Looms",
   "exports": {

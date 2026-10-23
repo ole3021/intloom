@@ -11,11 +11,53 @@ import { MastraError } from "@mastra/core/error";
 import * as z from "zod";
 import { LoomError } from "@intloom/utils";
 import { ERRORS } from "../errors.ts";
-import { resultError, toolError } from "./errors.ts";
+import { resultError, toolError, toolErrorDiagnostics } from "./errors.ts";
 import { agentError, modelErrorDiagnostics } from "./model/errors.ts";
 import { toRunView } from "../runtime/to-run-view.ts";
 
 const privateText = "private-request-token-and-body";
+test("Tool diagnostics project only bounded codes without reading getters or private details", () => {
+  const cause = new LoomError("INVALID_INTENT_STAGE", privateText);
+  const error = toolError(cause, "read_evidence");
+  assert.deepEqual(toolErrorDiagnostics(error), {
+    errorCodes: ["TOOL_EXECUTION_FAILED", "INVALID_INTENT_STAGE"],
+  });
+  let invoked = false;
+  const accessor = Object.defineProperties(
+    {},
+    {
+      code: {
+        get() {
+          invoked = true;
+          return privateText;
+        },
+      },
+      cause: {
+        get() {
+          invoked = true;
+          return error;
+        },
+      },
+    },
+  );
+  assert.deepEqual(toolErrorDiagnostics(accessor), {
+    errorCodes: ["UNKNOWN_ERROR"],
+  });
+  assert.equal(invoked, false);
+  const cycle = { code: privateText, cause: undefined as unknown };
+  cycle.cause = cycle;
+  assert.deepEqual(toolErrorDiagnostics(cycle), {
+    errorCodes: ["UNKNOWN_ERROR"],
+  });
+  let nested: unknown = cause;
+  for (let index = 0; index < 20; index++)
+    nested = new Error(privateText, { cause: nested });
+  assert.equal(toolErrorDiagnostics(nested).errorCodes.length, 8);
+  assert.equal(
+    JSON.stringify(toolErrorDiagnostics(error)).includes(privateText),
+    false,
+  );
+});
 function requestError(statusCode?: number) {
   return new APICallError({
     message: privateText,
@@ -209,6 +251,28 @@ test("nested transport failures retain a bounded cause and never disclose SDK de
     sdkErrorId: "AGENT_GENERATE_FAILED",
     httpStatus: 403,
   });
+});
+
+test("SDK request wrapping preserves connection details without exposing request data", () => {
+  const reset = Object.assign(new Error(privateText), { code: "ECONNRESET" });
+  const wrapped = new APICallError({
+    message: privateText,
+    url: `https://model.invalid/?token=${privateText}`,
+    requestBodyValues: { secret: privateText },
+    cause: reset,
+    isRetryable: true,
+  });
+  for (const cause of [wrapped, sdkWrapper(wrapped)]) {
+    const error = agentError(cause);
+    assert.equal(error.code, "LLM_REQUEST_FAILED");
+    assert.match(error.message, /Transport ECONNRESET/u);
+    assert.equal(
+      error.retryable,
+      false,
+      "Request retries do not authorize Run replay",
+    );
+    assert.equal(error.message.includes(privateText), false);
+  }
 });
 
 test("known output limit takes precedence over a structured result rejected after truncation", () => {

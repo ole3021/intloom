@@ -9,7 +9,7 @@ import { E2eError, type ModelConfig } from "./contracts.ts";
 import type { Evidence } from "./evidence.ts";
 import type { ModelToolCall } from "./answers.ts";
 import { resolveModelConfig } from "@mastra/core/llm";
-import { modelTransport } from "./transport.ts";
+import { modelRequestDiagnostics, modelTransport } from "./transport.ts";
 import {
   parseFinalResponse,
   parseStructuredResponse,
@@ -107,7 +107,6 @@ export async function runAgent(input: {
     signal,
     evidence: input.evidence,
     timeoutMs: input.connectionTimeoutMs ?? 60000,
-    retries: input.connectionRetries ?? 0,
     idleTimeoutMs: input.idleTimeoutMs,
     onFailure(cause) {
       transportFailure = cause;
@@ -154,7 +153,7 @@ export async function runAgent(input: {
       toolCallConcurrency: 1,
       requireToolApproval: false,
       autoResumeSuspendedTools: false,
-      modelSettings: { maxRetries: 0 },
+      modelSettings: { maxRetries: input.connectionRetries ?? 3 },
       maxProcessorRetries: 0,
       ...(input.taskCompletion
         ? { toolChoice: "required" as const, stopWhen: () => taskCompleted }
@@ -216,6 +215,7 @@ export async function runAgent(input: {
     input.signal.throwIfAborted();
     if (completionFailure) throw completionFailure;
     if (transportFailure) throw transportFailure;
+    if (response.error) throw response.error;
     const final = response.steps.at(-1);
     await input.evidence.event("model_final", {
       actor: input.id,
@@ -226,7 +226,6 @@ export async function runAgent(input: {
     });
     if (
       failed ||
-      response.error ||
       !(taskCompleted
         ? ["stop", "tool-calls"].includes(response.finishReason ?? "")
         : response.finishReason === "stop") ||
@@ -264,9 +263,8 @@ export async function runAgent(input: {
       code?: unknown;
       responseBody?: unknown;
     } | null;
-    const statusCode =
-      typeof details?.statusCode === "number" ? details.statusCode : undefined;
-    const code = typeof details?.code === "string" ? details.code : undefined;
+    const { httpStatus: statusCode, transportCode: code } =
+      modelRequestDiagnostics(cause);
     const diagnostic =
       cause instanceof Error && cause.message.trim()
         ? cause.message
@@ -282,9 +280,11 @@ export async function runAgent(input: {
           : undefined,
     });
     throw new E2eError(
-      "MODEL_REQUEST_FAILED",
-      `The test AI request failed${statusCode ? ` (HTTP ${statusCode})` : ""}. See model-error evidence.`,
-      statusCode === 401 || statusCode === 403 ? "environment" : "model",
+      code ? "MODEL_TRANSPORT_FAILED" : "MODEL_REQUEST_FAILED",
+      `The test AI request failed${statusCode ? ` (HTTP ${statusCode})` : ""}${code ? `: ${code}` : ""}. See model-error and connection evidence.`,
+      code || statusCode === 401 || statusCode === 403
+        ? "environment"
+        : "model",
     );
   } finally {
     await input.evidence.flush();

@@ -10,7 +10,7 @@ TUI runs Workflows, controls Runs and browses resources in the current project. 
 
 Tab cycles **Run → Logs → Assets**. Ctrl+O searches/switches Runs while retaining the current window. Ctrl+P chooses a Workflow for a new intent draft. Window switching preserves answer drafts, resource filters and log position. Workflow selection applies to new Run drafts.
 
-Type `/` to immediately list six MVP commands: `/run`, `/workflow`, `/runs`, `/resume`, `/stop`, `/quit`. Continue typing to filter, use arrows/Enter to select/execute, and Esc to dismiss. Unavailable commands remain visible with explanations. A slash inside ordinary text remains text.
+Type `/` to immediately list six MVP commands: `/run`, `/loom`, `/runs`, `/resume`, `/stop`, `/quit`. Continue typing to filter, use arrows/Enter to select/execute, and Esc to dismiss. Unavailable commands remain visible with explanations. A slash inside ordinary text remains text.
 
 ## Answers and execution control
 

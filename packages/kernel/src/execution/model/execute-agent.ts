@@ -126,7 +126,7 @@ export async function executeServiceAgent(
         toolCallConcurrency: 1,
         requireToolApproval: false,
         autoResumeSuspendedTools: false,
-        modelSettings: { maxRetries: 0 },
+        modelSettings: { maxRetries: 3 },
         maxProcessorRetries: 0,
         toolsets: { intloomCompletion: { [completionName]: complete } },
         stopWhen: () => completion !== undefined,
@@ -175,7 +175,7 @@ export async function executeServiceAgent(
               callbackError === undefined
                 ? ERRORS.create("LLM_RESPONSE_INVALID", {
                     message:
-                      "The opened provider stream ended without an explicit completion reason. No continuation or retry was attempted.",
+                      "The opened provider stream ended without a recognized completion reason. No continuation or retry was attempted.",
                   })
                 : agentError(callbackError, "error");
             fail(error);

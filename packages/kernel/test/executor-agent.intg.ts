@@ -244,7 +244,7 @@ test("model failures and incomplete model iterations are not reported as complet
   await assert.rejects(
     createExecution().executeAgent(executable, null, executionAccess().agent),
   );
-  assert.equal(executable.requests.length, 1);
+  assert.equal(executable.requests.length, 4);
   await assert.rejects(
     createExecution().executeAgent(
       scriptedAgent(() => ({

@@ -18,7 +18,12 @@ import {
 import { specificationRecordSchema } from "../../specification/schema/record.ts";
 import { solutionRecordSchema } from "../../solution/schema/record.ts";
 import { implementationRecordSchema } from "../schema/record.ts";
-import { snapshot, assertCandidate, changes } from "../../../src/project.ts";
+import {
+  snapshot,
+  assertCandidate,
+  changes,
+  inheritEvidence,
+} from "../../../src/project.ts";
 import { verifyQueue, assertSettled } from "../../../src/verification.ts";
 import { readState } from "./actions.ts";
 import {
@@ -63,6 +68,7 @@ export async function prepare(access: StageCodeAccess) {
         attempts: 0,
       }));
   }
+  inheritEvidence(s, s.specification?.evidence ?? [], s.solution.evidence);
   s.task = "implement";
   await save(access, s);
   return { outcome: "ready" };

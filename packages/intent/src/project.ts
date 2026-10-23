@@ -59,6 +59,17 @@ export function getEvidence(state: BaseState, ref: string) {
   if (!item) fail(`Unknown evidence: ${ref}`);
   return item;
 }
+/** Adopt fixed Record receipts without changing their original identity. */
+export function inheritEvidence(state: BaseState, ...sources: Evidence[][]) {
+  const items = new Map(state.evidence.map((item) => [item.id, item]));
+  for (const item of sources.flat()) {
+    const existing = items.get(item.id);
+    if (existing && digest(existing) !== digest(item))
+      fail("Conflicting inherited evidence.", "INVALID_INTENT_BASIS");
+    if (!existing) items.set(item.id, structuredClone(item));
+  }
+  state.evidence = [...items.values()];
+}
 export function evidenceView(items: Evidence[]) {
   return items.map(({ data, ...item }) => {
     const execution = executionDataSchema.safeParse(data);

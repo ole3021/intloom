@@ -21,7 +21,7 @@ intloom --version
 node --version
 intloom status --json
 intloom doctor --execution cli --json
-intloom flows --json
+intloom looms --json
 intloom attach RUN-example --json
 intloom logs RUN-example --debug --json
 ```

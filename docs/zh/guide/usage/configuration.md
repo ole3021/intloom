@@ -4,17 +4,15 @@ title: 配置项目与模型
 
 # 配置项目与模型
 
-Service 停止时编辑 `intloom.yaml`，保留已安装的 `workflows` 条目。生成的最小配置如下：
+Service 停止时编辑 `intloom.yaml`，保留已安装的 `looms` 条目。生成的最小配置如下：
 
 ```yaml
 localStorage: file
 useMcpAgent: true
-workflows: []
-intent:
-  apps: []
+looms: []
 ```
 
-当前 Schema 要求 `intent.apps`。无需应用偏好时保留空数组。在保存业务数据之前选择 `file` 或 `sqlite`；已有数据的后端切换没有自动迁移。
+在保存业务数据之前选择 `file` 或 `sqlite`；已有数据的后端切换没有自动迁移。
 
 ## 配置服务模型
 
@@ -25,15 +23,15 @@ llms:
     model: your-default-model
     secret: ENV.MODEL_API_KEY
     baseURL: https://your-provider.example/v1
-  review:
+  working:
     provider: anthropic
-    model: your-review-model
-    secret: ENV.REVIEW_API_KEY
+    model: your-working-model
+    secret: ENV.WORKING_API_KEY
     parameters:
       maxOutputTokens: 8192
 ```
 
-提供方支持 `anthropic` 和 `openai-compatible`。Step 选择 `reasoning`、`coding` 或 `review`；未配置的角色回退到 `default`。每个显式角色都是完整模型配置。
+提供方支持 `anthropic` 和 `openai-compatible`。Step 选择 `thinking`、`working` 或 `coding`；未配置的角色回退到 `default`。每个显式角色都是完整模型配置。
 
 `ENV.NAME` 优先读取 `process.env`，只有变量不存在时才读取目标项目根目录的普通 `.env` 文件。例如，`secret: ENV.ZEN_API_KEY` 可以使用该项目 `.env` 中的 `ZEN_API_KEY=your-key`。不检查父目录、调用命令的工作目录、`.env.local` 或符号链接文件，也不会把文件值写入全局 `process.env`。引号、注释和多行值遵循 Node 的 dotenv 语法，不执行变量展开或解密。
 

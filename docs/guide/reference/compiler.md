@@ -26,7 +26,7 @@ Returns `Promise<CompileResult>` containing `packageRoot`, `outputPath`, `packag
 
 ## Definitions, checks and output
 
-Definitions live in `package.json.loom`, using protocol `2026-10-14`. Stages use YAML and relative resource paths with optional `#exportName`. See the [definition reference](./workflow-yaml.md).
+Definitions live in `package.json.loom`, using protocol `2026-10-15`. Stages use YAML and relative resource paths with optional `#exportName`. See the [definition reference](./workflow-yaml.md).
 
 Compiler validates documents before following explicit references, links routes, generates the entry, invokes TypeScript and verifies the distribution. The generated entry checks Blueprint, Code, initializers, JSON-valued Schemas, Tools and AgentSpec against SDK. Author settings cannot disable these contract checks.
 

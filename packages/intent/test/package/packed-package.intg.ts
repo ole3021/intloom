@@ -1,3 +1,4 @@
+import { verifyConsumerImports } from "../../../../scripts/consumer.ts";
 import { testArchives } from "../../../../scripts/test-packages.ts";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
@@ -64,6 +65,7 @@ test("installs root-layout tarballs and loads Intent without repository sources 
       { cause },
     );
   }
+  await verifyConsumerImports(project);
   const kernelFiles = await readdir(
     resolve(project, "node_modules/@intloom/cli/node_modules/@intloom/kernel"),
     { recursive: true },

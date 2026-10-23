@@ -25,8 +25,8 @@ llms:
 intloom stop
 intloom start
 intloom doctor --execution cli
-intloom flows
-intloom flow intent --intent "Build a Todo app with local persistence"
+intloom looms
+intloom run intent --prompt "Build a Todo app with local persistence"
 ```
 
 保存返回的 Run ID。`doctor` 只检查就绪状态，不调用模型；flow 回执表示接收工作，并不表示流程已经完成。
@@ -56,9 +56,9 @@ intloom wait RUN-example
 ## 阅读结果
 
 ```sh
-intloom artifacts --flow intent
-intloom records --flow intent
-intloom artifact --flow intent --stage validation
+intloom artifacts --loom intent
+intloom records --loom intent
+intloom artifact --loom intent --stage validation
 ```
 
 阅读 Validation 的发现和检查结果。[CMD 指南](../usage/cmd.md)介绍脚本使用，[Intent 完整示例](../intent/walkthrough.md)介绍四个阶段。

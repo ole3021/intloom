@@ -22,7 +22,7 @@ await access.storage.commit([
     type: "create_artifact",
     id: "draft-1",
     payload: {
-      flowName: "review",
+      loomName: "review",
       stageName: "review",
       data: { approved: true },
     },
@@ -31,7 +31,7 @@ await access.storage.commit([
     type: "append_record",
     id: "review-1",
     payload: {
-      flowName: "review",
+      loomName: "review",
       stageName: "review",
       data: { decision: "approved" },
     },

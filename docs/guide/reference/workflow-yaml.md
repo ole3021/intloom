@@ -13,7 +13,7 @@ The top-level definition lives in `package.json.loom`; each Stage has its own YA
   "type": "module",
   "loom": {
     "type": "loom",
-    "version": "2026-10-14",
+    "version": "2026-10-15",
     "name": "review",
     "inputs": ["prompt"],
     "entry": "review",

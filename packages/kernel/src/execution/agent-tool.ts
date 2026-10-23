@@ -6,7 +6,9 @@ import type {
   JsonValue,
 } from "@intloom/loom-sdk";
 import { ERRORS } from "../errors.ts";
-import { toolError } from "./errors.ts";
+import { toolError, toolErrorDiagnostics } from "./errors.ts";
+import { getLogger } from "@intloom/utils";
+import { toolInputDigest } from "./tool-input-digest.ts";
 const inputErrors = new WeakSet<object>();
 
 export function isAgentToolInputError(cause: unknown): boolean {
@@ -82,6 +84,9 @@ export async function executeAgentTool(
 ): Promise<JsonValue> {
   const child = createToolAccess(access);
   access = child.access;
+  const log = getLogger();
+  const diagnostics = log.isLevelEnabled("debug");
+  const inputDigest = diagnostics ? toolInputDigest(input) : undefined;
   try {
     access.signal.throwIfAborted();
     const parsed = await tool.inputSchema.safeParseAsync(input);
@@ -113,6 +118,18 @@ export async function executeAgentTool(
       access.signal.throwIfAborted();
       throw failure ?? toolError(cause, tool.id);
     }
+  } catch (cause) {
+    try {
+      if (diagnostics)
+        log.debug("agent_tool_failed", {
+          toolName: tool.id,
+          inputDigest,
+          ...toolErrorDiagnostics(cause),
+        });
+    } catch {
+      // Retain the Tool failure; logger health is checked by execution owners.
+    }
+    throw cause;
   } finally {
     child.close();
   }

@@ -14,7 +14,7 @@
     },
     "apps/cli": {
       "name": "@intloom/cli",
-      "version": "0.0.6",
+      "version": "0.1.0",
       "bin": {
         "intloom": "./dist/bin.js",
       },
@@ -48,7 +48,7 @@
     },
     "apps/site": {
       "name": "intloom-site",
-      "version": "0.0.1",
+      "version": "0.1.0",
       "dependencies": {
         "@carbon/icons-react": "11.90.0",
         "motion": "14.0.0",
@@ -63,7 +63,7 @@
     },
     "packages/compiler": {
       "name": "@intloom/compiler",
-      "version": "0.0.3",
+      "version": "0.1.0",
       "dependencies": {
         "@intloom/loom-sdk": "workspace:*",
         "@intloom/utils": "workspace:*",
@@ -75,7 +75,7 @@
     },
     "packages/intent": {
       "name": "@intloom/intent",
-      "version": "0.0.4",
+      "version": "0.1.0",
       "dependencies": {
         "@intloom/loom-sdk": "workspace:*",
         "@intloom/utils": "workspace:*",
@@ -88,7 +88,7 @@
     },
     "packages/kernel": {
       "name": "@intloom/kernel",
-      "version": "0.0.6",
+      "version": "0.1.0",
       "dependencies": {
         "@ai-sdk/anthropic": "3.0.103",
         "@ai-sdk/provider": "3.0.14",
@@ -110,14 +110,14 @@
     },
     "packages/loom-sdk": {
       "name": "@intloom/loom-sdk",
-      "version": "0.0.3",
+      "version": "0.1.0",
       "dependencies": {
         "zod": "^4.6.5",
       },
     },
     "packages/utils": {
       "name": "@intloom/utils",
-      "version": "0.0.3",
+      "version": "0.1.0",
       "dependencies": {
         "nanoid": "^5.1.6",
         "pino": "^10.4.0",

@@ -7,8 +7,8 @@ title: 查看、回答与取消 Run
 只创建一次 Run，保留 ID，之后的操作都使用该 ID。
 
 ```sh
-intloom flow intent --intent-file ./request.txt --json
-intloom runs --flow intent
+intloom run intent --prompt-file ./request.txt --json
+intloom runs --loom intent
 intloom attach RUN-example --json
 intloom wait RUN-example --timeout 30000
 intloom watch RUN-example

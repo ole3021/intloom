@@ -78,7 +78,7 @@ export const limitsSchema = z.strictObject({
     .positive()
     .max(2147483647)
     .default(60000),
-  modelConnectionRetries: z.number().int().min(0).max(2).default(0),
+  modelConnectionRetries: z.number().int().min(0).max(3).default(3),
   modelIdleTimeoutMs: z.number().int().positive().max(2147483647).optional(),
 });
 export const modelsSchema = z.strictObject({

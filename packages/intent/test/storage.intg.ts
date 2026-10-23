@@ -8,6 +8,9 @@ import { openSqliteStorage } from "@intloom/kernel/storage/sqlite";
 import { runtime, requirements, scope, analysis, runId } from "./runtime.ts";
 import { check, confirm, commit } from "../stages/specification/src/steps.ts";
 import { recordId, inputRecord } from "../src/storage.ts";
+import { readProject, readEvidence } from "../src/tools/project.ts";
+import { rawState } from "../src/project.ts";
+import { prepare as prepareSolution } from "../stages/solution/src/steps.ts";
 for (const backend of ["file", "sqlite"] as const)
   test(`${backend}: confirmed stage publishes atomically, survives cleanup failure and storage reopen`, async (t) => {
     const root = await mkdtemp(join(tmpdir(), "intent-stage-storage-"));
@@ -28,6 +31,9 @@ for (const backend of ["file", "sqlite"] as const)
       { task: "draft", baseline: null, draft: requirements, scope, analysis },
       handle.access,
     );
+    await readProject.execute({ path: "greet.mjs" }, f.access);
+    const evidence = rawState(f.access).evidence[0];
+    assert.ok(evidence);
     await check(f.access);
     f.replies.push({ isConfirmed: true });
     await confirm(f.access);
@@ -49,4 +55,13 @@ for (const backend of ["file", "sqlite"] as const)
     );
     assert.ok(stored);
     assert.notEqual(stored.data, undefined);
+    const downstream = runtime("solution", {}, handle.access);
+    await prepareSolution(downstream.access);
+    assert.deepEqual(
+      await readEvidence.execute(
+        { evidenceRef: evidence.id },
+        downstream.access,
+      ),
+      evidence,
+    );
   });

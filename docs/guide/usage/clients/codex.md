@@ -24,6 +24,6 @@ The generated entry uses absolute Node and CLI paths, the exact project root, `-
 
 Open the same project in Codex. Project-scoped MCP configuration is loaded for trusted projects; Codex CLI can inspect configured servers with `codex mcp list` and active connections with `/mcp`. These client-side requirements are described in [official Codex MCP documentation](https://developers.openai.com/codex/mcp/).
 
-Verify `list_workflows` through the connected client, then complete [the MCP quick start](../../start/mcp.md), including an Agent task, a real human answer and saved results.
+Verify `list_looms` through the connected client, then complete [the MCP quick start](../../start/mcp.md), including an Agent task, a real human answer and saved results.
 
 If connection fails, check Service status, generated executable paths, project trust, and client MCP diagnostics. After reinstalling or changing Node paths, regenerate configuration and reconnect. Successful generation alone does not prove client acceptance.

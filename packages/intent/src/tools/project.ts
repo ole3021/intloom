@@ -10,7 +10,7 @@ import {
   assertCandidate,
 } from "../project.ts";
 import { json } from "../json.ts";
-import { save } from "../state.ts";
+import { save, toolResult } from "../state.ts";
 import { fail } from "../errors.ts";
 export const listProject = defineAgentTool({
   id: "list_project_files",
@@ -147,7 +147,7 @@ export const writeProject = defineAgentTool({
 export const removeProject = defineAgentTool({
   id: "remove_project_file",
   description:
-    "Remove a previously read file required by the confirmed feature change; register the actual deletion.",
+    "Remove a previously read file required by the confirmed feature change; register the actual deletion. Read its current content with read_project_file first, including files you just created. On saved=false no deletion occurred: correct the reported precondition before trying again.",
   inputSchema: z.strictObject({ path: text }),
   outputSchema: z.json(),
   execute: async ({ path }, access) => {
@@ -155,8 +155,16 @@ export const removeProject = defineAgentTool({
     if (state.stageName !== "implementation" || state.task !== "implement")
       fail("Removal is restricted to implementation.");
     const before = await snapshot(access);
+    if (!before.files[path])
+      return json({
+        ...toolResult(
+          state,
+          "The file is absent from the current project manifest. Use list_project_files to check the exact path; no deletion was performed.",
+        ),
+        code: "INTENT_FILE_NOT_FOUND",
+        path,
+      });
     if (
-      !before.files[path] ||
       !state.evidence.some(
         (item) =>
           item.kind === "project_read" &&
@@ -167,7 +175,14 @@ export const removeProject = defineAgentTool({
           item.data.contentDigest === before.files[path],
       )
     )
-      fail("Read the current file before removing it.");
+      return json({
+        ...toolResult(
+          state,
+          "Read this file's current content with read_project_file before removing it, including files you just created. No deletion was performed.",
+        ),
+        code: "INTENT_FILE_READ_REQUIRED",
+        path,
+      });
     await project(access).remove(path);
     const after = await snapshot(access);
     const item = evidence(

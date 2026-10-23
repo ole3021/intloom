@@ -12,7 +12,7 @@ CLI、轻量入口包和打包的私有 Kernel 构成协调发布单元。Workfl
 
 ## Workflow 产物协议
 
-当前协议为 **2026-10-08**，在 `package.json.intloom.version` 声明，由 Compiler 和宿主检查，与 npm 版本独立。
+当前协议为 **2026-10-15**，在 `package.json.loom.version` 声明，由 Compiler 和宿主检查，与 npm 版本独立。
 
 编译 Workflow 必须导出 blueprint/codes/agentSpecs，包含有效 Stage 初始化器及兼容资源。源文件或 Schema 改变后需要重建并重新安装。替换包前停止 Service，重启后采用新安装。
 

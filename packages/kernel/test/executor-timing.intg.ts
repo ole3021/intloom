@@ -8,6 +8,7 @@ import { APICallError } from "@ai-sdk/provider";
 import type { LanguageModel } from "@mastra/core/llm";
 import { createTool } from "@mastra/core/tools";
 import { LoomError, openLog, withLogger } from "@intloom/utils";
+import { defineAgentTool } from "@intloom/loom-sdk";
 import * as z from "zod";
 import { createExecution } from "../src/execution/create-execution.ts";
 import { timeModelRequest } from "../src/execution/model/model-timing.ts";
@@ -16,6 +17,8 @@ import type { ServiceModelObserver } from "../src/execution/execution.ts";
 import { executionAccess } from "./access-fixture.ts";
 import { latestToolResult, scriptedAgent } from "./executor-fixture.ts";
 import { deferred } from "./runtime-fixture.ts";
+import { serviceTool } from "../src/execution/model/agent-tools.ts";
+import { toolInputDigest } from "../src/execution/tool-input-digest.ts";
 
 type Row = Record<string, unknown> & { event: string };
 type Model = Extract<LanguageModel, { specificationVersion: "v2" }>;
@@ -399,7 +402,7 @@ test("model and Tool failures close their own timing and omit private causes", a
     ),
     { code: "TOOL_EXECUTION_FAILED" },
   );
-  assert.equal(model.requests.length, 1);
+  assert.equal(model.requests.length, 4);
   assert.equal(tool.requests.length, 1);
   const rows = await logs.rows();
   const modelRows = rows.filter((row) => row.runId === "RUN-model-failure");
@@ -421,6 +424,48 @@ test("model and Tool failures close their own timing and omit private causes", a
     false,
   );
   assert.equal(JSON.stringify(rows).includes(secret), false);
+});
+
+test("declared Tool failure logs correlate input digests and safe causes without recording arguments", async (t) => {
+  const logs = await logFixture(t);
+  const secret = "PRIVATE_EVIDENCE_REFERENCE_SENTINEL";
+  const input = { evidenceRef: secret };
+  const tool = defineAgentTool({
+    id: "read_evidence",
+    description: "Controlled missing reference",
+    inputSchema: z.strictObject({ evidenceRef: z.string() }),
+    outputSchema: z.json(),
+    execute() {
+      throw new LoomError(
+        "INVALID_INTENT_STAGE",
+        `Unknown evidence: ${secret}`,
+      );
+    },
+  });
+  const agent = scriptedAgent(() => ({ calls: [{ name: tool.id, input }] }), {
+    [tool.id]: serviceTool(tool),
+  });
+  await assert.rejects(
+    withLogger(
+      logs.logger.child({ runId: "RUN-reference-failure", executionId: 14 }),
+      () =>
+        createExecution().executeAgent(agent, null, executionAccess().agent),
+    ),
+    { code: "TOOL_EXECUTION_FAILED" },
+  );
+  const rows = await logs.rows();
+  const failure = event(rows, "agent_tool_failed");
+  assert.equal(failure.toolName, "read_evidence");
+  assert.equal(failure.inputDigest, toolInputDigest(input));
+  assert.equal(failure.runId, "RUN-reference-failure");
+  assert.equal(failure.executionId, 14);
+  assert.deepEqual(failure.errorCodes, [
+    "TOOL_EXECUTION_FAILED",
+    "INVALID_INTENT_STAGE",
+  ]);
+  assert.equal(JSON.stringify(rows).includes(secret), false);
+  assert.equal(agent.requests.length, 1);
+  event(rows, "tool_failed");
 });
 
 test("canceling a model or Tool logs stopped durations and prevents late completion", async (t) => {

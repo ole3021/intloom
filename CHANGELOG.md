@@ -1,12 +1,34 @@
 # Changelog
 
-## Unreleased
+## @intloom/cli@0.1.0
 
-- Separate unit, business integration and prepared-archive consumer tests with one `bun run verify` entry; cover the complete Intent Workflow and repair after a real failed host check.
-- Retry npm publication visibility before consumer verification, and distinguish unavailable versions from actual archive integrity conflicts.
-- Reserve CLI start/stop for service lifecycle and use flow, cancelRun, and cancelAllRuns for Kernel/Runtime execution.
-- Standardize RunView.cursor across CLI/MCP, query and answer names, and Workflow initialization diagnostic types.
-- Deprecate Query and SnapshotCategory in favor of StorageQuery and StorageCategory; retain compatibility aliases.
+- Adopt Loom commands and contracts: `run`, `looms`, `loom add/list/remove/install`, `--loom`, and `--prompt`. Update CMD, TUI and MCP together; old Workflow command names are not compatibility aliases.
+- Separate CMD/TUI, Core, Client and Service responsibilities. Bundle Kernel 0.1.0 with explicit Host, Operations, Runtime, Execution and Access boundaries; coordinate the `intloom` launcher at 0.1.0.
+- Use strict `looms` project configuration and `thinking`/`working`/`coding` model roles. Remove legacy `intent.apps` configuration.
+- Preserve immediate receipts and unknown write outcomes; follow the original Run without replaying side effects. Keep service start/stop separate from Run execution.
+- Share release consumer import/storage and CLI setup probes with prepublication tests. Update bilingual setup examples and keep real-model E2E acceptance separate from local validation.
+
+## @intloom/intent@0.1.0
+
+- Replace `@intloom/workflow-intent` with `@intloom/intent`, compiled against Loom protocol 2026-10-15 and the 0.1.0 SDK/Utils packages.
+- Use the four-stage Specification, Solution, Implementation and Validation contracts with explicit State, candidate confirmation, durable Artifacts and Records.
+- Replace the previous Intent data format without a compatibility migration. Historical Artifacts and Records cannot be used as the new contract's formal basis.
+- Migrate S01/M01 and the CMD/MCP E2E harness to the current contract; fresh real-model reports are required for runtime acceptance.
+
+## @intloom/compiler@0.1.0
+
+- Compile Loom packages through `compileLoom`, `package.json.loom` definitions and per-Stage YAML using protocol 2026-10-15.
+- Emit root-layout packages with named `blueprint`, `codes` and `agentSpecs` exports, declarations and declared Skill assets; use the 0.1.0 public dependencies.
+
+## @intloom/loom-sdk@0.1.0
+
+- Replace `@intloom/workflow-sdk` with `@intloom/loom-sdk`; expose `loomProtocolVersion`, Loom module schemas and `loomName` contracts.
+- Define executable Stage initialization, Code/Agent/Tool contracts and State/Storage/Interaction access independently from Kernel.
+- Use `StorageQuery` and `StorageCategory`; retired Query and SnapshotCategory aliases are not retained.
+
+## @intloom/utils@0.1.0
+
+- Coordinate shared errors, identifiers and logger contexts with the 0.1.0 Loom packages, retaining Node.js 26.4.0+ support.
 
 ## @intloom/cli@0.0.6
 

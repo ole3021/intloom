@@ -23,23 +23,23 @@ mirror:
 ```sh
 intloom mirror list --json
 intloom mirror inspect MIRROR-ID --json
-intloom mirror restore MIRROR-ID --to ../experiment --scope workflow --dry-run
-intloom mirror restore MIRROR-ID --to ../experiment --scope workflow
+intloom mirror restore MIRROR-ID --to ../experiment --scope loom --dry-run
+intloom mirror restore MIRROR-ID --to ../experiment --scope loom
 intloom start --project ../experiment
-intloom run resume RUN-example --project ../experiment
+intloom resume RUN-example --project ../experiment
 intloom mirror export TRACE-ID --to ../mirror-export
 ```
 
-恢复和启动后 Run 仍暂停。范围执行结束后，通过 `run resume --scope workflow` 明确选择下一范围。
+恢复和启动后 Run 仍暂停。范围执行结束后，通过 `resume --scope loom` 明确选择下一范围。
 
 | 范围 | 停止边界 |
 | --- | --- |
 | `step` | 一个 Step，要求真实 `step_before` 镜像 |
 | `stage` | 当前 Stage 访问结束、下一初始化之前 |
-| `workflow` | 继续剩余受支持执行 |
+| `loom` | 继续剩余受支持执行 |
 
 `step_after` 只根据已保存结果推进路由，不重复调用。终态镜像只能检查和导出。当前位置、路由、Schema 和执行策略必须兼容。
 
-捕获失败会暂停 Run，resume 重试捕获。持续失败时可以明确使用 `run resume RUN-example --scope workflow --abandon-mirror` 放弃该 Run 的后续捕获，不会自动降级。
+捕获失败会暂停 Run，resume 重试捕获。持续失败时可以明确使用 `resume RUN-example --scope loom --abandon-mirror` 放弃该 Run 的后续捕获，不会自动降级。
 
 镜像不包含外部服务，也不能撤销消息或远程写入；其中包含原始业务数据。限制为单文件 64 MiB、单镜像 1 GiB、10,000 项。未完成恢复的标记应保留到检查并清理本次创建内容之后。

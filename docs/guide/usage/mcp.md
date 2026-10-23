@@ -10,8 +10,8 @@ The default external policy `useMcpAgent: true` lets the client execute Agent St
 
 ## Follow the returned Run
 
-1. Call `list_workflows` and choose an available `flowName`.
-2. Call `flow` once with the complete intent.
+1. Call `list_looms` and choose an available `loomName`.
+2. Call `run` once with the complete intent.
 3. Inspect `pendingAgentCall`; claim and execute its declared task.
 4. Inspect `pendingAction`; present questions/confirmation and submit the user's actual answer.
 5. Follow the returned Run until terminal, then query committed results.

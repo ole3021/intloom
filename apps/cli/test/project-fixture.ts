@@ -226,7 +226,7 @@ export async function mcpClient(
 }
 
 /** Compiled fixture with an observable commit: writes a once record before answering so Code replay would cause an ID conflict. */
-const compiledLoom = `import * as z from "zod";
+export const compiledLoom = `import * as z from "zod";
 export const blueprint = {inputs:["prompt"], loomName: "fixture", entryStageName: "first", stages: {
   first: { stageName: "first", initializeState: ({ runId, input }) => ({ id: runId, intent: input.prompt }), stateSchema: z.object({ id: z.string(), intent: z.string(), answer: z.string().optional() }), entryStepName: "ask",
     steps: { ask: { stepName: "ask", execution: { kind: "code", codeId: "CODE-123456789012345678901" }, on: { complete: { kind: "stage_end" } } } }, on: { complete: { kind: "loom_end" } } }

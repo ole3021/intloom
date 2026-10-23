@@ -13,7 +13,7 @@ Loom 的顶层定义放在 `package.json.loom`，Stage 定义放在各自 YAML �
   "type": "module",
   "loom": {
     "type": "loom",
-    "version": "2026-10-14",
+    "version": "2026-10-15",
     "name": "review",
     "inputs": ["prompt"],
     "entry": "review",

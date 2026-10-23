@@ -11,6 +11,7 @@ import {
   seal,
 } from "../../../src/storage.ts";
 import { save } from "../../../src/state.ts";
+import { inheritEvidence } from "../../../src/project.ts";
 import {
   interact,
   approved,
@@ -38,6 +39,7 @@ export async function prepare(access: StageCodeAccess) {
     s.specificationRef = input.ref;
     s.specification = specificationRecordSchema.parse(input.data);
   }
+  inheritEvidence(s, s.specification.evidence);
   if (s.baseline === undefined) {
     s.baseline = await baseline(access.storage, "solution");
     s.draft = s.baseline

@@ -1,4 +1,5 @@
 import type * as z from "zod";
+import { types } from "node:util";
 import { ERRORS, type KernelError, type KernelErrorCode } from "../errors.ts";
 
 function causeChain(cause: unknown): unknown[] {
@@ -60,6 +61,25 @@ export function toolError(cause: unknown, toolName?: string): KernelError {
     cause,
     `${name}${dependency ? `Dependency error: ${dependency.code}. ` : ""}`,
   );
+}
+
+/** Project before passing to any logger, including caller-supplied loggers. */
+export function toolErrorDiagnostics(cause: unknown) {
+  const errorCodes: string[] = [];
+  const seen = new Set<object>();
+  let current = cause;
+  while (current && typeof current === "object" && seen.size < 8) {
+    if (seen.has(current) || types.isProxy(current)) break;
+    seen.add(current);
+    const code = Object.getOwnPropertyDescriptor(current, "code")?.value;
+    errorCodes.push(
+      typeof code === "string" && /^[A-Z][A-Z0-9_]{0,79}$/u.test(code)
+        ? code
+        : "UNKNOWN_ERROR",
+    );
+    current = Object.getOwnPropertyDescriptor(current, "cause")?.value;
+  }
+  return { errorCodes };
 }
 
 export function resultError(

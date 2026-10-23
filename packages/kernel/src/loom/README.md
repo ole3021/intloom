@@ -63,7 +63,7 @@ loomName is known only after module loading succeeds, so discover/load failures 
 
 ## Loading and registration rules
 
-- Initialization discovers declared packages only, excluding transitive and business dependencies. Standalone manifest inspection skips ordinary packages without intloom metadata. Deduplicate actual manifests. Looms must export ./package.json and use protocol 2026-10-08 exactly, independently of npm version.
+- Initialization discovers declared packages only, excluding transitive and business dependencies. Standalone manifest inspection skips ordinary packages without loom metadata. Deduplicate actual manifests. Looms must export ./package.json and use protocol 2026-10-15 exactly, independently of npm version.
 - Resolve compiled .js/.mjs through types/default/import exports; import and default must match. assetRoot is the actual entry directory, typically local dist or the installed package root. Check actual files and real paths without escaping the boundary.
 - ESM import evaluates top-level definitions. Loader does not parse source YAML, call Compiler, or execute Code/Tools/models for validation. The protocol supports Code/Agent Steps and is aligned with SDK; no Hook or Kernel Step is provided. When the installed Loom resolves a distinct Utils copy, Loader binds the host's current Logger into that copy for each Code invocation, its existing recovery entry, and Agent Tool `execute` call. This is a call-time adapter; loading never invokes Code or Tools. The adapter preserves synchronous returns, promises, exceptions, and function receivers; ordinary Tool method calls retain the original Tool receiver. Same-copy or missing Utils leaves Code and Tool functions unchanged; an installed Utils without its logger context API makes that Loom unavailable. Schemas, Skills, initializers, and other callbacks are outside this bridge.
 - Validate package-local references, validate every Agent resource, then register. Loom/Code/Agent conflicts preserve earlier successful packages and reject the later package entirely. Dependency order determines initialization order; failed packages reserve no IDs.
@@ -71,7 +71,7 @@ loomName is known only after module loading succeeds, so discover/load failures 
 
 ## Service assembly boundaries
 
-- Supported roles are reasoning/coding/review; missing dedicated configuration falls back to default. Unknown roles fail; callers validate configuration first.
+- Supported roles are thinking/working/coding; missing dedicated configuration falls back to default. Unknown roles fail; callers validate configuration first.
 - ENV.NAME reads process.env first; only undefined variables fall back to the canonical project's regular .env file, parsed with Node's dotenv parser. No ancestor, working-directory, variant or symlink files are loaded. The per-project file snapshot is lazy and retained until restart, without mutating process.env. DENV.NAME still requires external startup decryption, such as dotenvx. Missing/blank/encrypted required values fail service preparation before Run creation without exposing credentials. They do not make Loom resources unavailable.
 - OpenAI-compatible models use Mastra model name, credential, and optional endpoint configuration. Anthropic uses the native SDK and optional baseURL. Pass temperature, maxOutputTokens, topP, and SDK-compatible providerOptions.
 - Tools are assembled by ID with duplicate checks. Skills retain artifact order and unique names. Asset-bearing Skills use the actual directory containing SKILL.md and preserve relative references; others are inline. Startup checks Skill files, names and descriptions independently of the SDK. Service preparation additionally checks SDK assembly completeness.
@@ -79,7 +79,7 @@ loomName is known only after module loading succeeds, so discover/load failures 
 
 ## Validation
 
-From the root, run bun run check/test/test:intg with --filter=@intloom/kernel --filter=@intloom/loom-intent.
+From the root, run bun run check/test/test:intg with --filter=@intloom/kernel --filter=@intloom/intent.
 
 Unit tests cover structure/references, direct discovery, actual assembly, role defaults/settings, duplicate resources, and atomic registration. Anthropic request tests replace fetch to verify native endpoints without networking.
 
@@ -87,6 +87,6 @@ Kernel integration tests consume built exports and cover local dist/installed ro
 
 Loader tests prove model-independent discovery, resource validation, and registration. Service tests separately prove framework assembly. Runtime/Host separately verify scheduling, isolation, and in-process answers; clients, persistence, and model execution are outside Loader proof.
 
-## N2 Stage initialization
+## Stage initialization
 
-Every BlueprintStage requires initializeState. Compiler delivers the function from state.initialize's @initializers reference; Loader checks callability without invoking it or creating business State. ESM still has exactly three named exports, and initializers are outside CodeRegistry. The development protocol remains 2026-10-08; older artifacts missing this field must be rebuilt.
+Every BlueprintStage requires initializeState. Compiler delivers the function from state.initialize's relative TypeScript resource reference; Loader checks callability without invoking it or creating business State. ESM still has exactly three named exports, and initializers are outside CodeRegistry. The development protocol remains 2026-10-15; older artifacts missing this field must be rebuilt.

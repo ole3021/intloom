@@ -12,7 +12,7 @@ import { toolSchema } from "../src/e2e/schema.ts";
 
 async function fixture(
   t: TestContext,
-  failure: "once" | "always" | "partial" | "eof" | "denied" | "idle",
+  failure: "three" | "always" | "partial" | "eof" | "denied" | "idle",
 ) {
   const root = await mkdtemp(join(tmpdir(), "e2e-model-transport-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -37,7 +37,7 @@ async function fixture(
       }
       if (
         failure === "always" ||
-        (failure === "once" && requests.length === 2)
+        (failure === "three" && requests.length >= 2 && requests.length <= 4)
       ) {
         req.socket.destroy();
         return;
@@ -130,30 +130,30 @@ async function fixture(
         signal: new AbortController().signal,
         evidence,
         connectionTimeoutMs: 1000,
-        connectionRetries: 1,
         ...(failure === "idle" ? { idleTimeoutMs: 80 } : {}),
       }),
   };
 }
 
-test("actual SDK model connection retry preserves accepted Tool results and resends only the same unresponded request", async (t) => {
-  const owned = await fixture(t, "once");
+test("actual SDK defaults to three retries and preserves accepted Tool results", async (t) => {
+  const owned = await fixture(t, "three");
   assert.deepEqual(await owned.run(), { status: "finished" });
   assert.equal(owned.mutations, 1);
-  assert.equal(owned.requests.length, 3);
+  assert.equal(owned.requests.length, 5);
   for (const request of owned.requests)
     assert.equal(
       (request as { reasoning_effort?: string }).reasoning_effort,
       "low",
     );
-  assert.deepEqual(owned.requests[1], owned.requests[2]);
+  for (const request of owned.requests.slice(2))
+    assert.deepEqual(owned.requests[1], request);
   const events = (await readFile(join(owned.root, "actions.jsonl"), "utf8"))
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
   assert.equal(
     events.filter((event) => event.kind === "model_connection_retry").length,
-    1,
+    3,
   );
 });
 
@@ -163,7 +163,7 @@ test("actual SDK connection failures exhaust bounded attempts with an environmen
     code: "MODEL_TRANSPORT_FAILED",
     category: "environment",
   });
-  assert.equal(owned.requests.length, 2);
+  assert.equal(owned.requests.length, 4);
   assert.equal(owned.mutations, 0);
 });
 

@@ -2,8 +2,40 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as z from "zod";
 import { defineAgentTool } from "@intloom/loom-sdk";
+import { silentLogger, withLogger } from "@intloom/utils";
 import { executionAccess } from "../../test/access-fixture.ts";
 import { executeAgentTool, isAgentToolInputError } from "./agent-tool.ts";
+
+test("Tool diagnostics cannot replace the original failure and stay off without debug logging", async () => {
+  const original = new Error("Tool failed");
+  const tool = defineAgentTool({
+    id: "fail",
+    description: "Fail without effects.",
+    inputSchema: z.object({}),
+    outputSchema: z.boolean(),
+    execute: () => {
+      throw original;
+    },
+  });
+  for (const enabled of [false, true]) {
+    let writes = 0;
+    await assert.rejects(
+      withLogger(
+        {
+          ...silentLogger,
+          isLevelEnabled: () => enabled,
+          debug() {
+            writes++;
+            throw new Error("Log write failed");
+          },
+        },
+        () => executeAgentTool(tool, {}, executionAccess().agent),
+      ),
+      { code: "TOOL_EXECUTION_FAILED", cause: original },
+    );
+    assert.equal(writes, enabled ? 1 : 0);
+  }
+});
 
 test("input diagnostics omit dynamic dictionary keys, values and refinement messages", async () => {
   let executed = false;

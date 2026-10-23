@@ -12,7 +12,7 @@ title: Workflow、Stage、Step 与 Run
 | Step | 一次 Code 或 Agent 执行及其声明 outcome 路由 |
 | Run | 针对原始意图执行一次 Workflow |
 
-Workflow 包编译为 `blueprint`、`codes`、`agentSpecs`。Service 加载资源、注册 `flowName`，在执行被接收后创建 Run。
+Workflow 包编译为 `blueprint`、`codes`、`agentSpecs`。Service 加载资源、注册 `loomName`，在执行被接收后创建 Run。
 
 ## 路由
 
@@ -22,7 +22,7 @@ Workflow 声明入口 Stage，每个 Stage 声明入口 Step。Code/Agent 返回
 
 ## 定义与执行
 
-安装包不创建 Run，启动 Service 加载定义，`flow` 创建执行，`answer` 继续执行。Run ID 和 action ID 标识不同对象。
+安装包不创建 Run，启动 Service 加载定义，`run` 创建执行，`answer` 继续执行。Run ID 和 action ID 标识不同对象。
 
 `exclusive: true` 阻止同宿主中的其他竞争活跃 Run，包括等待。其他定义可以允许并发。Intent 四阶段是具体 Workflow，不是框架的统一要求。
 

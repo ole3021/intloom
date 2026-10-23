@@ -22,7 +22,7 @@ Run commands from the repository root.
 | `pack-package.ts` | Pack one distribution directory; `--selected` dispatches workspace pack tasks from the fixed plan. |
 | `release-manifest.ts` | Validate all final archives and write `.release/manifest.json`; `--selected` limits this to the fixed plan. |
 | `publish-release.ts` | Publish verified archives only from the enabled main-branch CI workflow, with provenance. |
-| `verify-published.ts` | Wait for exact npm versions and matching integrity in both version metadata and install indexes, retry installation propagation races, then verify both command entries, Workflows, and storage in temporary directories. |
+| `verify-published.ts` | Wait for exact npm versions and matching integrity in both version metadata and install indexes, retry installation propagation races, then verify both command entries, Looms, and storage in temporary directories. |
 | `finalize-release.ts` | Create or reuse GitHub releases and attach archives after consumer verification. |
 
 ```sh
@@ -62,6 +62,17 @@ Root `check` runs repository-wide Biome validation and workspace type checks. Ro
 Registry tests use controlled responses to cover propagation retries, integrity conflicts, bounded installation retries and fail-closed handling; they never publish or contact npm. Release tests cover version/channel rules, delivery metadata, CLI release-unit selection and archive identity. Task-graph tests inspect Turbo's resolved dry-run graph for dependency builds, declaration prerequisites, cached output declarations, source tests without their own package build, and uncached integration/package checks. Package-consumer tests separately execute the archives. Release preparation packs all consumer archives once, while `release-manifest.ts --selected` selects the fixed plan for publication.
 
 Local validation does not establish a successful remote publication or OIDC authentication.
+
+### Shared consumer probes
+
+`consumer.mjs` checks the public Compiler/SDK/Intent imports, Loom protocol,
+private Kernel isolation and bundled File/SQLite storage. The Intent prepared-archive
+consumer test and `verify-published.ts` execute this same probe. `consumer.ts`
+also owns the CLI setup probe (init, Loom package management, doctor, start/stop),
+which CLI integration tests exercise before publication. Registry visibility,
+archive integrity and isolated global installs remain postpublication checks;
+local archives do not prove registry availability or real-model completion.
+
 
 ## AI-driven E2E
 

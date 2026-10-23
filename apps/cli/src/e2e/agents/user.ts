@@ -22,6 +22,7 @@ import {
 import { runAgent } from "../agent.ts";
 import { toolSchema } from "../schema.ts";
 import { executeWorker } from "./worker.ts";
+import { runProgress } from "../progress.ts";
 
 const instructions = `Act as the simulated owner of this test case. Use only the supplied active knowledge and previous completed rounds. All answers and explanations must be English.
 The project is prepared. Call start_run once with {} to submit this round's exact input through the real selected entry. Use observe_run to wait locally for the original Run. Never restart or repair a Run. You do not implement business changes or execute Loom Tools yourself.
@@ -57,6 +58,7 @@ export class UserRound {
   private workers = new Set<string>();
   private rejected = new Map<string, number>();
   private observed = "";
+  private progress = "";
   failure: unknown;
   readonly context: RoundContext;
   private controller = new AbortController();
@@ -68,6 +70,12 @@ export class UserRound {
   }
   private async save(run: Run) {
     this.run = run;
+    const progress = runProgress(run);
+    const signature = JSON.stringify(progress);
+    if (signature !== this.progress) {
+      this.progress = signature;
+      await this.context.evidence.event("run_progress", progress);
+    }
     const state = JSON.stringify([
       run.status,
       run.cursor,

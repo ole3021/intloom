@@ -1,3 +1,4 @@
+import { verifyCliSetup } from "../../../scripts/consumer.ts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createServer } from "node:http";
@@ -7,7 +8,7 @@ import { test } from "node:test";
 import { parse } from "yaml";
 import { startService, stopService } from "@intloom/cli";
 import { temporaryDirectory } from "./directory-fixture.ts";
-import { cli } from "./project-fixture.ts";
+import { bin, cli, compiledLoom } from "./project-fixture.ts";
 import { packFixture, packDirectory } from "./loom-fixture.ts";
 
 async function configure(root: string) {
@@ -237,5 +238,39 @@ test("local archives are checked during restore; invalid packages and duplicate 
   assert.equal(await readFile(join(root, "intloom.yaml"), "utf8"), before);
   await assert.rejects(readFile(join(root, "intloom/store.json")), {
     code: "ENOENT",
+  });
+});
+
+test("release consumer setup probe uses current Loom commands and readiness fields", {
+  timeout: 180_000,
+}, async (t) => {
+  const base = await temporaryDirectory(t, async (directory) => {
+    await stopService(join(directory, "project")).catch(() => {});
+  });
+  const { manifest } = await packFixture(base, "1.0.0");
+  const directory = join(base, "fixture-1.0.0");
+  const cliManifest = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  const sdkManifest = JSON.parse(
+    await readFile(
+      new URL("../../../packages/loom-sdk/package.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  await writeFile(
+    join(directory, "package.json"),
+    JSON.stringify({
+      ...manifest,
+      dependencies: { zod: sdkManifest.dependencies.zod },
+    }),
+  );
+  await writeFile(join(directory, "index.js"), compiledLoom);
+  await verifyCliSetup({
+    command: [process.execPath, bin],
+    directory: base,
+    version: cliManifest.version,
+    loomPackage: manifest.name,
+    loomSource: await packDirectory(directory, base),
   });
 });

@@ -137,6 +137,10 @@ const transportCodes = new Set([
   "ETIMEDOUT",
   "EAI_AGAIN",
   "ENOTFOUND",
+  "ECONNREFUSED",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+  "EPIPE",
   "UND_ERR_CONNECT_TIMEOUT",
   "UND_ERR_HEADERS_TIMEOUT",
   "UND_ERR_SOCKET",
@@ -253,7 +257,10 @@ export function agentError(cause: unknown, finishReason?: string): KernelError {
           cause,
           `HTTP ${status}. ${responseDetail(chain)}`,
         );
-      return ERRORS.wrap("LLM_REQUEST_FAILED", cause);
+      const transport = transportCode(chain);
+      return transport
+        ? withDetail("LLM_REQUEST_FAILED", cause, `Transport ${transport}. `)
+        : ERRORS.wrap("LLM_REQUEST_FAILED", cause);
     }
     if (
       JSONParseError.isInstance(error) ||

@@ -5,6 +5,7 @@ import type { CliIo } from "./index.ts";
 import { entrySchema, E2eError } from "../e2e/contracts.ts";
 import { catalog, loadCase } from "../e2e/cases.ts";
 import { execute } from "../e2e/runner.ts";
+import { E2eProgress } from "../e2e/progress.ts";
 
 export async function runE2e(
   input: {
@@ -47,11 +48,8 @@ export async function runE2e(
   const abort = () => controller.abort();
   process.once("SIGINT", abort);
   process.once("SIGTERM", abort);
-  let progress = "preparing";
-  const heartbeat = setInterval(
-    () => io.error.write(`[e2e] ${progress}\n`),
-    30000,
-  );
+  const progress = new E2eProgress((line) => io.error.write(line));
+  const heartbeat = setInterval(() => progress.heartbeat(), 30000);
   heartbeat.unref();
   try {
     const result = await execute(
@@ -66,20 +64,7 @@ export async function runE2e(
       },
       controller.signal,
       process.env,
-      (event) => {
-        if (
-          [
-            "execution_started",
-            "iteration_started",
-            "iteration_finished",
-            "failure",
-            "checks_finished",
-          ].includes(event.kind)
-        ) {
-          progress = `${event.kind}: ${JSON.stringify(event.data)}`;
-          io.error.write(`[e2e] ${progress}\n`);
-        }
-      },
+      (event) => progress.event(event),
       true,
     );
     io.output.write(`${JSON.stringify(result, null, 2)}\n`);

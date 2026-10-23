@@ -6,11 +6,11 @@ title: Frequently asked questions
 
 ## Is IntLoom only the four-stage Intent process?
 
-No. IntLoom executes custom Workflow definitions. The four stages belong to `@intloom/workflow-intent`. See [Workflow concepts](../concepts/workflow.md).
+No. IntLoom executes custom Workflow definitions. The four stages belong to `@intloom/intent`. See [Workflow concepts](../concepts/workflow.md).
 
 ## Does installing the CLI install Intent?
 
-No. Install the business package separately with `workflow add`.
+No. Install the business package separately with `loom add`.
 
 ## Why can Service start without a model, but CMD execution fails?
 

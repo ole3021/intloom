@@ -26,7 +26,7 @@ console.log(result.outputPath, result.diagnostics);
 
 ## 定义、检查与输出
 
-定义放在 `package.json.loom`，协议版本为 `2026-10-14`。Stage 使用 YAML，资源通过相对路径和可选的 `#exportName` 引用。参见[定义参考](./workflow-yaml.md)。
+定义放在 `package.json.loom`，协议版本为 `2026-10-15`。Stage 使用 YAML，资源通过相对路径和可选的 `#exportName` 引用。参见[定义参考](./workflow-yaml.md)。
 
 Compiler 先校验文档再读取明确引用的资源，链接路由、生成入口、调用 TypeScript，并核验完整发布包。生成入口检查 Blueprint、Code、初始化器、JSON Schema、Tool 和 AgentSpec 的 SDK 契约。作者配置不能关闭这些契约检查。
 
