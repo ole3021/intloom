@@ -11,7 +11,7 @@ export function CliSection() {
       <div className={styles["field-cli-grid"]}>
         <div className={styles["cli-introduction"]}>
           <span className={`${styles.eyebrow} ${styles["cli-requirement"]}`}>
-            NODE.JS 24+ / NPM
+            NODE.JS 26.4.0+ / NPM
           </span>
           <h2>
             Your terminal.
@@ -24,7 +24,7 @@ export function CliSection() {
           </p>
           <div className={styles["cli-capabilities"]}>
             <div>
-              <code>intloom flows</code>
+              <code>intloom looms</code>
               <span>Discover installed workflows.</span>
             </div>
             <div>
@@ -72,7 +72,7 @@ export function CliSection() {
               <Command
                 compact
                 command={
-                  "intloom init my-project --workflow @intloom/workflow-intent\ncd my-project"
+                  "intloom init my-project --loom @intloom/intent\ncd my-project"
                 }
               />
               <p>
@@ -91,7 +91,10 @@ export function CliSection() {
             </li>
             <li>
               <h3>Run your first intent</h3>
-              <Command compact command="intloom flow intent" />
+              <Command
+                compact
+                command={'intloom run intent --prompt "Build a Todo app"'}
+              />
               <p>
                 Describe what you want to build, answer questions, and confirm
                 the specification.

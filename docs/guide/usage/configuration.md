@@ -4,17 +4,15 @@ title: Configure projects and models
 
 # Configure projects and models
 
-Edit `intloom.yaml` while the Service is stopped, preserving installed `workflows` entries. The generated minimum is:
+Edit `intloom.yaml` while the Service is stopped, preserving installed `looms` entries. The generated minimum is:
 
 ```yaml
 localStorage: file
 useMcpAgent: true
-workflows: []
-intent:
-  apps: []
+looms: []
 ```
 
-`intent.apps` is required by the current Schema. Keep the empty list when no application preference is needed. Choose `file` or `sqlite` before saving business data; changing a populated backend has no automatic migration.
+Choose `file` or `sqlite` before saving business data; changing a populated backend has no automatic migration.
 
 ## Configure service models
 
@@ -25,15 +23,15 @@ llms:
     model: your-default-model
     secret: ENV.MODEL_API_KEY
     baseURL: https://your-provider.example/v1
-  review:
+  working:
     provider: anthropic
-    model: your-review-model
-    secret: ENV.REVIEW_API_KEY
+    model: your-working-model
+    secret: ENV.WORKING_API_KEY
     parameters:
       maxOutputTokens: 8192
 ```
 
-Providers are `anthropic` and `openai-compatible`. Steps select `reasoning`, `coding`, or `review`; omitted roles fall back to `default`. Each supplied role is a complete model configuration.
+Providers are `anthropic` and `openai-compatible`. Steps select `thinking`, `working`, or `coding`; omitted roles fall back to `default`. Each supplied role is a complete model configuration.
 
 `ENV.NAME` reads `process.env` first. Only when the variable is undefined does it read the selected project root's regular `.env` file. For example, `secret: ENV.ZEN_API_KEY` can use `ZEN_API_KEY=your-key` in that project's `.env`. No parent directory, caller working directory, `.env.local` or symlink file is loaded, and file values never enter global `process.env`. Quotes, comments and multiline values follow Node's dotenv syntax; variable expansion and decryption are not performed.
 

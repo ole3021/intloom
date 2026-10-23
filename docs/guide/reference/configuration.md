@@ -10,16 +10,15 @@ title: Configuration reference
 
 | Field | Contract |
 | --- | --- |
-| `workflows` | Optional array of unique package declarations: name, exact semver, 64-character lowercase sha256, optional local source |
+| `looms` | Optional array of unique package declarations: name, exact semver, 64-character lowercase sha256, optional local source |
 | `localStorage` | Optional `file` or `sqlite` |
 | `useMcpAgent` | Boolean, default true; external MCP executor preference |
-| `intent.apps` | Required app preference array; may be empty |
 | `mirror.enabled` | Boolean, default false |
 | `mirror.files.include/exclude` | Optional arrays of nonempty file rules |
 | `llms.default` | Required inside supplied llms |
-| `llms.reasoning/coding/review` | Optional complete role-specific model definitions |
+| `llms.thinking/working/coding` | Optional complete role-specific model definitions |
 
-CLI maintains installed Workflow declarations. Use package management rather than inventing archive hashes.
+CLI maintains installed Loom declarations. Use package management rather than inventing archive hashes.
 
 ## Model definition
 
@@ -29,9 +28,7 @@ CLI maintains installed Workflow declarations. Use package management rather tha
 
 `parameters` supports numeric temperature/topP and positive integer maxOutputTokens. `providerOptions` is a provider-keyed JSON object. Roles fall back to default without partial merging.
 
-## Intent application preferences
-
-Every app has `name` and `type`, plus optional `dependencies`/`patterns` arrays of name/description pairs. Types are web, service, worker, mobile, desktop and mini-app. Service/worker allow runtime. Mobile/desktop/mini-app require nonempty supported platform lists: ios/android; macos/windows/linux; wechat/alipay/douyin/qq/baidu.
+Application preferences and business constraints belong in the Loom input prompt.
 
 ## Host observation and limits
 

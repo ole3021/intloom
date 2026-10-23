@@ -7,10 +7,10 @@ title: 读取与导出结果
 Workflow Code 决定提交哪些正式结果。通过运行中的 Service 读取当前 Artifacts 和追加 Records：
 
 ```sh
-intloom artifacts --flow intent --limit 20 --json
-intloom artifact --flow intent --stage specification
+intloom artifacts --loom intent --limit 20 --json
+intloom artifact --loom intent --stage specification
 intloom artifact ART-example --output ./artifact.json
-intloom records --flow intent --limit 20 --json
+intloom records --loom intent --limit 20 --json
 intloom record REC-example --json
 ```
 

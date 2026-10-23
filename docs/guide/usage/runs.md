@@ -7,8 +7,8 @@ title: Observe, answer, and cancel Runs
 Create a Run once, retain its ID, and use that ID for every subsequent operation.
 
 ```sh
-intloom flow intent --intent-file ./request.txt --json
-intloom runs --flow intent
+intloom run intent --prompt-file ./request.txt --json
+intloom runs --loom intent
 intloom attach RUN-example --json
 intloom wait RUN-example --timeout 30000
 intloom watch RUN-example

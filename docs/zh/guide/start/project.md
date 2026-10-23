@@ -14,10 +14,10 @@ cd my-project
 初始化生成项目配置，不覆盖已有文件。也可以一次安装 Workflow 并配置 Codex：
 
 ```sh
-intloom init my-project --workflow @intloom/workflow-intent --mcp codex
+intloom init my-project --loom @intloom/intent --mcp codex
 ```
 
-选择其中一种初始化路径。`--workflow` 可以重复传入，`--start` 可在设置完成后启动 Service。输出分别报告目录创建、Workflow 安装、MCP 配置和 Service 启动的结果。重复操作前先检查部分成功的步骤。
+选择其中一种初始化路径。`--loom` 可以重复传入，`--start` 可在设置完成后启动 Service。输出分别报告目录创建、Workflow 安装、MCP 配置和 Service 启动的结果。重复操作前先检查部分成功的步骤。
 
 ## 项目目录
 

@@ -1,26 +1,46 @@
 ---
-title: Intent Workflow
+title: Intent Loom
 ---
 
-# Intent Workflow
+# Intent Loom
 
-`@intloom/workflow-intent` is IntLoom's software-development Workflow. It carries one intent through **Specification → Solution → Implementation → Validation** under the same Run ID.
+`@intloom/intent` develops and iterates features through **Specification → Solution → Implementation → Validation** under one Run ID.
 
-## What each stage does
+## Value and purpose
 
-| Stage | Work | Formal result |
-| --- | --- | --- |
-| Specification | Clarify requirements and obtain confirmation | Specification Artifact and Record |
-| Solution | Design against confirmed requirements and agree checks | Solution Artifact and Record |
-| Implementation | Change files and pass host-executed checks | Implementation Record |
-| Validation | Independently assess delivery and repeat checks | Validation Artifact |
+It addresses four common problems:
 
-Human confirmation gates requirements and design before implementation. Feedback revises the current draft; it continues the same Run.
+- **Unclear intent:** goals, assumptions, constraints and unanswered questions are mixed together.
+- **Inconsistent iterations:** requirements, design and code drift apart.
+- **Changes without reasons:** it becomes difficult to trace code to a requirement or explain its impact.
+- **Completion without evidence:** written code, successful commands, fulfilled requirements and code quality require separate judgments.
 
-## Start using it
+Intent both **advances the current development round and maintains project facts that later work can understand and use**.
 
-Install the package using [Workflow setup](../start/workflow.md), then choose [CMD](../start/cmd.md), [TUI](../start/tui.md), or [MCP](../start/mcp.md). Read [the complete walkthrough](./walkthrough.md) before approving your first design.
+## Scope
 
-Intent is exclusive within one host while active, including waits. Earlier commits and project changes remain after failure or cancellation. `completed` means the Validation report was saved; examine the report to assess delivery.
+Intent adds, adjusts, removes and fixes features, including necessary changes to modules, interfaces, data and delivery tests. Independent code cleanup and restructuring belong to a separate Loom. Changing multiple modules for one feature does not authorize unrelated restructuring.
 
-See [stage details](./stages.md), [human interaction](./interaction.md), and [result interpretation](./results.md). Internal Agent pages explain each role; external client setup lives in [MCP usage](../usage/mcp.md).
+A repair may leave confirmed requirements unchanged. It still needs explicit work items and completion conditions. Preferences and development standards enter through `prompt`, not separate business configuration.
+
+## Formal results
+
+| Stage | Formal output |
+| --- | --- |
+| Specification | Full requirement Record and current requirement Artifact |
+| Solution | Full design/plan Record and current design Artifact |
+| Implementation | Actual files and a fixed-candidate Record; no Artifact |
+| Validation | Per-round Record and cumulative validation Artifact |
+
+Each stage commits once per Run. Downstream stages resolve immutable same-Run Records. Substantive changes after a stage's formal commit require a new Run. Validation assesses the delivered candidate without repairing it.
+
+Requirements and design need actual user confirmation. Partial delivery needs a separate explicit choice and retains the complete acceptance scope. A completed report may conclude `passed`, `failed`, `partial` or `undone`.
+
+Install the built package or a compatible archive before running:
+
+```sh
+intloom loom add @intloom/intent
+intloom run intent --prompt "Build a task management application"
+```
+
+See [stages](./stages.md), [interaction](./interaction.md), [results](./results.md), [walkthrough](./walkthrough.md), and [Loom design principles](../development/design-principles.md). This refactor has not undergone real-model or two-round E2E validation.

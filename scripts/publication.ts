@@ -1,19 +1,19 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { findPackageJSON } from "node:module";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { resolvePackageDependencies } from "../packages/compiler/src/package/package-dependencies.ts";
 
 export const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 export const publications = [
   { name: "@intloom/utils", directory: "packages/utils", entry: "." },
   {
-    name: "@intloom/workflow-sdk",
-    directory: "packages/workflow-sdk",
+    name: "@intloom/loom-sdk",
+    directory: "packages/loom-sdk",
     entry: ".",
   },
   { name: "@intloom/compiler", directory: "packages/compiler", entry: "." },
   {
-    name: "@intloom/workflow-intent",
+    name: "@intloom/intent",
     directory: "packages/intent",
     entry: "dist",
   },
@@ -56,23 +56,7 @@ export async function distributionManifest(
   ] as const) {
     const entries = manifest[category];
     if (!entries) continue;
-    for (const [name, range] of Object.entries(entries)) {
-      if (/^(file|link|catalog):/.test(range))
-        throw new Error(`Unpublishable dependency: ${name}@${range}`);
-      if (!range.startsWith("workspace:")) continue;
-      const prefix = range.slice(10);
-      if (!["*", "^", "~"].includes(prefix))
-        throw new Error(`Unsupported workspace range: ${range}`);
-      const file = findPackageJSON(
-        name,
-        pathToFileURL(resolve(root, "package.json")),
-      );
-      if (!file) throw new Error(`Missing workspace dependency: ${name}`);
-      const dependency = await readManifest(dirname(file));
-      if (dependency.name !== name)
-        throw new Error(`Dependency name mismatch: ${name}`);
-      entries[name] = `${prefix === "*" ? "" : prefix}${dependency.version}`;
-    }
+    manifest[category] = await resolvePackageDependencies(root, entries);
   }
   delete manifest.devDependencies;
   delete manifest.scripts;

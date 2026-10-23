@@ -1,12 +1,12 @@
 {
-  "name": "@intloom/workflow-intent",
-  "version": "0.0.4",
+  "name": "@intloom/intent",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/workflow.generated.d.ts",
-      "default": "./dist/workflow.generated.js"
+      "types": "./dist/loom.generated.d.ts",
+      "default": "./dist/loom.generated.js"
     },
     "./package.json": "./package.json"
   },
@@ -14,26 +14,66 @@
     "dist"
   ],
   "devDependencies": {
-    "@intloom/compiler": "workspace:*",
-    "@intloom/kernel": "workspace:*"
+    "@intloom/kernel": "workspace:*",
+    "@intloom/cli": "workspace:*"
   },
   "dependencies": {
     "zod": "^4.6.5",
     "@intloom/utils": "workspace:*",
-    "@intloom/workflow-sdk": "workspace:*"
+    "@intloom/loom-sdk": "workspace:*"
   },
   "scripts": {
-    "dev": "node --test --watch \"codes/**/*.spec.ts\" \"schemas/**/*.spec.ts\" \"src/**/*.spec.ts\" \"tools/**/*.spec.ts\"",
-    "build": "node build.ts",
+    "dev": "node --test --watch \"stages/**/*.spec.ts\" \"src/**/*.spec.ts\"",
+    "build": "intloom build",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test \"codes/**/*.spec.ts\" \"schemas/**/*.spec.ts\" \"build/**/*.spec.ts\" \"src/**/*.spec.ts\" \"tools/**/*.spec.ts\" \"e2e/checks/*.spec.ts\"",
+    "test": "node --test \"stages/**/*.spec.ts\" \"src/**/*.spec.ts\" \"e2e/checks/*.spec.mjs\"",
     "test:intg": "node --test \"test/*.intg.ts\"",
     "pack": "node ../../scripts/pack-package.ts dist",
     "test:package": "node --test \"test/package/*.intg.ts\""
   },
-  "intloom": {
-    "type": "workflow",
-    "version": "2026-10-08"
+  "loom": {
+    "type": "loom",
+    "version": "2026-10-15",
+    "name": "intent",
+    "inputs": [
+      "prompt"
+    ],
+    "exclusive": true,
+    "entry": "specification",
+    "stages": {
+      "specification": {
+        "stage": "./stages/specification/stage.yaml",
+        "on": {
+          "complete": {
+            "target": "solution"
+          }
+        }
+      },
+      "solution": {
+        "stage": "./stages/solution/stage.yaml",
+        "on": {
+          "complete": {
+            "target": "implementation"
+          }
+        }
+      },
+      "implementation": {
+        "stage": "./stages/implementation/stage.yaml",
+        "on": {
+          "complete": {
+            "target": "validation"
+          }
+        }
+      },
+      "validation": {
+        "stage": "./stages/validation/stage.yaml",
+        "on": {
+          "complete": {
+            "end": true
+          }
+        }
+      }
+    }
   },
   "license": "Apache-2.0",
   "repository": {

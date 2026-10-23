@@ -7,10 +7,10 @@ title: Read and export results
 Workflow Code decides which formal results to commit. Read current Artifacts and appended Records through the active Service:
 
 ```sh
-intloom artifacts --flow intent --limit 20 --json
-intloom artifact --flow intent --stage specification
+intloom artifacts --loom intent --limit 20 --json
+intloom artifact --loom intent --stage specification
 intloom artifact ART-example --output ./artifact.json
-intloom records --flow intent --limit 20 --json
+intloom records --loom intent --limit 20 --json
 intloom record REC-example --json
 ```
 

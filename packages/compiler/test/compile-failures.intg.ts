@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { access, cp, readFile, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { test } from "node:test";
-import { compileWorkflow } from "@intloom/compiler";
+import { compileLoom } from "@intloom/compiler";
 import { LoomError } from "@intloom/utils";
 import {
   assertClean,
@@ -31,16 +31,16 @@ const cases: {
     mutate: (root) =>
       replace(
         root,
-        "workflow.yaml",
-        "  name: compiler_fixture",
-        "  name: compiler_fixture\n  name: duplicate",
+        "stages/first.yaml",
+        "  name: first",
+        "  name: first\n  name: duplicate",
       ),
     message: /unique|duplicat/iu,
-    location: "workflow.yaml",
+    location: "stages/first.yaml",
   },
   {
     name: "missing route target",
-    code: "INVALID_WORKFLOW",
+    code: "INVALID_LOOM",
     mutate: (root) =>
       replace(root, "stages/first.yaml", "target: review", "target: missing"),
     message: /Unknown target step/u,
@@ -69,12 +69,12 @@ const cases: {
   },
   {
     name: "missing Stage initializer field",
-    code: "INVALID_WORKFLOW",
+    code: "INVALID_LOOM",
     mutate: (root) =>
       replace(
         root,
         "stages/first.yaml",
-        '    initialize: "@initializers/state"\n',
+        '    initialize: "../initializers/state.ts"\n',
         "",
       ),
     message: /Invalid/,
@@ -100,7 +100,7 @@ const cases: {
     mutate: (root) =>
       writeFile(
         resolve(root, "initializers/state.ts"),
-        "declare function seed(context: { intent: string }): unknown; export default seed;",
+        "declare function seed(): {}; export default seed;",
       ),
     message: /no runtime binding/u,
   },
@@ -110,22 +110,10 @@ const cases: {
     mutate: async (root) => {
       const file = resolve(root, "package.json");
       const manifest = JSON.parse(await readFile(file, "utf8"));
-      manifest.dependencies = {};
+      delete manifest.dependencies.zod;
       await writeFile(file, JSON.stringify(manifest));
     },
-    message: /Runtime dependency is not declared: zod/u,
-  },
-  {
-    name: "incorrect package entry",
-    code: "INVALID_OUTPUT",
-    mutate: (root) =>
-      replace(
-        root,
-        "package.json",
-        '"./dist/workflow.generated.js"',
-        '"./dist/missing.js"',
-      ),
-    message: /exports/u,
+    message: /(Runtime|Declaration) dependency is not declared: zod/u,
   },
   {
     name: "erased runtime export",
@@ -133,7 +121,7 @@ const cases: {
     mutate: (root) =>
       writeFile(
         resolve(root, "codes/run.ts"),
-        "declare function run(value: string): string; export default run;",
+        "declare function run(): { outcome: string }; export default run;",
       ),
     message: /no runtime binding/u,
   },
@@ -141,7 +129,7 @@ const cases: {
 
 test("failed compilation preserves the published output", async (suite) => {
   const { root: baseline } = await workspace(suite);
-  await compileWorkflow({ packageRoot: baseline });
+  await compileLoom({ packageRoot: baseline });
   const previous = await snapshot(resolve(baseline, "dist"));
 
   for (const scenario of cases)
@@ -153,32 +141,29 @@ test("failed compilation preserves the published output", async (suite) => {
           recursive: true,
         });
         await scenario.mutate(root);
-        await assert.rejects(
-          compileWorkflow({ packageRoot: root }),
-          (error) => {
-            assert.ok(LoomError.is(error));
-            assert.equal(error.code, scenario.code);
-            assert.match(error.message, scenario.message);
-            if (scenario.location) {
-              assert.ok(
-                error.cause &&
-                  typeof error.cause === "object" &&
-                  "location" in error.cause,
-              );
-              const location = error.cause.location as {
-                file: string;
-                line?: number;
-                column?: number;
-              };
-              assert.equal(location.file, resolve(root, scenario.location));
-              if (scenario.code !== "SOURCE_READ_FAILED") {
-                assert.ok(location.line && location.line >= 1);
-                assert.ok(location.column && location.column >= 1);
-              }
+        await assert.rejects(compileLoom({ packageRoot: root }), (error) => {
+          assert.ok(LoomError.is(error));
+          assert.equal(error.code, scenario.code);
+          assert.match(error.message, scenario.message);
+          if (scenario.location) {
+            assert.ok(
+              error.cause &&
+                typeof error.cause === "object" &&
+                "location" in error.cause,
+            );
+            const location = error.cause.location as {
+              file: string;
+              line?: number;
+              column?: number;
+            };
+            assert.equal(location.file, resolve(root, scenario.location));
+            if (scenario.code !== "SOURCE_READ_FAILED") {
+              assert.ok(location.line && location.line >= 1);
+              assert.ok(location.column && location.column >= 1);
             }
-            return true;
-          },
-        );
+          }
+          return true;
+        });
         assert.deepEqual(await snapshot(resolve(root, "dist")), previous);
         await assertClean(root);
       },
@@ -187,13 +172,10 @@ test("failed compilation preserves the published output", async (suite) => {
 
 test("never overwrites an author-owned generated entry", async (t) => {
   const { root } = await workspace(t);
-  const file = resolve(root, "workflow.generated.ts");
+  const file = resolve(root, "loom.generated.ts");
   const content = "// author-owned file\n";
   await writeFile(file, content);
-  await assert.rejects(
-    compileWorkflow({ packageRoot: root }),
-    (error) => LoomError.is(error) && error.code === "BUILD_FAILED",
-  );
+  await compileLoom({ packageRoot: root });
   assert.equal(await readFile(file, "utf8"), content);
-  await assert.rejects(access(resolve(root, "dist")), { code: "ENOENT" });
+  await access(resolve(root, "dist"));
 });

@@ -5,12 +5,12 @@ import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { TestContext } from "node:test";
-import { writeMetadata } from "@intloom/kernel/service/discovery";
-import type { ServiceStatus } from "@intloom/kernel/service/contracts";
+import { writeMetadata } from "@intloom/kernel/host";
+import type { ServiceStatus } from "@intloom/kernel/host";
 
 export async function stopProject(t: TestContext) {
   const root = await realpath(await mkdtemp(join(tmpdir(), "intloom-stop-")));
-  await writeFile(join(root, "intloom.yaml"), "intent:\n  apps: []\n");
+  await writeFile(join(root, "intloom.yaml"), "{}\n");
   t.after(() => rm(root, { recursive: true, force: true }));
   return root;
 }
@@ -58,8 +58,8 @@ export async function stopEndpoint(t: TestContext) {
   };
   const status: ServiceStatus = {
     ...info,
-    workflowCount: 0,
-    availableWorkflowCount: 0,
+    loomCount: 0,
+    availableLoomCount: 0,
     runningRuns: 0,
     waitingRuns: 0,
     completedRuns: 0,

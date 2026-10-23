@@ -1,5 +1,5 @@
 import { LoomError } from "@intloom/utils";
-import { KERNEL_ERRORS } from "../errors/kernel.ts";
+import { ERRORS } from "../errors.ts";
 
 export function storageError(cause: unknown): Error {
   if (LoomError.is(cause)) return cause;
@@ -12,27 +12,27 @@ export function storageError(cause: unknown): Error {
   ) {
     const code = "code" in current ? current.code : undefined;
     if (code === "SQLITE_BUSY" || code === "SQLITE_LOCKED")
-      return KERNEL_ERRORS.wrap("BUSY", cause);
+      return ERRORS.wrap("BUSY", cause);
     if (
       code === "SQLITE_CONSTRAINT_UNIQUE" ||
       code === "SQLITE_CONSTRAINT_PRIMARYKEY"
     )
-      return KERNEL_ERRORS.wrap("CONFLICT", cause);
+      return ERRORS.wrap("CONFLICT", cause);
     current = "cause" in current ? current.cause : undefined;
   }
-  return KERNEL_ERRORS.wrap("STORAGE_ERROR", cause, { retryable: false });
+  return ERRORS.wrap("STORAGE_ERROR", cause, { retryable: false });
 }
 
 export function invalid(message: string): never {
-  throw KERNEL_ERRORS.create("INVALID_REQUEST", { message });
+  throw ERRORS.create("INVALID_REQUEST", { message });
 }
 
 export function conflict(message: string): never {
-  throw KERNEL_ERRORS.create("CONFLICT", { message });
+  throw ERRORS.create("CONFLICT", { message });
 }
 
 export function missing(id: string): never {
-  throw KERNEL_ERRORS.create("NOT_FOUND", {
+  throw ERRORS.create("NOT_FOUND", {
     message: `Storage entry does not exist: ${id}`,
   });
 }

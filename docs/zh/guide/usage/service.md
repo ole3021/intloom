@@ -9,7 +9,7 @@ title: 管理项目 Service
 ```sh
 intloom status
 intloom start
-intloom flows
+intloom looms
 intloom stop
 ```
 

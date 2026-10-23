@@ -6,7 +6,7 @@ import { mkdir, readdir, readFile, writeFile, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
-const root = fileURLToPath(new URL("../", import.meta.url)).replace(/\/$/u, "");
+const root = fileURLToPath(new URL("..", import.meta.url)).replace(/\/$/u, "");
 
 async function compile(directory: string): Promise<void> {
   for (const entry of await readdir(directory, { withFileTypes: true })) {

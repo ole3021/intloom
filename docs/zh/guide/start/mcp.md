@@ -26,16 +26,16 @@ and ask me the Workflow's questions and confirmations before continuing.
 At the end, show the Validation report and its evidence.
 ```
 
-客户端只调用一次 `flow`，随后检查返回的 Run、执行待处理 Agent 任务并呈现人工操作。工具连接成功本身不能证明客户端实现了完整协议。
+客户端只调用一次 `run`，随后检查返回的 Run、执行待处理 Agent 任务并呈现人工操作。工具连接成功本身不能证明客户端实现了完整协议。
 
 保持问题与确认内容对用户可见。客户端推理不能编造用户答案或人工批准。
 
 ## 从终端检查
 
 ```sh
-intloom runs --flow intent
-intloom artifacts --flow intent
-intloom artifact --flow intent --stage validation
+intloom runs --loom intent
+intloom artifacts --loom intent
+intloom artifact --loom intent --stage validation
 ```
 
 客户端断开后，先查看原 Run，再决定如何继续。参见 [MCP 操作指南](../usage/mcp.md)和 [Agent 任务协议](../reference/mcp.md)。

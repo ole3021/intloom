@@ -1,0 +1,25 @@
+stage:
+  name: first
+  state:
+    schema: "../schemas/state.ts"
+    initialize: "../initializers/state.ts"
+  entry: run
+  steps:
+    run:
+      type: code
+      code: "../codes/run.ts"
+      on:
+        complete:
+          target: review
+    review:
+      type: agent
+      agent: "../agents/reviewer.md"
+      llm: thinking
+      outputSchema: "../schemas/result.ts"
+      skills: ["../skills/review/SKILL.md"]
+      tools: ["../tools/echo.ts#echoTool"]
+      on:
+        retry:
+          target: run
+        complete:
+          end: true

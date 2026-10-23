@@ -1,9 +1,9 @@
-import type { BlueprintStage } from "../workflow/blueprint.ts";
-import type { JsonValue, ReadonlyJsonValue } from "../shared/json.ts";
-import type { StateAccess } from "../effector/state-access.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import type { BlueprintStage } from "@intloom/loom-sdk";
+import type { JsonValue, ReadonlyJsonValue } from "@intloom/loom-sdk";
+import type { StateAccess } from "@intloom/loom-sdk";
+import { ERRORS } from "../errors.ts";
 import type { RunState } from "./run-state.ts";
-import type { SavedStage } from "./recovery/store.ts";
+import type { SavedStage } from "./recovery/contracts.ts";
 import {
   createStageStateBinding,
   type StageStateBinding,
@@ -31,7 +31,7 @@ export interface StageStateController {
 
 /**
  * One container per Run, holding only the current Stage's business value; exited Stages are not cached.
- * N3/N4 manage cursor and state transitions; Cursor must point to the target Stage before entry.
+ * The Run loop manages cursor transitions; Cursor must point to the target Stage before entry.
  */
 export function createStageState(
   run: RunState,
@@ -62,7 +62,7 @@ export function createStageState(
                   !run.pendingAction
                 ))))
         )
-          throw RUNTIME_ERRORS.create("STAGE_STATE_INACTIVE");
+          throw ERRORS.create("STAGE_STATE_INACTIVE");
       },
       onChange,
     );
@@ -92,8 +92,7 @@ export function createStageState(
     },
     bind(assertScope, allowAgentWait = false) {
       assertScope();
-      if (!ready || !current)
-        throw RUNTIME_ERRORS.create("STAGE_STATE_INACTIVE");
+      if (!ready || !current) throw ERRORS.create("STAGE_STATE_INACTIVE");
       return current.bind(assertScope, allowAgentWait);
     },
     async enter(stage, assertScope = () => {}) {
@@ -102,7 +101,7 @@ export function createStageState(
         run.status !== "running" ||
         run.cursor.stageName !== stage.stageName
       ) {
-        throw RUNTIME_ERRORS.create("STAGE_STATE_INACTIVE", {
+        throw ERRORS.create("STAGE_STATE_INACTIVE", {
           message: "Stage entry requires a running Run at the target Stage.",
         });
       }
@@ -112,9 +111,9 @@ export function createStageState(
       current = binding;
       const context = Object.freeze({
         runId: run.id,
-        flowName: run.flowName,
+        loomName: run.loomName,
         stageName: stage.stageName,
-        intent: run.intent,
+        input: structuredClone(run.input),
       });
       try {
         const seed = await stage.initializeState(context);
@@ -126,20 +125,20 @@ export function createStageState(
           run.status !== "running" ||
           run.cursor.stageName !== stage.stageName
         ) {
-          throw RUNTIME_ERRORS.create("STAGE_STATE_INACTIVE");
+          throw ERRORS.create("STAGE_STATE_INACTIVE");
         }
         ready = true;
         return binding.access;
       } catch (cause) {
-        // Stale initialization cannot clear or fail a new Stage; N4/N6 manage call ownership.
+        // Stale initialization cannot clear or fail a new Stage; Runtime manages Call ownership.
         if (current !== binding) {
-          throw RUNTIME_ERRORS.wrap("STAGE_STATE_INACTIVE", cause);
+          throw ERRORS.wrap("STAGE_STATE_INACTIVE", cause);
         }
         leave();
-        if (RUNTIME_ERRORS.is(cause) && cause.code === "STAGE_STATE_INACTIVE") {
+        if (ERRORS.is(cause) && cause.code === "STAGE_STATE_INACTIVE") {
           throw cause;
         }
-        throw RUNTIME_ERRORS.wrap("RUN_INITIALIZATION_FAILED", cause, {
+        throw ERRORS.wrap("RUN_INITIALIZATION_FAILED", cause, {
           message: `Failed to initialize Stage ${stage.stageName}.`,
         });
       }

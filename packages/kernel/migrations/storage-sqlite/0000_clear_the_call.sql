@@ -1,7 +1,7 @@
 CREATE TABLE `artifacts` (
 	`project_id` text NOT NULL,
 	`id` text NOT NULL,
-	`flow_name` text NOT NULL,
+	`loom_name` text NOT NULL,
 	`stage_name` text NOT NULL,
 	`data` text NOT NULL,
 	`created_at` text NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE `artifacts` (
 	CONSTRAINT "artifact_json" CHECK(json_valid("artifacts"."data"))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `artifact_stage` ON `artifacts` (`project_id`,`flow_name`,`stage_name`);--> statement-breakpoint
+CREATE UNIQUE INDEX `artifact_stage` ON `artifacts` (`project_id`,`loom_name`,`stage_name`);--> statement-breakpoint
 CREATE INDEX `artifact_created` ON `artifacts` (`project_id`,`created_at`,`id`);--> statement-breakpoint
 CREATE TABLE `storage_projects` (
 	`project_id` text PRIMARY KEY NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE `storage_projects` (
 CREATE TABLE `records` (
 	`project_id` text NOT NULL,
 	`id` text NOT NULL,
-	`flow_name` text NOT NULL,
+	`loom_name` text NOT NULL,
 	`stage_name` text NOT NULL,
 	`data` text NOT NULL,
 	`created_at` text NOT NULL,
@@ -34,4 +34,4 @@ CREATE TABLE `records` (
 );
 --> statement-breakpoint
 CREATE INDEX `record_created` ON `records` (`project_id`,`created_at`,`id`);--> statement-breakpoint
-CREATE INDEX `record_stage_created` ON `records` (`project_id`,`flow_name`,`stage_name`,`created_at`,`id`);
+CREATE INDEX `record_stage_created` ON `records` (`project_id`,`loom_name`,`stage_name`,`created_at`,`id`);

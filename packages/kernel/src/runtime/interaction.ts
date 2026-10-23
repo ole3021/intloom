@@ -1,9 +1,9 @@
 import { generateId } from "@intloom/utils";
 import * as z from "zod";
 import type { PendingUserAction, PendingUserActionKind } from "./run-view.ts";
-import type { ReadonlyJsonValue } from "../shared/json.ts";
-import type { InteractionAccess } from "../effector/interaction.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import type { ReadonlyJsonValue } from "@intloom/loom-sdk";
+import type { InteractionAccess } from "@intloom/loom-sdk";
+import { ERRORS } from "../errors.ts";
 import { assertCallOwnership } from "./call-scope.ts";
 import { notifyRunObservers, type RunEntry } from "./run-entry.ts";
 import { saveCheckpoint } from "./recovery/checkpoint.ts";
@@ -12,9 +12,9 @@ import {
   userAskConfirmationSchema,
   userAnswerQuestionsSchema,
   userAnswerConfirmationSchema,
-} from "../effector/schemas/user-ask.ts";
+} from "@intloom/loom-sdk";
 
-/** Independent of clients; the host presents RunView actions and submits answers through answerAsk. */
+/** Independent of clients; the host presents RunView actions and submits answers through submitAnswer. */
 export function createInteraction(
   entry: RunEntry,
   call: object,
@@ -55,7 +55,7 @@ function parseRequest<T>(parse: () => T): T {
   try {
     return parse();
   } catch (cause) {
-    throw RUNTIME_ERRORS.wrap("STEP_INTERACTION_INVALID", cause);
+    throw ERRORS.wrap("STEP_INTERACTION_INVALID", cause);
   }
 }
 
@@ -133,7 +133,7 @@ function ask<T>(
     entry.state.pendingAction ||
     entry.reply
   ) {
-    throw RUNTIME_ERRORS.create("STEP_INTERACTION_INVALID", {
+    throw ERRORS.create("STEP_INTERACTION_INVALID", {
       message: "One execution may have only one unanswered interaction.",
     });
   }
@@ -141,7 +141,7 @@ function ask<T>(
   const serialized: unknown = JSON.parse(JSON.stringify(request));
   const action: PendingUserAction = {
     id: generateId("ASK"),
-    flowName: entry.state.flowName,
+    loomName: entry.state.loomName,
     cursor: { ...entry.state.cursor },
     kind,
     request: z.json().parse(serialized),

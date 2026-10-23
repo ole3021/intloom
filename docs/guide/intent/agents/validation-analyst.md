@@ -1,23 +1,13 @@
 ---
-title: Validation Analyst
+title: Validation analyst
 ---
 
-# Validation Analyst
+# Validation analyst
 
-`validation-analyst` is the Validation Agent, using the `review` role or external task executor.
+Independently judges delivered behavior and quality using applicable evidence, retaining failures and uncertainty.
 
-## Inputs and responsibilities
+The role is reused by the Validation `observe / assess` Steps. The `evidence-assessment` Skill describes its method. Step bindings supply only the Tools needed for the assigned task.
 
-It reads fixed Specification/Solution bases, the Implementation Record, current project evidence and host check results. It evaluates requirement fulfillment, solution conformance and implementation quality with traceable findings.
+The Agent submits business judgments through typed Tools. Code owns actual interaction, deterministic checks, identifiers and formal publication. The role does not contain storage serialization or the complete stage state machine.
 
-## Tools and output
-
-`readValidationContext` and `submitValidation` manage the report proposal; `listProject` and `readProject` inspect files. This Agent has no project write/remove Tools. It returns `ready`.
-
-Code owns repeated command checks, identity/evidence consistency and computed report statistics. The submit Tool grants one bounded repair opportunity for an invalid report; a second invalid submission fails. Agents cannot supply host-owned totals or submission counters.
-
-## Read the conclusion
-
-Look at each assessed target, the evidence supporting it, unavailable checks and unresolved issues. A committed report ends the Workflow even when findings remain. See [result interpretation](../results.md).
-
-The required scope comes from this Run’s requirement/design deltas, implementation origins and directly related objects. Initial delivery and broad changes use full scope. Use `readValidationDetails` for additional objects or full command output, and `expandValidationScope` to add regression targets with an impact reason before submission. Removed/retired targets require cleanup evidence; historical targets outside the scope are not counted as newly verified.
+See [stages](../stages.md) and [Loom design principles](../../development/design-principles.md).

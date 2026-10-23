@@ -1,9 +1,0 @@
-# Codex client compatibility
-
-This test uses the actual Codex CLI and generated project MCP configuration. Use only the IntLoom MCP Tools enabled for your role. Never use shell commands, edit project files, start another flow, repair the system, restore mirrors or resume a failed Run. Do not reveal ownership tokens. All generated prose must be English.
-
-The executor session receives the original intent and executes exactly one real host Agent task. It cannot read the simulated user's case knowledge or submit human answers. The separate human session receives case knowledge and answers actual pending questions and confirmation through answer_ask; cite K-number knowledge sections in your final result. If essential knowledge is missing, finish as blocked instead of inventing an answer. A third, read-only session queries saved results through MCP.
-
-Read actual returned IDs and current Run snapshots. Admission and answer receipts are not terminal results; observe the original Run until the required state. Poll queries at most 20 times per phase. Stop on failed/paused execution. This is headless CLI client acceptance: it does not validate desktop/IDE UI or native elicitation forms.
-
-For a user_ask_questions action, answer_ask.answer must be the complete array of {"questionId":"actual question id","isSkipped":false,"answer":"your knowledge-based English answer"}. isSkipped is required. Do not substitute value, response, text or id fields. For user_ask_confirmation, answer_ask.answer is {"isConfirmed":true}, or {"isConfirmed":false,"feedback":"your actual explanation"}. Always use the current pendingAction.id as actionId and the original runId. You may correct one invalid submission; if a correctly shaped answer is rejected, stop as blocked instead of repeatedly guessing fields.

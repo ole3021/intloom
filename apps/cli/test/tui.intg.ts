@@ -15,7 +15,7 @@ import {
   refreshFixtureInstallation,
 } from "./project-fixture.ts";
 import type { MirrorManifest } from "@intloom/kernel";
-import { artifactWorkflow } from "./artifact-fixture.ts";
+import { artifactLoom } from "./artifact-fixture.ts";
 
 const execute = promisify(execFile);
 const require = createRequire(new URL("../package.json", import.meta.url));
@@ -75,7 +75,7 @@ test("native workbench auto-starts, submits multiline intent once, preserves ans
     projectPath,
     `
  await frame(/I N T L O O M/);
- await key('p',{ctrl:true});await frame(/Choose Workflow/);await enter();await frame(/Intent/);
+ await key('p',{ctrl:true});await frame(/Choose Loom/);await enter();await frame(/Loom inputs/);
  let runs=await core.listRuns({projectPath});assert.ok(runs.ok);assert.equal(runs.data.length,0);
  const firstLine='第一行中文 '+ '自动折行 '.repeat(18);
  await paste(firstLine);await enter({shift:true});await paste('second line --literal');await key('j',{ctrl:true});await paste('Ctrl+J fallback');
@@ -92,9 +92,9 @@ test("native workbench auto-starts, submits multiline intent once, preserves ans
  const records=await core.listRecords({projectPath});assert.ok(records.ok);
  const saved=records.data.data.find(r=>r.id===runs.data[0].runId);assert.ok(saved);
  assert.equal(saved.data.intent,firstLine+'\\nsecond line --literal\\nCtrl+J fallback');assert.equal(saved.data.answers[1].answer,'保留回答草稿');
- await command('/run');await frame(/Intent/);await paste('Cancel this Run');await enter();await frame(/Where should it be deployed/);
+ await command('/run');await frame(/Loom inputs/);await paste('Cancel this Run');await enter();await frame(/Where should it be deployed/);
  await command('/stop');await frame(/Keep executing/);await key('down');await enter();await frame(/cancelled/);
- await command('/run');await frame(/Intent/);await paste('Keep waiting after TUI closes');await enter();await frame(/Where should it be deployed/);
+ await command('/run');await frame(/Loom inputs/);await paste('Keep waiting after TUI closes');await enter();await frame(/Where should it be deployed/);
  view.resize(60,24);await view.flush();const narrow=view.captureCharFrame();assert.match(narrow,/IntLoom/);assert.match(narrow,/Waiting for your answer/);assert.doesNotMatch(narrow,/Run status/);
  `,
   );
@@ -120,11 +120,8 @@ test("native resources show historical revision limits, current content and serv
 }, async (t) => {
   const projectPath = await projectFixture(t);
   await writeFile(
-    join(
-      projectPath,
-      ".intloom/workflows/node_modules/fixture-workflow/workflow.js",
-    ),
-    artifactWorkflow,
+    join(projectPath, ".intloom/looms/node_modules/fixture-loom/loom.js"),
+    artifactLoom,
   );
   await refreshFixtureInstallation(projectPath);
   const core = createCliCore(),
@@ -132,12 +129,12 @@ test("native resources show historical revision limits, current content and serv
   assert.ok(started.ok, JSON.stringify(started));
   const runIds: string[] = [];
   for (const intent of ["Original artifact", "Updated artifact"]) {
-    const result = await core.flow({
+    const result = await core.run({
       projectPath,
       serviceInstanceId: started.data.service.instanceId,
       operationId: randomUUID(),
-      flowName: "fixture",
-      intent,
+      loomName: "fixture",
+      input: { prompt: intent },
     });
     assert.ok(result.ok && result.data.run);
     runIds.push(result.data.run.runId);
@@ -189,15 +186,15 @@ test("native slash menu lists only MVP commands, filters immediately and preserv
     projectPath,
     `
  await frame(/I N T L O O M/);await key('/');const menu=await frame(/Commands · MVP/);
- for(const name of ['/run','/workflow','/runs','/resume','/stop','/quit'])assert.ok(menu.includes(name),name);
+ for(const name of ['/run','/loom','/runs','/resume','/stop','/quit'])assert.ok(menu.includes(name),name);
  for(const name of ['/help','/resources','/cancel','/check','/reconnect'])assert.equal(menu.includes(name),false,name);
  await key('tab');await frame(/Commands · MVP/);
- await paste('st');await frame(/Select an unfinished Run/);assert.equal(view.captureCharFrame().includes('/workflow'),false);
- await enter();await frame(/Commands · MVP/);await key('escape');await frame(/Intent/);
- for(const keyName of ['k','n','w','l','e']){await key(keyName,{ctrl:true});assert.doesNotMatch(view.captureCharFrame(),/Commands · MVP|Choose Workflow|Switch Run/);}
+ await paste('st');await frame(/Select an unfinished Run/);assert.equal(view.captureCharFrame().includes('/loom'),false);
+ await enter();await frame(/Commands · MVP/);await key('escape');await frame(/Loom inputs/);
+ for(const keyName of ['k','n','w','l','e']){await key(keyName,{ctrl:true});assert.doesNotMatch(view.captureCharFrame(),/Commands · MVP|Choose Loom|Switch Run/);}
  const intent='A draft with src/path and literal / text';await paste(intent);
  assert.doesNotMatch(view.captureCharFrame(),/Commands · MVP/);
- await key('p',{ctrl:true});await frame(/Choose Workflow/);await key('escape');await frame(new RegExp('src.path'));
+ await key('p',{ctrl:true});await frame(/Choose Loom/);await key('escape');await frame(new RegExp('src.path'));
  await key('tab');await frame(/No Run selected/);await key('/');await frame(/Commands · MVP/);await key('escape');
  await key('tab');await frame(/Assets/);await key('/');await frame(/Commands · MVP/);await key('escape');
  await key('tab');await frame(new RegExp('src.path'));await enter();await frame(/Where should it be deployed/);
@@ -215,7 +212,7 @@ test("native slash menu lists only MVP commands, filters immediately and preserv
   );
 });
 
-test("native resume dialog continues an actual restored Step scope then an explicit Workflow scope", {
+test("native resume dialog continues an actual restored Step scope then an explicit Loom scope", {
   timeout: 50000,
 }, async (t) => {
   const source = await projectFixture(t),
@@ -223,23 +220,20 @@ test("native resume dialog continues an actual restored Step scope then an expli
   for (const root of [source, target]) {
     await configureProject(root, { mirror: { enabled: true } });
     await writeFile(
-      join(
-        root,
-        ".intloom/workflows/node_modules/fixture-workflow/workflow.js",
-      ),
-      artifactWorkflow,
+      join(root, ".intloom/looms/node_modules/fixture-loom/loom.js"),
+      artifactLoom,
     );
     await refreshFixtureInstallation(root);
   }
   const core = createCliCore(),
     started = await core.startService({ projectPath: source });
   assert.ok(started.ok);
-  const created = await core.flow({
+  const created = await core.run({
     projectPath: source,
     serviceInstanceId: started.data.service.instanceId,
     operationId: randomUUID(),
-    flowName: "fixture",
-    intent: "Resumed artifact",
+    loomName: "fixture",
+    input: { prompt: "Resumed artifact" },
   });
   assert.ok(created.ok && created.data.run);
   const done = await core.waitRun({
@@ -266,7 +260,7 @@ test("native resume dialog continues an actual restored Step scope then an expli
     target,
     `
  await frame(/restored/);await command('/resume');await frame(/Continue step scope/);await enter();await frame(/scope_completed/);
- await command('/resume');await frame(/Continue Workflow/);await key('down');await key('down');await enter();await frame(/· completed/);
+ await command('/resume');await frame(/Continue Loom/);await key('down');await key('down');await enter();await frame(/· completed/);
  `,
   );
   const resumed = await core.getRun({
@@ -290,8 +284,28 @@ test("native unknown admission retains its operation and checks the receipt with
     [],
     `
  let submissions=0;
- const submit=core.flow;
- core.flow=async(input)=>{submissions++;const applied=await submit(input);assert.ok(applied.ok);return {ok:false,error:{code:'REQUEST_OUTCOME_UNKNOWN',message:'Fixture lost the response after admission',retryable:false},outcome:'unknown',meta:{requestId:'fixture',operationId:input.operationId,serviceInstanceId:input.serviceInstanceId}};};
+ const submit=core.run;
+ core.run=async(input)=>{submissions++;const applied=await submit(input);assert.ok(applied.ok);return {ok:false,error:{code:'REQUEST_OUTCOME_UNKNOWN',message:'Fixture lost the response after admission',retryable:false},outcome:'unknown',meta:{requestId:'fixture',operationId:input.operationId,serviceInstanceId:input.serviceInstanceId}};};
+ `,
+  );
+});
+
+test("native indeterminate receipts retain the operation until inspection resolves it", {
+  timeout: 20000,
+}, async (t) => {
+  const projectPath = await projectFixture(t);
+  await native(
+    projectPath,
+    `
+ await frame(/I N T L O O M/);await paste('Indeterminate receipt fixture');await enter();await frame(/Outcome remains unknown/);
+ await frame(/Inspect original operation/);await enter();await frame(/Where should it be deployed/);
+ const runs=await core.listRuns({projectPath});assert.ok(runs.ok);assert.equal(runs.data.length,1);assert.equal(submissions,1);
+ `,
+    [],
+    `
+ let submissions=0;
+ const submit=core.run;
+ core.run=async(input)=>{submissions++;const applied=await submit(input);assert.ok(applied.ok);return {ok:true,data:{receipt:{status:'indeterminate',kind:'run',operationId:input.operationId,serviceInstanceId:input.serviceInstanceId,error:{code:'RUN_CHECKPOINT_FAILED',message:'Fixture cannot confirm effects',retryable:false}}},meta:applied.meta};};
  `,
   );
 });
@@ -319,29 +333,26 @@ test("native resource pagination retains loaded entries and follows the Service 
   timeout: 20000,
 }, async (t) => {
   const projectPath = await projectFixture(t);
-  const workflow = artifactWorkflow.replace(
+  const loom = artifactLoom.replace(
     'return { outcome: "complete" };',
     `
-  await access.storage.commit(Array.from({length:52},(_,index)=>({type:"append_record",id:"REC-page-"+index,payload:{flowName:"fixture",stageName:"first",data:{page:index}}})));
+  await access.storage.commit(Array.from({length:52},(_,index)=>({type:"append_record",id:"REC-page-"+index,payload:{loomName:"fixture",stageName:"first",data:{page:index}}})));
   return { outcome: "complete" };`,
   );
   await writeFile(
-    join(
-      projectPath,
-      ".intloom/workflows/node_modules/fixture-workflow/workflow.js",
-    ),
-    workflow,
+    join(projectPath, ".intloom/looms/node_modules/fixture-loom/loom.js"),
+    loom,
   );
   await refreshFixtureInstallation(projectPath);
   const core = createCliCore(),
     started = await core.startService({ projectPath });
   assert.ok(started.ok);
-  const created = await core.flow({
+  const created = await core.run({
     projectPath,
     serviceInstanceId: started.data.service.instanceId,
     operationId: randomUUID(),
-    flowName: "fixture",
-    intent: "Pagination fixture",
+    loomName: "fixture",
+    input: { prompt: "Pagination fixture" },
   });
   assert.ok(created.ok && created.data.run);
   const done = await core.waitRun({
@@ -374,12 +385,12 @@ test("native multiple unfinished Runs use a picker that keeps selection during l
   assert.ok(started.ok);
   const ids: string[] = [];
   for (const intent of ["Earlier Run", "Later Run"]) {
-    const created = await core.flow({
+    const created = await core.run({
       projectPath,
       serviceInstanceId: started.data.service.instanceId,
       operationId: randomUUID(),
-      flowName: "fixture",
-      intent,
+      loomName: "fixture",
+      input: { prompt: intent },
     });
     assert.ok(created.ok && created.data.run);
     ids.push(created.data.run.runId);

@@ -10,16 +10,15 @@ title: 配置参考
 
 | 字段 | 契约 |
 | --- | --- |
-| `workflows` | 可选唯一包声明数组：name、精确 semver、64 位小写 sha256、可选本地 source |
+| `looms` | 可选唯一包声明数组：name、精确 semver、64 位小写 sha256、可选本地 source |
 | `localStorage` | 可选 `file` 或 `sqlite` |
 | `useMcpAgent` | 布尔，默认 true；外部 MCP 执行环境偏好 |
-| `intent.apps` | 必需应用偏好数组，可以为空 |
 | `mirror.enabled` | 布尔，默认 false |
 | `mirror.files.include/exclude` | 可选非空文件规则数组 |
 | `llms.default` | 配置 llms 时必需 |
-| `llms.reasoning/coding/review` | 可选完整角色模型定义 |
+| `llms.thinking/working/coding` | 可选完整角色模型定义 |
 
-CLI 维护已安装 Workflow 声明，请使用包管理操作，不编造归档哈希。
+CLI 维护已安装 Loom 声明，请使用包管理操作，不编造归档哈希。
 
 ## 模型定义
 
@@ -29,9 +28,7 @@ CLI 维护已安装 Workflow 声明，请使用包管理操作，不编造归档
 
 `parameters` 支持数字 temperature/topP 和正整数 maxOutputTokens。`providerOptions` 是提供方为键的 JSON 对象。角色回退到 default，不执行局部合并。
 
-## Intent 应用偏好
-
-每个应用有 `name`、`type`，可选 `dependencies`/`patterns` 为 name/description 对数组。类型为 web、service、worker、mobile、desktop、mini-app。Service/worker 支持 runtime。Mobile/desktop/mini-app 要求非空支持平台列表：ios/android；macos/windows/linux；wechat/alipay/douyin/qq/baidu。
+应用偏好和业务约束通过 Loom 输入 prompt 提供。
 
 ## 宿主观察与限制
 

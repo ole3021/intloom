@@ -1,9 +1,9 @@
-import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
+import { verifyConsumerImports, verifyCliSetup } from "./consumer.ts";
 import { retryPublishedInstall, verifyPublishedEntries } from "./registry.ts";
 import { readReleaseManifest } from "./release-files.ts";
 
@@ -52,32 +52,7 @@ try {
         },
       ),
     );
-    await writeFile(
-      resolve(project, "consumer.mjs"),
-      `
-import assert from "node:assert/strict";
-import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
-import { resolve } from "node:path";
-import { compileWorkflow } from "@intloom/compiler";
-import { workflowProtocolVersion } from "@intloom/workflow-sdk";
-import { blueprint } from "@intloom/workflow-intent";
-assert.equal(typeof compileWorkflow,"function");
-assert.equal(workflowProtocolVersion,createRequire(import.meta.url)("@intloom/workflow-intent/package.json").intloom.version);
-assert.equal(blueprint.flowName,"intent");
-await assert.rejects(import("@intloom/kernel"),{code:"ERR_MODULE_NOT_FOUND"});
-const require = createRequire(import.meta.resolve("@intloom/cli"));
-for (const [specifier, options] of [["file",{directory:resolve("file-store")}],["sqlite",{filename:resolve("store.sqlite"),projectId:"published"}]]) {
- const storage = await import(pathToFileURL(require.resolve("@intloom/kernel/storage/"+specifier)).href);
- const handle = await (specifier === "file" ? storage.openFileStorage(options) : storage.openSqliteStorage(options));
- try {await handle.access.commit([{type:"append_record",id:"published",payload:{flowName:"intent",stageName:"specification",data:"verified"}}]);assert.equal((await handle.access.getRecordById("published")).data,"verified");}
- finally {await handle.dispose();}
-}
-`,
-    );
-    await run(process.execPath, [resolve(project, "consumer.mjs")], {
-      cwd: project,
-    });
+    await verifyConsumerImports(project);
     // Isolated global prefixes exercise each advertised install command without changing the user's global bin.
     const prefix = resolve(project, "global");
     await retryPublishedInstall(release.entries, () =>
@@ -101,66 +76,16 @@ for (const [specifier, options] of [["file",{directory:resolve("file-store")}],[
       process.platform === "win32"
         ? resolve(prefix, "intloom.cmd")
         : resolve(prefix, "bin/intloom");
-    const { stdout: version } = await run(bin, ["--version"], { cwd: project });
-    assert.equal(version.trim(), release.versions["@intloom/cli"]);
-    const { stdout: help } = await run(bin, ["--help", "--no-color"], {
-      cwd: project,
+    await verifyCliSetup({
+      command: [bin],
+      directory: project,
+      version: release.versions["@intloom/cli"],
+      loomPackage: "@intloom/intent",
+      loomSource: `@intloom/intent@${release.versions["@intloom/intent"]}`,
     });
-    assert.match(help, /flow\s+Submit complete intent/);
-    assert.equal(help.includes(String.fromCharCode(27)), false);
-    await run(
-      bin,
-      [
-        "init",
-        "project",
-        "--json",
-        "--no-interactive",
-        "--workflow",
-        `@intloom/workflow-intent@${release.versions["@intloom/workflow-intent"]}`,
-      ],
-      { cwd: project, timeout: 180_000 },
-    );
-    const initializedProject = resolve(project, "project");
-    const command = (args: string[]) =>
-      run(bin, ["--project", initializedProject, ...args, "--json"], {
-        cwd: project,
-        timeout: 180_000,
-      });
-    const installed = JSON.parse(
-      (await command(["workflow", "list"])).stdout,
-    ).data;
-    assert.equal(installed.workflows[0].name, "@intloom/workflow-intent");
-    assert.equal(installed.installation, "ready");
-    const offline = JSON.parse(
-      (await command(["doctor", "--execution", "cli"])).stdout,
-    ).data;
-    assert.equal(
-      offline.checks.find((item: { name: string }) => item.name === "execution")
-        .status,
-      "attention",
-    );
-    await command(["workflow", "remove", "@intloom/workflow-intent"]);
-    assert.deepEqual(
-      JSON.parse((await command(["workflow", "list"])).stdout).data.workflows,
-      [],
-    );
-    await command([
-      "workflow",
-      "add",
-      `@intloom/workflow-intent@${release.versions["@intloom/workflow-intent"]}`,
-    ]);
-    try {
-      await command(["start"]);
-      const online = JSON.parse(
-        (await command(["doctor", "--execution", "agent_ide"])).stdout,
-      ).data;
-      assert.equal(online.workflows[0].isAvailable, true);
-    } finally {
-      await command(["stop"]);
-    }
   }
   console.log(
-    "Both npm entries, Workflow imports, CLI setup and file/SQLite storage passed; remote models remain separate acceptance.",
+    "Both npm entries, Loom imports, CLI setup and file/SQLite storage passed; remote models remain separate acceptance.",
   );
 } finally {
   await rm(temporary, { recursive: true, force: true });

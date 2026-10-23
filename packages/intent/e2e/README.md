@@ -1,44 +1,23 @@
-# Intent Workflow E2E suite
+# Intent Loom E2E
 
-This directory owns Intent inputs, knowledge, model roles and optional business acceptance. The private root [E2E tool](../../../e2e/README.md) owns project setup and ordered CMD/MCP execution across CLI, Kernel and Workflow.
-
-- `cases/S01`: one local task CLI Intent to exercise a complete flow.
-- `cases/M01`: a completed basic-task Intent's workspace and formal history, followed by two Intents for editing/bulk controls and navigation/persistence/presentation. `baseline/provenance.json` identifies the real initial Intent and Run.
-- `cases/L01`: ten Intents creating and evolving one empty operations project: intake, storage/CLI, cancellation, scheduling, completion, summary, filters, operator reports, export and documentation.
-
-S/M/L describe iteration scenarios for this Workflow. They do not impose generic E2E limits. Later requirements become active when their Intent is submitted; the simulated user uses knowledge to answer relevant questions and preserve authorized earlier scope.
+This suite belongs to `@intloom/intent`. The [CLI runner](../../../apps/cli/src/e2e/README.md) owns generic execution; these cases own requirements, user knowledge and independent checks for the current four-stage design.
 
 ```sh
-bun run e2e:cmd --root /absolute/e2e-root --case s01
-bun run e2e:mcp --root /absolute/e2e-root --case m01
-bun run e2e:cmd --root /absolute/e2e-root --case l01 --workflow @intloom/workflow-intent@VERSION
+intloom build ./packages/intent
+intloom e2e ./packages/intent --list
+intloom e2e ./packages/intent --case S01 --root /absolute/e2e-results
+intloom e2e ./packages/intent --case M01 --entry mcp --root /absolute/e2e-results
 ```
 
-Configure model IDs in config.yaml or override `models` in an individual case.yaml. For example:
+Export `INTLOOM_E2E_MODEL`, `INTLOOM_E2E_API_KEY` and `INTLOOM_E2E_BASE_URL`, or pass `--profile` with separate user/service/worker model settings. No credentials belong in the suite. CMD is the default. E2E uses existing build output and does not rebuild it.
 
-```yaml
-models:
-  cmd:
-    reasoning: minimax-m3
-  mcp:
-    worker: glm-5.3-flash
-```
+- **S01** creates a small persistent task CLI in one Run. It verifies full delivery, independent implementation/validation execution, four immutable Records, three Artifacts and confirmation/handoff evidence.
+- **M01** starts fresh and executes two real Runs. The first creates add/list/complete/reopen. The second adds list filtering, changes its default and removes reopening. It verifies retained history, adjusted/retired requirements, round-only removal criteria and cumulative validation. Second-round knowledge is withheld from the first simulated-user session.
 
-The generic tool supplies Zen transport and uses the repository's single ZEN_API_KEY. This suite supplies the specific user/reasoning/coding/review/worker choices. Availability and success for a particular account or model require actual execution; no preset name implies comparative model quality.
+Both are full-delivery success cases. Partial delivery or ending collection with unverified targets is not authorized. Such outcomes block/fail these cases rather than being silently approved. This expectation belongs here, not in the generic Runner; future negative cases can expect truthful failed/partial/undone validation.
 
-`preparation.scripts: [checks/prepare.ts]` copies an optional case `baseline/intloom/` into the fresh CLI scaffold before Service startup. It preserves `store.json`, `artifacts/` and `records/` byte for byte, including versions and submission references. Cases without a baseline skip the copy. Business files belong in `workspace/`. Generate a baseline only from a completed first Intent with its Service stopped; retain provenance with the case. Do not copy `.intloom/`, configuration, credentials, dependency installations or locks. This initial preparation does not resume an old Run or restore a mirror. The default prepared baseline uses file Storage.
+`checks/contracts.mjs` validates exact public result references, Record digests, confirmed snapshots, same-Run bases, plan coverage, candidate identity and positive evidence. `checks/history.mjs` checks prior Record immutability, Artifact bases, cumulative publication order, version-qualified targets, latest unknown outcomes and historical finding updates. These scripts run after every round by default. They do not import CLI internals, prefill formal storage or substitute historical evidence for the current execution.
 
-config.yaml accepts optional `limits` (execution duration, user/worker steps, command and connection timeout, connection retries). Limits are explicit, with no size-dependent budget table or financial tracking. See the root E2E README for precise semantics.
+The former M01 baseline and legacy L01 are removed from the active catalog. Every formal history entry now originates in this attempt. Longer and exceptional scenarios can be added as separate cases after the two main cases are validated. The checks assess the Loom process and formal evidence; they do not claim comprehensive application or visual quality.
 
-acceptance.md guides the simulated user's confirmation and result queries. The default has no mandatory scripted business verification. To enable the existing Intent-specific facts, add:
-
-```yaml
-acceptance:
-  instructions: acceptance.md
-  scripts:
-    - checks/results.ts
-```
-
-The optional script reads each current Run's exact commit references before later iterations update Artifacts. It checks the four-stage Intent contract, confirmed bases and digests, original inputs and mirror integrity/boundaries; it queries earlier immutable Records directly. This deliberately stricter business policy belongs here and can be adapted independently. It does not grade the delivered code. Its own summary is written to the execution directory; it does not impose a global `--limit 50` query. `checks/facts.spec.ts` and performance helpers retain focused development regressions and are ordinary unit checks, not real-model E2E.
-
-Add new cases as data directories with case.yaml (`intents`) and knowledge.md, plus optional workspace files/model overrides. No suite implementation or Kernel change is needed. Use `--suite DIRECTORY` for a different Workflow's E2E data.
+Oracle regression tests run with the Intent package's ordinary `test` script. CLI infrastructure tests use their own generic Loom. Neither those controlled tests nor package builds establish successful live-model S01/M01 execution; retain the actual E2E reports when running them.

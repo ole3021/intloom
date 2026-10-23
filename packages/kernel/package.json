@@ -1,6 +1,6 @@
 {
   "name": "@intloom/kernel",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -8,9 +8,33 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./workflow": {
-      "types": "./dist/workflow/index.d.ts",
-      "default": "./dist/workflow/index.js"
+    "./host": {
+      "types": "./dist/host/index.d.ts",
+      "default": "./dist/host/index.js"
+    },
+    "./operations": {
+      "types": "./dist/operations/index.d.ts",
+      "default": "./dist/operations/index.js"
+    },
+    "./loom": {
+      "types": "./dist/loom/index.d.ts",
+      "default": "./dist/loom/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "default": "./dist/errors.js"
+    },
+    "./transport/mcp": {
+      "types": "./dist/transport/mcp/index.d.ts",
+      "default": "./dist/transport/mcp/index.js"
+    },
+    "./transport/ide": {
+      "types": "./dist/transport/ide/index.d.ts",
+      "default": "./dist/transport/ide/index.js"
+    },
+    "./transport/interaction": {
+      "types": "./dist/transport/interaction/index.d.ts",
+      "default": "./dist/transport/interaction/index.js"
     },
     "./storage/file": {
       "types": "./dist/storage/file/open.d.ts",
@@ -19,14 +43,6 @@
     "./storage/sqlite": {
       "types": "./dist/storage/sqlite/open.d.ts",
       "default": "./dist/storage/sqlite/open.js"
-    },
-    "./service": {
-      "types": "./dist/service/index.d.ts",
-      "default": "./dist/service/index.js"
-    },
-    "./service/*": {
-      "types": "./dist/service/*.d.ts",
-      "default": "./dist/service/*.js"
     }
   },
   "files": [
@@ -44,14 +60,14 @@
     "yaml": "^2.8.1",
     "drizzle-orm": "0.45.3",
     "better-sqlite3": "13.0.3",
-    "@intloom/workflow-sdk": "workspace:*",
+    "@intloom/loom-sdk": "workspace:*",
     "@modelcontextprotocol/server": "2.3.1",
     "@modelcontextprotocol/client": "2.3.1",
     "@modelcontextprotocol/node": "2.1.1"
   },
   "scripts": {
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "bun -e 'await Bun.$`rm -rf dist`' && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test \"src/**/*.spec.ts\"",
     "test:intg": "node --test \"test/**/*.intg.ts\"",

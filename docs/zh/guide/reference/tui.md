@@ -21,8 +21,8 @@ Shift+Enter 需要终端报告修饰键（Kitty 键盘协议）；输入区保�
 
 | MVP 命令 | 操作 |
 | --- | --- |
-| `/run [workflow]` | 新建意图草稿；提交意图后创建 Run |
-| `/workflow` | 为新 Run 选择 Workflow，与 Ctrl+P 相同 |
+| `/run [loom]` | 新建意图草稿；提交意图后创建 Run |
+| `/loom` | 为新 Run 选择 Workflow，与 Ctrl+P 相同 |
 | `/runs` | 切换 Run，与 Ctrl+O 相同 |
 | `/resume` | 按现有范围和边界规则继续 paused Run |
 | `/stop` | 确认停止选中的未完成 Run，保留已提交资源 |

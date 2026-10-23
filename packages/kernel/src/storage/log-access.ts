@@ -1,5 +1,5 @@
 import { getLogger, silentLogger, type LogFields } from "@intloom/utils";
-import type { StorageAccess } from "./contracts.ts";
+import type { StorageAccess } from "@intloom/loom-sdk";
 
 /** Records backend results after completion without serializing stored business data. */
 export function logStorageAccess(access: StorageAccess): StorageAccess {
@@ -27,17 +27,17 @@ export function logStorageAccess(access: StorageAccess): StorageAccess {
     }
   }
   return Object.freeze({
-    getArtifact: (flowName, stageName) =>
-      read("get_artifact", { flowName, stageName }, () =>
-        access.getArtifact(flowName, stageName),
+    getArtifact: (loomName, stageName) =>
+      read("get_artifact", { loomName, stageName }, () =>
+        access.getArtifact(loomName, stageName),
       ),
     getArtifactById: (id) =>
       read("get_artifact_by_id", { artifactId: id }, () =>
         access.getArtifactById(id),
       ),
-    getLatestRecord: (flowName, stageName) =>
-      read("get_latest_record", { flowName, stageName }, () =>
-        access.getLatestRecord(flowName, stageName),
+    getLatestRecord: (loomName, stageName) =>
+      read("get_latest_record", { loomName, stageName }, () =>
+        access.getLatestRecord(loomName, stageName),
       ),
     getRecordById: (id) =>
       read("get_record_by_id", { recordId: id }, () =>

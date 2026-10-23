@@ -1,5 +1,5 @@
 import type { CliCore, CoreResult, ServiceRunView } from "../core/index.ts";
-import type { WorkflowView } from "@intloom/kernel";
+import type { LoomView } from "@intloom/kernel";
 export interface TuiSnapshot {
   projectPath: string;
   connection:
@@ -11,7 +11,7 @@ export interface TuiSnapshot {
     | "disconnected";
   instanceId?: string | undefined;
   ready: boolean;
-  workflows: readonly WorkflowView[];
+  looms: readonly LoomView[];
   runs: readonly ServiceRunView[];
   message: string;
 }
@@ -25,7 +25,7 @@ export function createTuiSession(
     projectPath,
     connection: "loading",
     ready: false,
-    workflows: [],
+    looms: [],
     runs: [],
     message: "Loading project…",
   };
@@ -81,7 +81,7 @@ export function createTuiSession(
         connection:
           result.data.status === "stopped" ? "stopped" : "unavailable",
         runs: [],
-        workflows: [],
+        looms: [],
         instanceId: undefined,
         message:
           result.data.status === "stopped"
@@ -97,7 +97,7 @@ export function createTuiSession(
       instanceId: serviceInstanceId,
       message: "Connected to the project Service.",
       ...(state.instanceId !== serviceInstanceId
-        ? { runs: [], workflows: [] }
+        ? { runs: [], looms: [] }
         : {}),
     });
     const abort = new AbortController();
@@ -120,7 +120,7 @@ export function createTuiSession(
           publish({
             connection: "running",
             ready: true,
-            workflows: data.workflows,
+            looms: data.looms,
             runs: [
               ...state.runs.filter(
                 (old) => !data.runs.some((run) => run.runId === old.runId),

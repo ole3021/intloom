@@ -12,7 +12,7 @@ title: Workflow, Stage, Step, and Run
 | Step | One Code or Agent execution with declared outcome routes |
 | Run | One execution of a Workflow for an original intent |
 
-A Workflow package compiles into `blueprint`, `codes` and `agentSpecs`. The Service loads these resources, registers `flowName`, and creates a Run when execution is admitted.
+A Workflow package compiles into `blueprint`, `codes` and `agentSpecs`. The Service loads these resources, registers `loomName`, and creates a Run when execution is admitted.
 
 ## Routing
 
@@ -22,7 +22,7 @@ Loops are explicit routes. Stage State persists within a visit; entering a Stage
 
 ## Definition versus execution
 
-Installing a package does not create a Run. Starting the Service loads definitions. `flow` creates execution; `answer` continues it. Run IDs and action IDs identify different objects.
+Installing a package does not create a Run. Starting the Service loads definitions. `run` creates execution; `answer` continues it. Run IDs and action IDs identify different objects.
 
 `exclusive: true` prevents competing active Runs in the same host, including waits. Other definitions can permit concurrency. The four Intent stages are one concrete Workflow, not a framework-wide requirement.
 

@@ -1,6 +1,6 @@
-import type { StorageAccess } from "../storage/contracts.ts";
-import type { ProjectAccess } from "@intloom/workflow-sdk";
-import { KERNEL_ERRORS } from "../errors/kernel.ts";
+import type { StorageAccess } from "@intloom/loom-sdk";
+import type { ProjectAccess } from "@intloom/loom-sdk";
+import { ERRORS } from "../errors.ts";
 
 /** Host writes already accepted before capture settle; new writes and Runs are rejected until release. */
 export function createWriteGate() {
@@ -8,7 +8,7 @@ export function createWriteGate() {
   let locked = false;
   function assertOpen(): void {
     if (locked)
-      throw KERNEL_ERRORS.create("BUSY", {
+      throw ERRORS.create("BUSY", {
         message: "Project writes are locked for mirror capture.",
       });
   }

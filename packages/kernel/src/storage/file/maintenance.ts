@@ -2,7 +2,7 @@ import { lstat, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import * as z from "zod";
-import { KERNEL_ERRORS } from "../../errors/kernel.ts";
+import { ERRORS } from "../../errors.ts";
 import { storageError } from "../errors.ts";
 
 const lockSchema = z.strictObject({
@@ -49,7 +49,7 @@ export async function recoverFileStorageLock(options: {
 }): Promise<void> {
   const current = await inspectFileStorageLock(options);
   if (!current || !isDeepStrictEqual(current, options.expected))
-    throw KERNEL_ERRORS.create("CONFLICT", {
+    throw ERRORS.create("CONFLICT", {
       message: "Storage lock changed; inspect it again before recovery.",
     });
   try {
@@ -65,7 +65,7 @@ export async function recoverFileStorageLock(options: {
     }
     throw storageError(cause);
   }
-  throw KERNEL_ERRORS.create("BUSY", {
+  throw ERRORS.create("BUSY", {
     message: "Storage lock owner still exists; recovery was refused.",
   });
 }

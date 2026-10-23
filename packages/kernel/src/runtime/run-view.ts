@@ -1,7 +1,7 @@
 import type { RunExecution } from "./execution-policy.ts";
-import type { Cursor } from "../workflow/blueprint.ts";
-import type { ReadonlyJsonValue } from "../shared/json.ts";
-import type { PendingAgentCall } from "./agent-call-types.ts";
+import type { Cursor } from "./cursor.ts";
+import type { ReadonlyJsonValue } from "@intloom/loom-sdk";
+import type { PendingAgentCall } from "../execution/delegated/contracts.ts";
 
 export type RunStatus =
   | "running"
@@ -18,7 +18,7 @@ export type PendingUserActionKind =
 export interface PendingUserAction {
   /** Generated for each new question, retained during presentation and reconnection, and submitted as actionId. */
   readonly id: string;
-  readonly flowName: string;
+  readonly loomName: string;
   readonly cursor: Readonly<Cursor>;
   readonly kind: PendingUserActionKind;
   readonly request: ReadonlyJsonValue;
@@ -34,17 +34,20 @@ export interface RunErrorView {
 
 /** A RunState snapshot, not an independent state record; timestamps are converted to ISO strings. */
 export interface RunView {
+  readonly pauseRequested?: boolean;
+  readonly historical?: boolean;
+  readonly startedBy?: import("./contracts.ts").OperationRef;
   readonly serviceInstanceId?: string;
   readonly revision?: number;
   readonly metrics?: import("./run-observation.ts").RunMetrics;
   readonly limits?: import("./run-observation.ts").RunLimits;
   readonly activity?: readonly import("./run-observation.ts").RunActivity[];
-  readonly results?: readonly import("./run-observation.ts").RunResult[];
+  readonly results?: readonly import("./run-facts.ts").RunResult[];
   readonly settled?: boolean;
   readonly stopReason?: "user_cancel" | "budget_exceeded";
   readonly control?: import("../mirror/contracts.ts").MirrorControl;
   readonly runId: string;
-  readonly flowName: string;
+  readonly loomName: string;
   readonly execution: RunExecution;
 
   /** The current cursor for running/waiting, or the last reached cursor for completed/failed. */

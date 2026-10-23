@@ -6,11 +6,11 @@ title: 常见问题
 
 ## IntLoom 只能运行四阶段 Intent 流程吗？
 
-不是。IntLoom 执行自定义 Workflow，四阶段属于 `@intloom/workflow-intent`。参见 [Workflow 概念](../concepts/workflow.md)。
+不是。IntLoom 执行自定义 Workflow，四阶段属于 `@intloom/intent`。参见 [Workflow 概念](../concepts/workflow.md)。
 
 ## 安装 CLI 就会安装 Intent 吗？
 
-不会。通过 `workflow add` 单独安装业务包。
+不会。通过 `loom add` 单独安装业务包。
 
 ## 为什么 Service 可以启动，CMD 执行却提示模型问题？
 

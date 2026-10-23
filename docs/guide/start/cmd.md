@@ -25,11 +25,11 @@ Replace placeholders and provide `MODEL_API_KEY` in the environment that starts 
 intloom stop
 intloom start
 intloom doctor --execution cli
-intloom flows
-intloom flow intent --intent "Build a Todo app with local persistence"
+intloom looms
+intloom run intent --prompt "Build a Todo app with local persistence"
 ```
 
-Retain the returned Run ID. `doctor` checks readiness without calling a model; the flow receipt admits work but does not prove completion.
+Retain the returned Run ID. `doctor` checks readiness without calling a model; the Run receipt admits work but does not prove completion.
 
 ## Continue the same Run
 
@@ -56,9 +56,9 @@ Question actions require an answer array instead; see [Run management](../usage/
 ## Read the result
 
 ```sh
-intloom artifacts --flow intent
-intloom records --flow intent
-intloom artifact --flow intent --stage validation
+intloom artifacts --loom intent
+intloom records --loom intent
+intloom artifact --loom intent --stage validation
 ```
 
 Read the Validation findings and check results. Follow [CMD usage](../usage/cmd.md) for scripting and [the Intent walkthrough](../intent/walkthrough.md) for the four stages.

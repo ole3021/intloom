@@ -24,7 +24,7 @@ const answers = [
   { questionId: "notes", isSkipped: true },
 ];
 for (const backend of ["file", "sqlite"] as const)
-  test(`${backend}: CLI daemon, flow, cross-client continuation, restart and durable data`, {
+  test(`${backend}: CLI daemon, run, cross-client continuation, restart and durable data`, {
     timeout: 30_000,
   }, async (t) => {
     const root = await projectFixture(t, true, backend);
@@ -37,9 +37,9 @@ for (const backend of ["file", "sqlite"] as const)
     assert.equal(reused.reused, true);
     assert.equal(reused.service.instanceId, first.instanceId);
     const created = await cli(root, [
-      "flow",
+      "run",
       "fixture",
-      "--intent",
+      "--prompt",
       "  original\nintent  ",
       "--json",
     ]);
@@ -102,13 +102,17 @@ for (const backend of ["file", "sqlite"] as const)
       JSON.parse((await cli(root, ["status", "--json"])).stdout).data.status,
       "stopped",
     );
-    assert.equal((await cli(root, ["start", "--json"])).code, 0);
+    const restart = await cli(root, ["start", "--json"]);
+    assert.equal(restart.code, 0, restart.stdout + restart.stderr);
     const restarted = await serviceStatus(root);
     assert.notEqual(restarted.instanceId, first.instanceId);
     assert.equal(restarted.url, first.url);
     assert.equal((await connection(root)).token, saved.token);
     const next = await connectProject(root);
-    assert.equal((await next.listRuns()).length, 0);
+    const history = await next.listRuns();
+    assert.equal(history.length, 1);
+    assert.equal(history[0]?.runId, done.runId);
+    assert.equal(history[0]?.historical, true);
     assert.deepEqual(await next.getRecord(done.runId), record);
     await next.close();
     if (process.platform !== "win32")
@@ -123,7 +127,7 @@ test("JSON waiting, invalid answers, cancellation and failed commit remain obser
   await startService({ projectRoot: root });
   const client = await connectProject(root);
   t.after(() => client.close());
-  const normalReceipt = await client.flow("fixture", "normal");
+  const normalReceipt = await client.run("fixture", { prompt: "normal" });
   const waiting = await untilRun(
     client,
     normalReceipt.runId,
@@ -136,8 +140,13 @@ test("JSON waiting, invalid answers, cancellation and failed commit remain obser
   assert.deepEqual(await client.getRun(waiting.runId), waiting);
   const cancelled = await cli(root, ["cancel", waiting.runId, "--json"]);
   assert.equal(cancelled.code, 0);
-  assert.equal(JSON.parse(cancelled.stdout).data.lastError.code, "RUN_STOPPED");
-  const failureReceipt = await client.flow("fixture", "fail-after-commit");
+  assert.equal(
+    JSON.parse(cancelled.stdout).data.run.lastError.code,
+    "RUN_STOPPED",
+  );
+  const failureReceipt = await client.run("fixture", {
+    prompt: "fail-after-commit",
+  });
   const failure = await untilRun(
     client,
     failureReceipt.runId,
@@ -191,9 +200,9 @@ test("CMD never consumes a human action, even with an interactive terminal", asy
     [
       "--project",
       root,
-      "flow",
+      "run",
       "fixture",
-      "--intent",
+      "--prompt",
       "  original\nintent  ",
       "--json",
     ],

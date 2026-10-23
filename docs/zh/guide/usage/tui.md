@@ -10,7 +10,7 @@ TUI 面向当前项目的 Workflow 执行、Run 控制及资源查看。进入�
 
 Tab 循环切换 **Run → Logs → Assets**。Ctrl+O 搜索切换 Run，并保留当前窗口；Ctrl+P 为新 Run 选择 Workflow，返回意图草稿。切换窗口保留回答草稿、资源筛选及日志位置。Workflow 选择作用于新 Run 草稿。
 
-输入 `/` 立即显示六项 MVP 命令：`/run`、`/workflow`、`/runs`、`/resume`、`/stop`、`/quit`。继续输入筛选，方向键选择、Enter 执行、Esc 关闭。不可用命令仍显示并说明原因，普通文本中间的 `/` 保持文本。
+输入 `/` 立即显示六项 MVP 命令：`/run`、`/loom`、`/runs`、`/resume`、`/stop`、`/quit`。继续输入筛选，方向键选择、Enter 执行、Esc 关闭。不可用命令仍显示并说明原因，普通文本中间的 `/` 保持文本。
 
 ## 回答与执行控制
 

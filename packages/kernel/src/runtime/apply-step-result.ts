@@ -1,7 +1,8 @@
-import type { Blueprint, Cursor } from "../workflow/blueprint.ts";
-import { stepResultSchema } from "../effector/schemas/step-result.ts";
-import type { StepResult } from "../effector/execution.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import type { Blueprint } from "@intloom/loom-sdk";
+import type { Cursor } from "./cursor.ts";
+import { stepResultSchema } from "@intloom/loom-sdk";
+import type { StepResult } from "@intloom/loom-sdk";
+import { ERRORS } from "../errors.ts";
 import {
   resolveCursor,
   resolveCurrentExecution,
@@ -23,19 +24,19 @@ export function applyStepResult(
     current.stage !== executed.stage ||
     current.step !== executed.step
   ) {
-    throw RUNTIME_ERRORS.create("EXECUTION_OWNERSHIP_LOST");
+    throw ERRORS.create("EXECUTION_OWNERSHIP_LOST");
   }
   // Definition and Cursor checks cannot detect duplicate results after a loop; validate active task identity before calling.
   const parsed = stepResultSchema.safeParse(result);
   if (!parsed.success) {
-    throw RUNTIME_ERRORS.wrap("STEP_RESULT_INVALID", parsed.error);
+    throw ERRORS.wrap("STEP_RESULT_INVALID", parsed.error);
   }
   const { outcome } = parsed.data;
   const next = Object.hasOwn(current.step.on, outcome)
     ? current.step.on[outcome]
     : undefined;
   if (!next) {
-    throw RUNTIME_ERRORS.create("STEP_OUTCOME_NOT_HANDLED", {
+    throw ERRORS.create("STEP_OUTCOME_NOT_HANDLED", {
       message: `Step ${current.stage.stageName}/${current.step.stepName} does not handle outcome ${outcome}.`,
     });
   }
@@ -54,7 +55,7 @@ export function applyStepResult(
         ? current.stage.on[outcome]
         : undefined;
       if (!stageNext) {
-        throw RUNTIME_ERRORS.create("STEP_OUTCOME_NOT_HANDLED", {
+        throw ERRORS.create("STEP_OUTCOME_NOT_HANDLED", {
           message: `Stage ${current.stage.stageName} does not handle outcome ${outcome}.`,
         });
       }
@@ -64,7 +65,7 @@ export function applyStepResult(
             ? blueprint.stages[stageNext.stageName]
             : undefined;
           if (!stage) {
-            throw RUNTIME_ERRORS.create("INVALID_TRANSITION");
+            throw ERRORS.create("INVALID_TRANSITION");
           }
           cursor = {
             stageName: stageNext.stageName,
@@ -74,19 +75,19 @@ export function applyStepResult(
           transition = { kind: "enter_stage", stage };
           break;
         }
-        case "workflow_end":
+        case "loom_end":
           transition = { kind: "complete" };
           break;
         default:
-          throw RUNTIME_ERRORS.create("INVALID_TRANSITION");
+          throw ERRORS.create("INVALID_TRANSITION");
       }
       break;
     }
     default:
-      throw RUNTIME_ERRORS.create("INVALID_TRANSITION");
+      throw ERRORS.create("INVALID_TRANSITION");
   }
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
-    throw RUNTIME_ERRORS.create("RUN_STATE_INVALID", {
+    throw ERRORS.create("RUN_STATE_INVALID", {
       message: "The transition timestamp must be a valid Date.",
     });
   }
@@ -103,6 +104,6 @@ function validateTarget(blueprint: Blueprint, cursor: Cursor): void {
   try {
     resolveCursor(blueprint, cursor);
   } catch (cause) {
-    throw RUNTIME_ERRORS.wrap("INVALID_TRANSITION", cause);
+    throw ERRORS.wrap("INVALID_TRANSITION", cause);
   }
 }

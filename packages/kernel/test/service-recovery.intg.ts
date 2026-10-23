@@ -6,11 +6,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
 import { stopProject as projectFixture } from "./service-fixture.ts";
-import { claimServiceRecovery } from "@intloom/kernel/service/discovery";
-import {
-  diagnoseProject,
-  recoverProject,
-} from "@intloom/kernel/service/recovery";
+import { claimServiceRecovery } from "@intloom/kernel/host";
+import { diagnoseProject, recoverProject } from "@intloom/kernel/host";
 
 test("diagnosis does not create resources; clean recovery is a no-op", async (t) => {
   const root = await projectFixture(t);

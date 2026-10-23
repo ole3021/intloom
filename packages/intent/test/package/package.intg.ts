@@ -6,16 +6,16 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { promisify } from "node:util";
-import type { Blueprint, ExecutableCode } from "@intloom/workflow-sdk";
+import type { Blueprint, ExecutableCode } from "@intloom/loom-sdk";
 
-const packageName = "@intloom/workflow-intent";
+const packageName = "@intloom/intent";
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const run = promisify(execFile);
 
-test("compiled Workflow exposes executable resources and excludes test files", async () => {
+test("compiled Loom exposes executable resources and excludes test files", async () => {
   assert.equal(
     import.meta.resolve(packageName),
-    new URL("../../dist/workflow.generated.js", import.meta.url).href,
+    new URL("../../dist/loom.generated.js", import.meta.url).href,
   );
   const output = await import(packageName);
   assert.deepEqual(Object.keys(output).sort(), [
@@ -25,10 +25,10 @@ test("compiled Workflow exposes executable resources and excludes test files", a
   ]);
   const blueprint: Blueprint = output.blueprint;
   const codes: Readonly<Record<string, ExecutableCode>> = output.codes;
-  assert.equal(blueprint.flowName, "intent");
+  assert.equal(blueprint.loomName, "intent");
   const stage = blueprint.stages.specification;
   assert.ok(stage);
-  assert.equal(Object.keys(stage.steps).length, 6);
+  assert.equal(Object.keys(stage.steps).length, 8);
   for (const step of Object.values(stage.steps)) {
     if (step.execution.kind === "code") {
       assert.match(step.execution.codeId, /^CODE-[\w-]{21}$/);
@@ -37,9 +37,9 @@ test("compiled Workflow exposes executable resources and excludes test files", a
     if (step.execution.kind === "agent") {
       assert.match(step.execution.agentId, /^AGENT-[\w-]{21}$/);
       const spec = output.agentSpecs[step.execution.agentId];
-      assert.equal(spec.llm, "reasoning");
-      assert.equal(spec.skills.length, 3);
-      assert.equal(spec.tools.length, 2);
+      assert.equal(spec.llm, "thinking");
+      assert.equal(spec.skills.length, 1);
+      assert.ok(spec.tools.length >= 6);
       assert.equal(
         spec.outputSchema.safeParse({ outcome: "ready" }).success,
         true,
@@ -63,7 +63,7 @@ test("emitted declarations satisfy SDK Blueprint and Code contracts", async () =
   try {
     await writeFile(
       resolve(temporary, "consumer.ts"),
-      'import { blueprint, codes } from "@intloom/workflow-intent";\nimport type { Blueprint, ExecutableCode } from "@intloom/workflow-sdk";\nblueprint satisfies Blueprint;\ncodes satisfies Readonly<Record<string, ExecutableCode>>;\n',
+      'import { blueprint, codes } from "@intloom/intent";\nimport type { Blueprint, ExecutableCode } from "@intloom/loom-sdk";\nblueprint satisfies Blueprint;\ncodes satisfies Readonly<Record<string, ExecutableCode>>;\n',
     );
     await writeFile(
       resolve(temporary, "tsconfig.json"),

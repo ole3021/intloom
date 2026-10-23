@@ -12,7 +12,7 @@ CLI, its lightweight launcher package, and bundled private Kernel form a coordin
 
 ## Workflow artifact protocol
 
-The current protocol is **2026-10-08**. It is declared in `package.json.intloom.version` and checked by Compiler and host independently from npm version.
+The current protocol is **2026-10-15**. It is declared in `package.json.loom.version` and checked by Compiler and host independently from npm version.
 
 Compiled Workflows must expose blueprint/codes/agentSpecs, valid Stage initializers and compatible resources. Source/schema changes require rebuilding and reinstalling artifacts. Stop the Service before replacing packages; restart to adopt the new installation.
 

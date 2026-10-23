@@ -1,1 +1,1 @@
-export * from "@intloom/kernel/service/errors";
+export * from "@intloom/kernel/errors";

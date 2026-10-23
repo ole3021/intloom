@@ -1,4 +1,4 @@
-import { compileWorkflow } from "@intloom/compiler";
+import { compileLoom } from "@intloom/compiler";
 import type { OpenLogOptions } from "@intloom/utils";
 
 const logging: OpenLogOptions = {
@@ -14,16 +14,17 @@ const logging: OpenLogOptions = {
 };
 void logging;
 
-type Options = Parameters<typeof compileWorkflow>[0];
+type Options = Parameters<typeof compileLoom>[0];
 const options: Options = {
-  packageRoot: "/workflow",
+  packageRoot: "/loom",
   tsconfigFile: "build.json",
 };
-const result: Promise<void> = compileWorkflow(options);
+const result: Promise<import("@intloom/compiler").CompileResult> =
+  compileLoom(options);
 void result;
 // @ts-expect-error packageRoot is required.
 const missingRoot: Options = {};
 // @ts-expect-error tsconfigFile must be a path string.
-const invalidConfig: Options = { packageRoot: "/workflow", tsconfigFile: 42 };
+const invalidConfig: Options = { packageRoot: "/loom", tsconfigFile: 42 };
 void missingRoot;
 void invalidConfig;

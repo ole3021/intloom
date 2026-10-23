@@ -1,0 +1,97 @@
+stage:
+  name: validation
+  state:
+    schema: ./schema/state.ts
+    initialize: ../../src/initialize.ts
+  entry: prepare
+  steps:
+    prepare:
+      type: code
+      code: ./codes/prepare.ts
+      on:
+        ready:
+          target: verify
+        complete:
+          end: true
+    verify:
+      type: code
+      code: ./codes/verify.ts
+      on:
+        ready:
+          target: assess
+        observe:
+          target: observe
+    observe:
+      type: agent
+      agent: ./agents/validation-analyst.md
+      llm: thinking
+      outputSchema: ./schema/result.ts
+      skills:
+        - ./skills/evidence-assessment/SKILL.md
+      tools:
+        - ./tools/index.ts#readValidationContext
+        - ../../src/tools/project.ts#listProject
+        - ../../src/tools/project.ts#readProject
+        - ../../src/tools/project.ts#readEvidence
+        - ../../src/tools/project.ts#readHistory
+        - ../../src/tools/questions.ts#requestClarification
+        - ./tools/index.ts#submitObservation
+      on:
+        ready:
+          target: verify
+        needs_input:
+          target: resolve
+    assess:
+      type: agent
+      agent: ./agents/validation-analyst.md
+      llm: thinking
+      outputSchema: ./schema/result.ts
+      skills:
+        - ./skills/evidence-assessment/SKILL.md
+      tools:
+        - ./tools/index.ts#readValidationContext
+        - ../../src/tools/project.ts#listProject
+        - ../../src/tools/project.ts#readProject
+        - ../../src/tools/project.ts#readEvidence
+        - ../../src/tools/project.ts#readHistory
+        - ./tools/index.ts#submitAssessment
+        - ./tools/index.ts#requestCollectionStop
+      on:
+        ready:
+          target: check
+        needs_evidence:
+          target: verify
+        needs_input:
+          target: resolve
+    check:
+      type: code
+      code: ./codes/check.ts
+      on:
+        ready:
+          target: commit
+        assess:
+          target: assess
+        verify:
+          target: verify
+        needs_input:
+          target: resolve
+    resolve:
+      type: code
+      code: ./codes/resolve.ts
+      on:
+        assess:
+          target: assess
+        verify:
+          target: verify
+        needs_input:
+          target: resolve
+        observe:
+          target: observe
+    commit:
+      type: code
+      code: ./codes/commit.ts
+      on:
+        complete:
+          end: true
+        assess:
+          target: assess

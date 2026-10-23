@@ -10,8 +10,8 @@ MCP 将外部 Agent 客户端连接到项目 Service。`intloom mcp serve` 是�
 
 ## 跟随返回的 Run
 
-1. 调用 `list_workflows`，选择可用 `flowName`。
-2. 使用完整意图只调用一次 `flow`。
+1. 调用 `list_looms`，选择可用 `loomName`。
+2. 使用完整意图只调用一次 `run`。
 3. 检查 `pendingAgentCall`，认领并执行声明的任务。
 4. 检查 `pendingAction`，向用户呈现问题或确认，提交真实回答。
 5. 跟随返回的 Run，直到终态，再查询已提交结果。

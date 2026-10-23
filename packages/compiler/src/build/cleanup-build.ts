@@ -42,14 +42,20 @@ export async function cleanupBuild({
           : undefined;
       throw new LoomError(original.code, original.message, {
         retryable: original.retryable,
-        cause: { location, cause: aggregate },
+        cause: {
+          ...(original.cause && typeof original.cause === "object"
+            ? original.cause
+            : {}),
+          location,
+          cause: aggregate,
+        },
       });
     }
     fail(
       "BUILD_FAILED",
       failure
-        ? "Workflow build and cleanup failed"
-        : "Workflow output was updated, but build cleanup failed",
+        ? "Loom build and cleanup failed"
+        : "Loom output was updated, but build cleanup failed",
       undefined,
       aggregate,
     );

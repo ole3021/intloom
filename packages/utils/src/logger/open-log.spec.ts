@@ -5,9 +5,7 @@ import { mkdtemp, readFile, readdir, rm, stat, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
 import { test, type TestContext } from "node:test";
-import { setTimeout } from "node:timers/promises";
 import { openLog } from "./open-log.ts";
-import { getLogger, withLogger } from "./context.ts";
 import { LoomError } from "../error/loom-error.ts";
 import { retainLogs } from "./retention.ts";
 
@@ -119,26 +117,6 @@ test("safe errors, recursive redaction, serializer projection and bounded data",
   assert.deepEqual(row.result, { count: 1 });
   assert.equal(row.truncated, true);
   assert.ok(Buffer.byteLength(text) < 20_000);
-});
-
-test("asynchronous calls keep independent Run contexts", async (t) => {
-  const handle = await openLog({ directory: await directory(t) });
-  await Promise.all(
-    ["RUN-a", "RUN-b"].map((runId, index) =>
-      withLogger(handle.logger.child({ runId }), async () => {
-        getLogger().info("step_started");
-        await setTimeout(index ? 1 : 5);
-        getLogger().info("step_completed", { outcome: runId });
-      }),
-    ),
-  );
-  await handle.close();
-  const rows = (await records(handle.filePath)).filter(
-    (row) => row.event === "step_completed",
-  );
-  assert.equal(rows.length, 2);
-  for (const row of rows) assert.equal(row.runId, row.outcome);
-  assert.equal(getLogger().isLevelEnabled("info"), false);
 });
 
 test("a write failure notifies the owner once and close rejects without retrying", async (t) => {

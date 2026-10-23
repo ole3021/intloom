@@ -23,23 +23,23 @@ Prepare an independent initialized target with the current compatible Workflow a
 ```sh
 intloom mirror list --json
 intloom mirror inspect MIRROR-ID --json
-intloom mirror restore MIRROR-ID --to ../experiment --scope workflow --dry-run
-intloom mirror restore MIRROR-ID --to ../experiment --scope workflow
+intloom mirror restore MIRROR-ID --to ../experiment --scope loom --dry-run
+intloom mirror restore MIRROR-ID --to ../experiment --scope loom
 intloom start --project ../experiment
-intloom run resume RUN-example --project ../experiment
+intloom resume RUN-example --project ../experiment
 intloom mirror export TRACE-ID --to ../mirror-export
 ```
 
-Restore and startup leave the Run paused. After a scope completes, explicitly choose the next scope with `run resume --scope workflow`.
+Restore and startup leave the Run paused. After a scope completes, explicitly choose the next scope with `resume --scope loom`.
 
 | Scope | Stop boundary |
 | --- | --- |
 | `step` | One Step; requires a real `step_before` image |
 | `stage` | Current Stage visit, before the next initializer |
-| `workflow` | Remaining supported execution |
+| `loom` | Remaining supported execution |
 
 `step_after` routes the saved result without repeating the call. Terminal images support inspection/export only. Current position, routing, Schema, and execution policy must remain compatible.
 
-Capture failure pauses the Run; resume retries capture. Persistent failure can be explicitly abandoned with `run resume RUN-example --scope workflow --abandon-mirror`. No automatic downgrade occurs.
+Capture failure pauses the Run; resume retries capture. Persistent failure can be explicitly abandoned with `resume RUN-example --scope loom --abandon-mirror`. No automatic downgrade occurs.
 
 Mirrors omit external services and cannot reverse messages or remote writes. They contain raw business data. File limits are 64 MiB per file, 1 GiB per image, and 10,000 entries. Retain any incomplete restore marker until that attempt's created content is inspected and cleaned.

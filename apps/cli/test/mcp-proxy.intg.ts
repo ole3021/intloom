@@ -1,3 +1,4 @@
+import { bindMutationIdentity } from "./mcp-identity-fixture.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Client } from "@modelcontextprotocol/client";
@@ -31,6 +32,7 @@ for (const era of ["legacy", "modern"] as const)
     t.after(() => client.close());
     try {
       await client.connect(transport);
+      await bindMutationIdentity(client);
     } catch (cause) {
       throw new Error(`Proxy handshake failed: ${diagnostics}`, { cause });
     }
@@ -43,8 +45,8 @@ for (const era of ["legacy", "modern"] as const)
       };
     });
     const created = await client.callTool({
-      name: "flow",
-      arguments: { flowName: "fixture", intent: "proxy" },
+      name: "run",
+      arguments: { loomName: "fixture", input: { prompt: "proxy" } },
     });
     assert.equal(created.isError, undefined, JSON.stringify(created));
     const runId = (created.structuredContent as { run: { runId: string } }).run

@@ -1,0 +1,46 @@
+{
+  "name": "@intloom/compiler-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/loom.generated.d.ts",
+      "default": "./dist/loom.generated.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "zod": "^4.6.5",
+    "@intloom/loom-sdk": "0.0.3"
+  },
+  "loom": {
+    "type": "loom",
+    "version": "2026-10-15",
+    "name": "compiler_fixture",
+    "inputs": [
+      "prompt"
+    ],
+    "entry": "first",
+    "stages": {
+      "first": {
+        "stage": "./stages/first.yaml",
+        "on": {
+          "complete": {
+            "target": "second"
+          }
+        }
+      },
+      "second": {
+        "stage": "./stages/second.yaml",
+        "on": {
+          "complete": {
+            "end": true
+          }
+        }
+      }
+    }
+  }
+}

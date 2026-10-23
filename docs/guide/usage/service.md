@@ -9,7 +9,7 @@ Each project has one independent local Service process. CMD, TUI, and MCP discov
 ```sh
 intloom status
 intloom start
-intloom flows
+intloom looms
 intloom stop
 ```
 

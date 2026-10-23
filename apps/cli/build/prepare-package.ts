@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { findPackageJSON } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -14,6 +14,7 @@ async function prepareCliPackage(root: string): Promise<void> {
   const manifest = await distributionManifest(root);
   if (manifest.bundleDependencies?.join() !== "@intloom/kernel")
     throw new Error("CLI must bundle only the private Kernel package.");
+  await chmod(resolve(root, "dist/bin.js"), 0o755);
   for (const file of ["dist", "README.md", "LICENSE"])
     await cp(resolve(root, file), resolve(destination, file), {
       recursive: true,
@@ -81,4 +82,4 @@ async function prepareCliPackage(root: string): Promise<void> {
   await cp(resolve(root, "LICENSE"), resolve(launcher, "LICENSE"));
 }
 
-await prepareCliPackage(fileURLToPath(new URL("../", import.meta.url)));
+await prepareCliPackage(fileURLToPath(new URL("..", import.meta.url)));

@@ -1,29 +1,25 @@
 ---
-title: Questions, confirmation, and feedback
+title: Human decisions in Intent
 ---
 
-# Questions, confirmation, and feedback
+# Human decisions in Intent
 
-Intent uses human interaction to resolve uncertainty and agree requirements/design.
+Questions and confirmations are real Code interactions. Agents propose questions and drafts; they cannot invent user answers or approval.
 
-## Answer questions
+## Requirements and design
 
-Read every question and its context. Suggested options are convenience choices; free text is allowed. Each question has one text answer or an explicit permitted skip. Skipping leaves uncertainty that business rules still evaluate.
+Specification displays the current baseline, full requirement proposal, cumulative changes, round scope, coverage and actual answers. Solution displays its fixed requirements, design changes, implementation dependencies, verification responsibilities and risks.
 
-CMD answers use the actual question IDs and current action ID. TUI reviews the complete answer array before sending. MCP clients present native forms where available, otherwise collect the real answers and call `answer_ask`.
+Confirm only the displayed version. Feedback returns to the uncommitted draft. A changed review or source invalidates the old confirmation. After formal commit, substantive changes start a new Run.
 
-## Confirm a version
+## Partial delivery
 
-Confirmation concerns the displayed cumulative Specification or Solution and its matching context. Accept it when it reflects your decision. Decline with actionable feedback when scope, design, checks or assumptions need revision.
+When implementation remains incomplete, Code shows the exact candidate, planned items, actual changes, failed or missing checks and remaining work. Explicitly choosing partial delivery allows that candidate to reach Validation. It does not reduce the targets or approve their acceptance. Unknown external edits require a separate decision about including those exact changes.
 
-```json
-{"isConfirmed": false, "feedback": "Add offline behavior to the acceptance criteria."}
-```
+## Evidence collection
 
-Feedback revises the current draft rather than starting another Run. New pending actions get new IDs; submitting an old ID cannot approve a later version.
+Validation presents the fixed sources/candidate, collected evidence, unknowns and affected collection actions. Choose to continue, pause, or stop only those listed actions. Silence is not permission. Stopping preserves failures and unknowns; the Agent still assembles a complete report and Code checks it before publication.
 
-## Separate responsibilities
+An original execution without a settled receipt must be reconciled before continuation. Cancelling a Run does not roll back committed Records or product files. Inspect the same Run after interruption rather than starting duplicate work.
 
-Agents may propose questions or incorporate feedback. They cannot populate real user responses, self-confirm, or save formal results as a substitute for Code.
-
-Cancelling a form preserves the waiting action. Cancelling the Run is explicit and does not roll back committed data. Use [Run operations](../usage/runs.md) for command forms and [recovery](../usage/recovery.md) before stopping a waiting Service.
+See [Run operations](../usage/runs.md) for client interaction and [result interpretation](./results.md).

@@ -12,23 +12,24 @@ Question requests are a flat nonempty list with unique IDs, text, optional optio
 
 ```ts
 import {
-  userAnswerConfirmationSchema,
   type ExecutableCode,
   type UserAnswerConfirmation,
-} from "@intloom/workflow-sdk";
+} from "@intloom/loom-sdk";
 
 const finish = (answer: UserAnswerConfirmation) => ({
   outcome: answer.isConfirmed ? "confirmed" : "feedback",
 });
 
-const confirm: ExecutableCode = async (_input, access) => {
+const confirm: ExecutableCode = async (access) => {
   access.signal.throwIfAborted();
   return finish(await access.interaction.confirm("Review the current draft."));
 };
 
 confirm.recover = (saved, access) => {
   access.signal.throwIfAborted();
-  return finish(userAnswerConfirmationSchema.parse(saved.answer));
+  if (saved.kind !== "user_ask_confirmation")
+    throw new Error("Expected a confirmation reply.");
+  return finish(saved.answer);
 };
 
 export default confirm;
@@ -43,3 +44,5 @@ In-process answers resume the original call. After restart, `recover` receives t
 A Code without recovery remains executable, but its unsupported restart wait becomes `RUN_INTERRUPTED`. Stale answers preserve waiting rather than affecting a later call.
 
 See [interaction contracts](../reference/sdk.md) and [operational recovery](../usage/recovery.md).
+
+`CodeRecovery` uses `actionId`, `kind`, `request`, and `answer`. Narrow `kind` before reading the typed request/answer. The host checks structure and action ownership; the Loom checks that the request still matches the current business revision.

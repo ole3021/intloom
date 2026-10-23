@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import { ERRORS } from "../errors.ts";
 import { resolveCurrentExecution } from "./resolve-current-execution.ts";
 
 import {
@@ -29,15 +29,14 @@ describe("resolveCurrentExecution", () => {
       if (status === "waiting") {
         run.pendingAction = {
           id: "ASK-1",
-          flowName: run.flowName,
+          loomName: run.loomName,
           cursor: { ...run.cursor },
           kind: "user_ask_confirmation",
           request: { question: "Continue?" },
           createdAt: run.updatedAt.toISOString(),
         };
       }
-      if (status === "failed")
-        run.lastError = RUNTIME_ERRORS.create("RUN_STOPPED");
+      if (status === "failed") run.lastError = ERRORS.create("RUN_STOPPED");
       assert.deepEqual(resolveCurrentExecution(blueprint, run), {
         kind: "halt",
       });
@@ -90,13 +89,13 @@ describe("resolveCurrentExecution", () => {
     }
   });
 
-  test("rejects a different Flow and inconsistent Run state", () => {
+  test("rejects a different Loom and inconsistent Run state", () => {
     const { blueprint, run } = routingFixture();
-    run.flowName = "other";
+    run.loomName = "other";
     rejectsUnchanged(run, "RUN_STATE_INVALID", () =>
       resolveCurrentExecution(blueprint, run),
     );
-    run.flowName = blueprint.flowName;
+    run.loomName = blueprint.loomName;
     run.status = "waiting";
     rejectsUnchanged(run, "RUN_STATE_INVALID", () =>
       resolveCurrentExecution(blueprint, run),

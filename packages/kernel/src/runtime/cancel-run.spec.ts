@@ -6,15 +6,15 @@ import {
   fixtureStateSchema,
   runtimeFixture,
 } from "../../test/runtime-fixture.ts";
-import type { JsonValue } from "../shared/json.ts";
-import type { CodeExecutionAccess } from "../effector/execution.ts";
-import { createRuntime } from "./create-runtime.ts";
+import type { JsonValue } from "@intloom/loom-sdk";
+import type { CodeExecutionAccess } from "@intloom/loom-sdk";
+import { createRuntimeHarness } from "../../test/runtime-harness.ts";
 
 test("cancelRun rejects the original ask, invalidates access, and preserves its terminal snapshot", async () => {
   const f = runtimeFixture();
   let rejected: unknown;
   let access: CodeExecutionAccess<JsonValue> | undefined;
-  f.codes.start = async (_input, current) => {
+  f.codes.start = async (current) => {
     access = current;
     try {
       await current.interaction.confirm("continue?");
@@ -24,8 +24,8 @@ test("cancelRun rejects the original ask, invalidates access, and preserves its 
     }
     return { outcome: "complete" };
   };
-  const runtime = createRuntime(f.options);
-  const waiting = await runtime.flow(f.blueprint, "text");
+  const runtime = createRuntimeHarness(f.options);
+  const waiting = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(waiting.pendingAction);
   await runtime.cancelRun(waiting.runId);
   const stopped = await runtime.getRun(waiting.runId);
@@ -58,10 +58,13 @@ test("cancelRun rejects the original ask, invalidates access, and preserves its 
     },
   );
   await runtime.cancelRun(waiting.runId);
-  assert.deepEqual(await runtime.getRun(waiting.runId), stopped);
+  assert.deepEqual(await runtime.getRun(waiting.runId), {
+    ...stopped,
+    settled: true,
+  });
 });
 
-test("public cancelRun releases flow during initialization without waiting for its external Promise", async () => {
+test("public cancelRun releases run during initialization without waiting for its external Promise", async () => {
   const f = runtimeFixture();
   const entered = deferred();
   const release = deferred<JsonValue>();
@@ -71,8 +74,8 @@ test("public cancelRun releases flow during initialization without waiting for i
       return release.promise;
     },
   });
-  const runtime = createRuntime(f.options);
-  const started = runtime.flow(f.blueprint, "text");
+  const runtime = createRuntimeHarness(f.options);
+  const started = runtime.run(f.blueprint, { prompt: "text" });
   await entered.promise;
   const [running] = await runtime.listRuns();
   assert.ok(running);
@@ -81,7 +84,10 @@ test("public cancelRun releases flow during initialization without waiting for i
   assert.equal(stopped.lastError?.code, "RUN_STOPPED");
   release.resolve({ value: 9, intent: "text" });
   await setImmediate();
-  assert.deepEqual(await runtime.getRun(running.runId), stopped);
+  assert.deepEqual(await runtime.getRun(running.runId), {
+    ...stopped,
+    settled: true,
+  });
   assert.deepEqual(f.events, []);
 });
 
@@ -90,7 +96,7 @@ test("late running Code results, exceptions and writes cannot overwrite a stoppe
     const f = runtimeFixture();
     const entered = deferred();
     const release = deferred();
-    f.codes.start = async (_input, access) => {
+    f.codes.start = async (access) => {
       entered.resolve();
       await release.promise;
       await assert.rejects(access.state.update({ value: 9, intent: "text" }), {
@@ -99,8 +105,8 @@ test("late running Code results, exceptions and writes cannot overwrite a stoppe
       if (fail) throw new Error("late failure");
       return { outcome: "complete" };
     };
-    const runtime = createRuntime(f.options);
-    const started = runtime.flow(f.blueprint, "text");
+    const runtime = createRuntimeHarness(f.options);
+    const started = runtime.run(f.blueprint, { prompt: "text" });
     await entered.promise;
     const [running] = await runtime.listRuns();
     assert.ok(running);
@@ -108,7 +114,10 @@ test("late running Code results, exceptions and writes cannot overwrite a stoppe
     const stopped = await started;
     release.resolve();
     await setImmediate();
-    assert.deepEqual(await runtime.getRun(running.runId), stopped);
+    assert.deepEqual(await runtime.getRun(running.runId), {
+      ...stopped,
+      settled: true,
+    });
     assert.equal(stopped.lastError?.code, "RUN_STOPPED");
     assert.deepEqual(f.events, ["init:first"]);
   }
@@ -116,16 +125,16 @@ test("late running Code results, exceptions and writes cannot overwrite a stoppe
 
 test("cancelAllRuns cancels active Runs, retains completed Runs, and is safe when empty", async () => {
   const f = runtimeFixture();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     if (fixtureStateSchema.parse(access.state.value).intent !== "done")
       await access.interaction.confirm("continue?");
     return { outcome: "complete" };
   };
-  const runtime = createRuntime(f.options);
+  const runtime = createRuntimeHarness(f.options);
   await runtime.cancelAllRuns();
-  const a = await runtime.flow(f.blueprint, "A");
-  const b = await runtime.flow(f.blueprint, "B");
-  const done = await runtime.flow(f.blueprint, "done");
+  const a = await runtime.run(f.blueprint, { prompt: "A" });
+  const b = await runtime.run(f.blueprint, { prompt: "B" });
+  const done = await runtime.run(f.blueprint, { prompt: "done" });
   await assert.rejects(runtime.cancelRun("missing"), { code: "NOT_FOUND" });
   assert.deepEqual(await runtime.getRun(a.runId), a);
   await runtime.cancelRun(a.runId);
@@ -133,7 +142,11 @@ test("cancelAllRuns cancels active Runs, retains completed Runs, and is safe whe
   await runtime.cancelAllRuns();
   assert.equal((await runtime.getRun(a.runId)).lastError?.code, "RUN_STOPPED");
   assert.equal((await runtime.getRun(b.runId)).lastError?.code, "RUN_STOPPED");
-  assert.deepEqual(await runtime.getRun(done.runId), done);
+  assert.deepEqual(await runtime.getRun(done.runId), {
+    ...done,
+    settled: true,
+  });
+  await setImmediate();
   const all = await runtime.listRuns();
   await runtime.cancelAllRuns();
   assert.deepEqual(await runtime.listRuns(), all);
@@ -141,13 +154,13 @@ test("cancelAllRuns cancels active Runs, retains completed Runs, and is safe whe
 
 test("cancelRun wins against an accepted answer still advancing, and later answers conflict", async () => {
   const f = runtimeFixture();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.interaction.confirm("continue?");
     await access.state.clear();
     return { outcome: "complete" };
   };
-  const runtime = createRuntime(f.options);
-  const waiting = await runtime.flow(f.blueprint, "text");
+  const runtime = createRuntimeHarness(f.options);
+  const waiting = await runtime.run(f.blueprint, { prompt: "text" });
   assert.ok(waiting.pendingAction);
   const answering = runtime.answerAsk(waiting.runId, waiting.pendingAction.id, {
     isConfirmed: true,
@@ -156,7 +169,10 @@ test("cancelRun wins against an accepted answer still advancing, and later answe
   const stopped = await answering;
   assert.equal(stopped.lastError?.code, "RUN_STOPPED");
   await setImmediate();
-  assert.deepEqual(await runtime.getRun(waiting.runId), stopped);
+  assert.deepEqual(await runtime.getRun(waiting.runId), {
+    ...stopped,
+    settled: true,
+  });
 });
 
 test("cancelRun prevents an already queued asynchronous State validation from committing", async () => {
@@ -173,7 +189,7 @@ test("cancelRun prevents an already queued asynchronous State validation from co
       }
     }),
   });
-  f.codes.start = async (_input, current) => {
+  f.codes.start = async (current) => {
     access = current;
     try {
       await current.state.update({ value: 9, intent: "text" });
@@ -183,8 +199,8 @@ test("cancelRun prevents an already queued asynchronous State validation from co
     }
     return { outcome: "complete" };
   };
-  const runtime = createRuntime(f.options);
-  const started = runtime.flow(f.blueprint, "text");
+  const runtime = createRuntimeHarness(f.options);
+  const started = runtime.run(f.blueprint, { prompt: "text" });
   await validating.promise;
   const [running] = await runtime.listRuns();
   assert.ok(running);
@@ -194,7 +210,10 @@ test("cancelRun prevents an already queued asynchronous State validation from co
   await setImmediate();
   assert.ok(rejected instanceof Error && "code" in rejected);
   assert.equal(rejected.code, "EXECUTION_OWNERSHIP_LOST");
-  assert.deepEqual(await runtime.getRun(running.runId), stopped);
+  assert.deepEqual(await runtime.getRun(running.runId), {
+    ...stopped,
+    settled: true,
+  });
   assert.ok(access);
   assert.throws(() => access?.state.value, {
     code: "EXECUTION_OWNERSHIP_LOST",

@@ -4,7 +4,7 @@ import {
   readConnection,
   serviceStatus,
   projectRoot,
-} from "@intloom/kernel/service";
+} from "@intloom/kernel/host";
 import type { Readable, Writable } from "node:stream";
 import { failure } from "../errors.ts";
 

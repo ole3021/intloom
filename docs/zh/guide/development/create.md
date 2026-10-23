@@ -1,30 +1,32 @@
 ---
-title: 创建第一个 Workflow
+title: 创建第一个 Loom
 ---
 
-# 创建第一个 Workflow
+# 创建第一个 Loom
 
-创建一个只含 Code 的 `capture` Workflow，将原始意图保存为 Record。在新的 `capture-workflow` 目录中创建以下文件。示例使用当前产物协议，请选择兼容 SDK/Compiler 版本。
-
-清单起初不包含依赖，后面的安装命令会添加真实依赖并锁定解析版本。TypeScript include 只包含生产资源目录，构建脚本属于开发文件。
+创建一个只含 Code 的 `capture` Loom，将本轮 `prompt` 保存为 Record。阶段资源放在同一目录中，共用代码可以放在 `src`。以下文件均相对源包根目录。
 
 ## `package.json`
 
 ```json
 {
-  "name": "capture-workflow",
+  "name": "capture-loom",
   "version": "0.1.0",
   "type": "module",
-  "scripts": {"build": "node build.ts"},
-  "exports": {
-    ".": {
-      "types": "./dist/workflow.generated.d.ts",
-      "default": "./dist/workflow.generated.js"
-    },
-    "./package.json": "./package.json"
-  },
-  "files": ["dist"],
-  "intloom": {"type": "workflow", "version": "2026-10-08"}
+  "scripts": {"build": "intloom build"},
+  "loom": {
+    "type": "loom",
+    "version": "2026-10-15",
+    "name": "capture",
+    "inputs": ["prompt"],
+    "entry": "capture",
+    "stages": {
+      "capture": {
+        "stage": "./stages/capture/stage.yaml",
+        "on": {"complete": {"end": true}}
+      }
+    }
+  }
 }
 ```
 
@@ -37,117 +39,81 @@ title: 创建第一个 Workflow
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
     "types": ["node"],
     "skipLibCheck": true
-  },
-  "include": ["codes/**/*.ts", "schemas/**/*.ts", "initializers/**/*.ts"],
-  "exclude": ["dist", "node_modules", "**/*.spec.ts", "test"]
+  }
 }
 ```
 
-## `workflow.yaml`
-
-```yaml
-workflow:
-  name: capture
-  entry: capture
-  stages:
-    capture:
-      stage: "@stages/capture"
-      on:
-        complete:
-          end: true
-```
-
-## `stages/capture.yaml`
+## `stages/capture/stage.yaml`
 
 ```yaml
 stage:
   name: capture
   state:
-    schema: "@schemas/state"
-    initialize: "@initializers/state"
+    schema: "./schema/state.ts"
+    initialize: "./code/initialize.ts"
   entry: save
   steps:
     save:
       type: code
-      code: "@codes/capture"
+      code: "./code/save.ts"
       on:
         complete:
           end: true
 ```
 
-## `schemas/state.ts`
+## `stages/capture/schema/state.ts`
 
 ```ts
 import * as z from "zod";
 
-export default z.strictObject({
-  runId: z.string(),
-  intent: z.string(),
-});
+export default z.strictObject({ runId: z.string(), prompt: z.string() });
 ```
 
-## `initializers/state.ts`
+## `stages/capture/code/initialize.ts`
 
 ```ts
-import type { StageStateInitializer } from "@intloom/workflow-sdk";
+import type { StageStateInitializer } from "@intloom/loom-sdk";
 
-const initialize: StageStateInitializer = ({ runId, intent }) => ({
+const initialize: StageStateInitializer = ({ runId, input }) => ({
   runId,
-  intent,
+  prompt: input.prompt ?? "",
 });
-
 export default initialize;
 ```
 
-## `codes/capture.ts`
+## `stages/capture/code/save.ts`
 
 ```ts
-import type { ExecutableCode } from "@intloom/workflow-sdk";
-import stateSchema from "../schemas/state.ts";
+import type { ExecutableCode } from "@intloom/loom-sdk";
+import stateSchema from "../schema/state.ts";
 
-const capture: ExecutableCode = async (_input, access) => {
+const save: ExecutableCode = async (access) => {
   access.signal.throwIfAborted();
   const state = stateSchema.parse(access.state.value);
   await access.storage.commit([{
     type: "append_record",
     id: state.runId,
     payload: {
-      flowName: "capture",
+      loomName: "capture",
       stageName: "capture",
-      data: { intent: state.intent },
+      data: { prompt: state.prompt },
     },
   }]);
   return { outcome: "complete" };
 };
-
-export default capture;
+export default save;
 ```
 
-## `build.ts`
-
-```ts
-import { fileURLToPath } from "node:url";
-import { compileWorkflow } from "@intloom/compiler";
-
-await compileWorkflow({
-  packageRoot: fileURLToPath(new URL(".", import.meta.url)),
-});
-```
-
-## 安装并编译
-
-在包目录执行：
+## 安装与构建
 
 ```sh
-bun add @intloom/workflow-sdk zod
-bun add --dev @intloom/compiler @types/node typescript
+bun add @intloom/loom-sdk zod
+bun add --dev @intloom/cli @types/node
 bun run build
 ```
 
-Compiler 在 `dist` 生成命名导出 `blueprint`、`codes`、`agentSpecs`。初始化器在 Stage 进入时提供 Schema 输入；Code 读取 State，提交 Record，最后只返回路由 outcome。以 Run ID 作为 Record ID 是本示例的约定。
+CLI 自带 Compiler。若在自定义程序中调用 `compileLoom()`，再把 `@intloom/compiler` 加为开发依赖。生成的 `dist` 是独立发布包，包含清单、三个具名导出、声明和资源。Compiler 沿入口依赖编译，无需维护用于构建的 `include` 列表。
 
-下一步：[打包并安装 Workflow](./build.md)。即使本示例只有 Code，CMD 服务接收策略仍要求模型配置；外部 MCP 配合 `useMcpAgent: true` 可以无需项目模型执行。
+初始化器在进入 Stage 时提供状态，Code 读取状态、提交 Record 并返回路由 outcome。此例选择 Run ID 作为 Record ID。继续阅读[构建与分发](./build.md)。

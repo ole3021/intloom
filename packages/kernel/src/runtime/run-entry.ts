@@ -1,17 +1,15 @@
-import type { Blueprint } from "../workflow/blueprint.ts";
+import type { Blueprint } from "@intloom/loom-sdk";
 import { silentLogger, type Logger } from "@intloom/utils";
-import type { PendingUserAction, RunView } from "./run-view.ts";
-import type { ReadonlyJsonValue } from "../shared/json.ts";
-import type { RuntimeError } from "../errors/runtime.ts";
+import type { PendingUserAction } from "./run-view.ts";
+import type { ReadonlyJsonValue } from "@intloom/loom-sdk";
+import type { KernelError } from "../errors.ts";
 import {
   saveCheckpoint,
   type RunRecoveryControl,
 } from "./recovery/checkpoint.ts";
-import type { StepResult } from "../effector/execution.ts";
+import type { StepResult } from "@intloom/loom-sdk";
 import { createStageState, type StageStateController } from "./stage-state.ts";
-import { toRunView } from "./to-run-view.ts";
 import type { RunState } from "./run-state.ts";
-import type { AgentCallControl, AgentCompletionReceipt } from "./agent-call.ts";
 
 /** Validation precedes consumption; the returned delivery function resolves parsed answers without repeating validation. */
 export interface ReplyContinuation {
@@ -22,6 +20,7 @@ export interface ReplyContinuation {
 /** In-process execution control without duplicate status, cursor, pendingAction, or business values. */
 export interface RunEntry {
   readonly logger: Logger;
+  stageVisitId: number;
   executionCount: number;
   activeLog?: Logger;
   waitStartedAt?: number;
@@ -31,16 +30,19 @@ export interface RunEntry {
   readonly stageState: StageStateController;
   readonly observers: Set<() => void>;
   task?: Promise<void>;
-  activeCall?: AbortController;
+  activeCall?: import("./call-scope.ts").RuntimeCall;
   reply?: ReplyContinuation;
   recovery?: RunRecoveryControl;
-  recoveredAnswer?: { action: PendingUserAction; answer: ReadonlyJsonValue };
+  recoveredAnswer?: {
+    action: PendingUserAction;
+    answer: ReadonlyJsonValue;
+    acceptedAt?: string;
+    operation?: import("./contracts.ts").OperationRef;
+  };
   savedResult?: StepResult;
-  savedRoute?: import("./recovery/store.ts").RunCheckpoint["validatedRoute"];
-  observationBaseline?: import("../shared/json.ts").JsonValue;
-  exitedStage?: import("./recovery/store.ts").SavedStage;
-  agentCall?: AgentCallControl;
-  agentReceipt?: AgentCompletionReceipt;
+  savedRoute?: import("./recovery/contracts.ts").CheckpointSnapshot["validatedRoute"];
+  observationBaseline?: import("@intloom/loom-sdk").JsonValue;
+  exitedStage?: import("./recovery/contracts.ts").SavedStage;
 }
 
 export function createRunEntry(
@@ -50,6 +52,7 @@ export function createRunEntry(
 ): RunEntry {
   const entry: RunEntry = {
     logger: logger.child({ runId: state.id }),
+    stageVisitId: 0,
     executionCount: 0,
     waitDurationMs: 0,
     blueprint,
@@ -62,29 +65,19 @@ export function createRunEntry(
   return entry;
 }
 
-/** Requests and execution tasks complete independently; check immediately after subscribing to catch an existing stable state. */
-export function waitUntilStable(entry: RunEntry): Promise<RunView> {
-  return new Promise((resolve, reject) => {
-    const observe = () => {
-      if (entry.state.status === "running") return;
-      entry.observers.delete(observe);
-      try {
-        resolve(toRunView(entry.state));
-      } catch (cause) {
-        reject(cause);
-      }
-    };
-    entry.observers.add(observe);
-    observe();
-  });
-}
-
 export function notifyRunObservers(entry: RunEntry): void {
-  for (const observe of entry.observers) observe();
+  for (const observe of entry.observers) {
+    try {
+      observe();
+    } catch {
+      entry.observers.delete(observe);
+      entry.logger.warn("run_observer_failed");
+    }
+  }
 }
 
 /** The caller checks ownership first; late errors cannot overwrite terminal states. */
-export function failRun(entry: RunEntry, error: RuntimeError): void {
+export function failRun(entry: RunEntry, error: KernelError): void {
   if (entry.recovery?.suspended) return;
   if (entry.state.status === "completed" || entry.state.status === "failed")
     return;

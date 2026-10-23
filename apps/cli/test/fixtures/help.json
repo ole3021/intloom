@@ -1,0 +1,170 @@
+[
+  {
+    "args": [],
+    "output": "CMD and TUI clients for the Kernel Service (intloom v<version>)\n\nUSAGE intloom [OPTIONS] e2e|build|mirror|resume|init|start|stop|status|doctor|recover|looms|runs|run|attach|answer|cancel|pause|operation|wait|watch|artifacts|artifact|records|record|loom|config|mcp|logs|tui\n\nOPTIONS\n\n  --project=<project>    Project directory        \n               --json    JSON result or JSON Lines\n        --interactive    Allow setup choices      \n              --color    Enable color             \n              --debug    Debug log filter         \n               --info    Info log filter          \n\nCOMMANDS\n\n        e2e    Run local Loom E2E cases against its built distribution\n      build    Build a Loom source package into dist                  \n     mirror    Immutable local execution mirrors                      \n     resume    Explicitly resume a paused mirror Run                  \n       init    Initialize project with optional Loom, MCP and Service \n      start    Start or reuse Service                                 \n       stop    Stop and verify resource release                       \n     status    Verified Service status                                \n     doctor    Read-only readiness checks                             \n    recover    Explicit stale-resource cleanup                        \n      looms    Loaded Loom readiness                                  \n       runs    Active Runs and retained history                       \n        run    Run a Loom with the supplied inputs                    \n     attach    Inspect an existing Run                                \n     answer    Submit the complete Loom answer JSON                   \n     cancel    Explicitly cancel Run                                  \n      pause    Pause after the active Step settles                    \n  operation    Inspect admission receipt                              \n       wait    Wait for action or terminal; never answer/cancel       \n      watch    Observe snapshots; Ctrl+C closes observation           \n  artifacts    Committed Artifact metadata                            \n   artifact    Read/export committed snapshot                         \n    records    Committed Record pages                                 \n     record    Read committed Record                                  \n       loom    Offline Loom packages                                  \n     config    Startup configuration                                  \n        mcp    Project MCP setup and stdio bridge                     \n       logs    Read logs; optionally follow Service files             \n        tui    Persistent terminal UI; also the default entry         \n\nUse intloom <command> --help for more information about a command."
+  },
+  {
+    "args": ["e2e"],
+    "output": "Run local Loom E2E cases against its built distribution (<entry>)\n\nUSAGE <entry> [OPTIONS] [PATH]\n\nARGUMENTS\n\n  PATH    Local Loom project (defaults to current directory)\n\nOPTIONS\n\n        --root=<root>    Directory for isolated test projects and reports\n        --case=<case>    Case ID; omitted selects using the recorded seed\n      --entry=<entry>    cmd (default) or mcp                            \n        --seed=<seed>    Case selection seed                             \n  --profile=<profile>    Model profile YAML or JSON file                 \n               --list    List cases without starting a model             \n"
+  },
+  {
+    "args": ["build"],
+    "output": "Build a Loom source package into dist (<entry>)\n\nUSAGE <entry> [OPTIONS] [PATH]\n\nARGUMENTS\n\n  PATH    Loom source directory (defaults to current directory)\n"
+  },
+  {
+    "args": ["mirror"],
+    "output": "Immutable local execution mirrors (<entry>)\n\nUSAGE <entry> list|inspect|restore|export\n\nCOMMANDS\n\n     list    List mirror boundaries without loading Loom       \n  inspect    Inspect raw mirror State, data and file scope     \n  restore    Restore into a prepared independent paused project\n   export    Export raw immutable trace data                   \n\nUse <entry> <command> --help for more information about a command."
+  },
+  {
+    "args": ["mirror", "list"],
+    "output": "List mirror boundaries without loading Loom (<entry>)\n\nUSAGE <entry> \n"
+  },
+  {
+    "args": ["mirror", "inspect"],
+    "output": "Inspect raw mirror State, data and file scope (<entry>)\n\nUSAGE <entry> [OPTIONS] <MIRRORID>\n\nARGUMENTS\n\n  MIRRORID    Mirror UUID (Required)\n"
+  },
+  {
+    "args": ["mirror", "restore"],
+    "output": "Restore into a prepared independent paused project (<entry>)\n\nUSAGE <entry> [OPTIONS] <MIRRORID>\n\nARGUMENTS\n\n  MIRRORID    Mirror UUID (Required)\n\nOPTIONS\n\n        --to=<to>    Prepared target project     \n  --scope=<scope>    step, stage or loom         \n        --dry-run    Validate and show write plan\n"
+  },
+  {
+    "args": ["mirror", "export"],
+    "output": "Export raw immutable trace data (<entry>)\n\nUSAGE <entry> [OPTIONS] <TRACEID>\n\nARGUMENTS\n\n  TRACEID    Trace UUID (Required)\n\nOPTIONS\n\n  --to=<to>    New export directory\n"
+  },
+  {
+    "args": ["resume"],
+    "output": "Explicitly resume a paused mirror Run (<entry>)\n\nUSAGE <entry> [OPTIONS] <RUNID>\n\nARGUMENTS\n\n  RUNID    Run ID (Required)\n\nOPTIONS\n\n                --scope=<scope>    New scope after scope completion                                              \n               --abandon-mirror    Explicitly stop this Run mirror capture after a failure; requires --scope loom\n          --revision=<revision>    Observed Run revision                                                         \n          --instance=<instance>    Observed Service instance                                                     \n  --operation-id=<operation_id>    Original operation UUID                                                       \n"
+  },
+  {
+    "args": ["init"],
+    "output": "Initialize project with optional Loom, MCP and Service (<entry>)\n\nUSAGE <entry> [OPTIONS] [DIRECTORY]\n\nARGUMENTS\n\n  DIRECTORY    New or empty directory\n\nOPTIONS\n\n  -l, --loom=<loom>    Loom package or built-in name; repeatable; also accepts -loom\n        --mcp=<mcp>    codex                                                        \n            --start    Start after setup                                            \n"
+  },
+  {
+    "args": ["start"],
+    "output": "Start or reuse Service (<entry>)\n\nUSAGE <entry> [OPTIONS] \n\nOPTIONS\n\n  --port=<port>    Local port 0–65535\n"
+  },
+  {
+    "args": ["stop"],
+    "output": "Stop and verify resource release (<entry>)\n\nUSAGE <entry> [OPTIONS] \n\nOPTIONS\n\n  --instance=<instance>    Observed Service instance\n"
+  },
+  {
+    "args": ["status"],
+    "output": "Verified Service status (<entry>)\n\nUSAGE <entry> \n"
+  },
+  {
+    "args": ["doctor"],
+    "output": "Read-only readiness checks (<entry>)\n\nUSAGE <entry> [OPTIONS] \n\nOPTIONS\n\n  --execution=<execution>    cli, studio, agent_ide\n"
+  },
+  {
+    "args": ["recover"],
+    "output": "Explicit stale-resource cleanup (<entry>)\n\nUSAGE <entry> [OPTIONS] \n\nOPTIONS\n\n  --dry-run    Inspect only\n"
+  },
+  {
+    "args": ["looms"],
+    "output": "Loaded Loom readiness (<entry>)\n\nUSAGE <entry> \n"
+  },
+  {
+    "args": ["runs"],
+    "output": "Active Runs and retained history (<entry>)\n\nUSAGE <entry> [OPTIONS] \n\nOPTIONS\n\n                        --loom=<loom>    Loom                             \n        --operation-id=<operation_id>    Originating operation UUID       \n  --origin-instance=<origin_instance>    Originating Service instance UUID\n                --instance=<instance>    Observed Service instance        \n"
+  },
+  {
+    "args": ["run"],
+    "output": "Run a Loom with the supplied inputs (<entry>)\n\nUSAGE <entry> [OPTIONS] <LOOMNAME>\n\nARGUMENTS\n\n  LOOMNAME    Loom name (Required)\n\nOPTIONS\n\n              --prompt=<prompt>    Description for the Loom                              \n    --prompt-file=<prompt_file>    UTF-8 description file or -                           \n                  --file=<file>    File path; repeat to provide multiple files           \n                    --dir=<dir>    Directory path; repeat to provide multiple directories\n                    --url=<url>    URL; repeat to provide multiple URLs                  \n          --instance=<instance>    Observed Service instance                             \n  --operation-id=<operation_id>    Original operation UUID                               \n"
+  },
+  {
+    "args": ["attach"],
+    "output": "Inspect an existing Run (<entry>)\n\nUSAGE <entry> [OPTIONS] <RUNID>\n\nARGUMENTS\n\n  RUNID    Run ID (Required)\n\nOPTIONS\n\n  --instance=<instance>    Observed Service instance\n"
+  },
+  {
+    "args": ["answer"],
+    "output": "Submit the complete Loom answer JSON (<entry>)\n\nUSAGE <entry> [OPTIONS] <RUNID>\n\nARGUMENTS\n\n  RUNID    Run ID (Required)\n\nOPTIONS\n\n              --action=<action>    Action ID                \n              --answer=<answer>    Complete JSON            \n    --answer-file=<answer_file>    JSON file or -           \n          --instance=<instance>    Observed Service instance\n  --operation-id=<operation_id>    Original operation UUID  \n"
+  },
+  {
+    "args": ["cancel"],
+    "output": "Explicitly cancel Run (<entry>)\n\nUSAGE <entry> [OPTIONS] <RUNID>\n\nARGUMENTS\n\n  RUNID    Run ID (Required)\n\nOPTIONS\n\n          --instance=<instance>    Observed Service instance\n  --operation-id=<operation_id>    Original operation UUID  \n"
+  },
+  {
+    "args": ["pause"],
+    "output": "Pause after the active Step settles (<entry>)\n\nUSAGE <entry> [OPTIONS] <RUNID>\n\nARGUMENTS\n\n  RUNID    Run ID (Required)\n\nOPTIONS\n\n          --instance=<instance>    Observed Service instance\n  --operation-id=<operation_id>    Original operation UUID  \n"
+  },
+  {
+    "args": ["operation"],
+    "output": "Inspect admission receipt (<entry>)\n\nUSAGE <entry> [OPTIONS] <OPERATIONID>\n\nARGUMENTS\n\n  OPERATIONID    UUID (Required)\n\nOPTIONS\n\n  --instance=<instance>    Observed Service instance\n"
+  },
+  {
+    "args": ["wait"],
+    "output": "Wait for action or terminal; never answer/cancel (<entry>)\n\nUSAGE <entry> [OPTIONS] <RUNID>\n\nARGUMENTS\n\n  RUNID    Run ID (Required)\n\nOPTIONS\n\n        --until=<until>    action_or_terminal or terminal\n    --timeout=<timeout>    Milliseconds                  \n  --instance=<instance>    Observed Service instance     \n"
+  },
+  {
+    "args": ["watch"],
+    "output": "Observe snapshots; Ctrl+C closes observation (<entry>)\n\nUSAGE <entry> [OPTIONS] [RUNID]\n\nARGUMENTS\n\n  RUNID    Optional Run ID\n\nOPTIONS\n\n  --instance=<instance>    Observed Service instance\n"
+  },
+  {
+    "args": ["artifacts"],
+    "output": "Committed Artifact metadata (<entry>)\n\nUSAGE <entry> [OPTIONS] \n\nOPTIONS\n\n      --loom=<loom>    Loom filter    \n    --stage=<stage>    Stage filter   \n    --limit=<limit>    Page size 1–200\n  --cursor=<cursor>    Page cursor    \n"
+  },
+  {
+    "args": ["artifact"],
+    "output": "Read/export committed snapshot (<entry>)\n\nUSAGE <entry> [OPTIONS] [ARTIFACTID]\n\nARGUMENTS\n\n  ARTIFACTID    ID\n\nOPTIONS\n\n      --loom=<loom>    Loom          \n    --stage=<stage>    Stage         \n  --output=<output>    JSON file     \n        --overwrite    Replace output\n"
+  },
+  {
+    "args": ["records"],
+    "output": "Committed Record pages (<entry>)\n\nUSAGE <entry> [OPTIONS] \n\nOPTIONS\n\n      --loom=<loom>    Loom filter    \n    --stage=<stage>    Stage filter   \n    --limit=<limit>    Page size 1–200\n  --cursor=<cursor>    Page cursor    \n"
+  },
+  {
+    "args": ["record"],
+    "output": "Read committed Record (<entry>)\n\nUSAGE <entry> [OPTIONS] <RECORDID>\n\nARGUMENTS\n\n  RECORDID    ID (Required)\n"
+  },
+  {
+    "args": ["loom"],
+    "output": "Offline Loom packages (<entry>)\n\nUSAGE <entry> list|add|remove\n\nCOMMANDS\n\n    list    Declarations and installation  \n     add    Install package                \n  remove    Remove declaration; retain data\n\nUse <entry> <command> --help for more information about a command."
+  },
+  {
+    "args": ["loom", "list"],
+    "output": "Declarations and installation (<entry>)\n\nUSAGE <entry> \n"
+  },
+  {
+    "args": ["loom", "add"],
+    "output": "Install package (<entry>)\n\nUSAGE <entry> [OPTIONS] <SOURCE>\n\nARGUMENTS\n\n  SOURCE    Package/archive (Required)\n"
+  },
+  {
+    "args": ["loom", "remove"],
+    "output": "Remove declaration; retain data (<entry>)\n\nUSAGE <entry> [OPTIONS] <NAME>\n\nARGUMENTS\n\n  NAME    Package name or unambiguous short name (Required)\n"
+  },
+  {
+    "args": ["config"],
+    "output": "Startup configuration (<entry>)\n\nUSAGE <entry> show|set|codex\n\nCOMMANDS\n\n   show    Safe configuration projection                \n    set    Write configuration against observed revision\n  codex    Preview Codex MCP configuration              \n\nUse <entry> <command> --help for more information about a command."
+  },
+  {
+    "args": ["config", "show"],
+    "output": "Safe configuration projection (<entry>)\n\nUSAGE <entry> \n"
+  },
+  {
+    "args": ["config", "set"],
+    "output": "Write configuration against observed revision (<entry>)\n\nUSAGE <entry> [OPTIONS] \n\nOPTIONS\n\n          --file=<file>    UTF-8 file        \n  --revision=<revision>    Revision from show\n"
+  },
+  {
+    "args": ["config", "codex"],
+    "output": "Preview Codex MCP configuration (<entry>)\n\nUSAGE <entry> \n"
+  },
+  {
+    "args": ["mcp"],
+    "output": "Project MCP setup and stdio bridge (<entry>)\n\nUSAGE <entry> init|serve\n\nCOMMANDS\n\n   init    Apply project Codex entry          \n  serve    Full MCP bridge to existing Service\n\nUse <entry> <command> --help for more information about a command."
+  },
+  {
+    "args": ["mcp", "init"],
+    "output": "Apply project Codex entry (<entry>)\n\nUSAGE <entry> [OPTIONS] \n\nOPTIONS\n\n  --ide=<ide>    codex       \n       --plan    Preview only\n"
+  },
+  {
+    "args": ["mcp", "serve"],
+    "output": "Full MCP bridge to existing Service (<entry>)\n\nUSAGE <entry> [OPTIONS] \n\nOPTIONS\n\n  --ide=<ide>    Optional codex profile\n"
+  },
+  {
+    "args": ["logs"],
+    "output": "Read logs; optionally follow Service files (<entry>)\n\nUSAGE <entry> [OPTIONS] [RUNID]\n\nARGUMENTS\n\n  RUNID    Optional Run ID\n\nOPTIONS\n\n  --service    Latest log               \n   --follow    Observe until interrupted\n"
+  },
+  {
+    "args": ["tui"],
+    "output": "Persistent terminal UI; also the default entry (<entry>)\n\nUSAGE <entry> \n"
+  }
+]

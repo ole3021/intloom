@@ -8,16 +8,16 @@ Workflow 安装属于已初始化项目。修改包时保持 Service 停止。
 
 ```sh
 intloom stop
-intloom workflow list
-intloom workflow add @intloom/workflow-intent
-intloom workflow remove @intloom/workflow-intent
+intloom loom list
+intloom loom add @intloom/intent
+intloom loom remove @intloom/intent
 ```
 
 上面的 add 与 remove 是独立示例。add 接受注册表包名或本地 `.tgz` 归档。裸包名选择注册表当前版本，并保存精确安装身份。安装禁用包脚本。
 
 ## 已安装包与已加载 Workflow
 
-包有 npm 名称和版本，生成的 Blueprint 有 `intent` 等 `flowName`。`workflow list` 查看安装包；Service 启动后，`flows` 查看已加载的执行定义。
+包有 npm 名称和版本，生成的 Blueprint 有 `intent` 等 `loomName`。`loom list` 查看安装包；Service 启动后，`looms` 查看已加载的执行定义。
 
 加载检查包元数据、产物协议、命名 ESM 导出、资源引用和附件。一个包不可用时可以单独报告错误，其他包仍可使用。重新安装前先查看诊断阶段。
 

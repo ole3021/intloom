@@ -1,29 +1,24 @@
 ---
-title: Restart and recover execution
+title: Restart and recovery
 ---
 
-# Restart and recover execution
+# Restart and recovery
 
-A normal Service stop suspends execution and preserves checkpoints under `.intloom/runtime/`. Startup restores compatible unfinished Runs at supported boundaries.
+Stopping the Service suspends execution and preserves checkpoints under `.intloom/runtime/`. Startup validates the entire recovery set before launching compatible unfinished Runs.
 
-## What can continue
-
-| Boundary | Behavior |
+| Saved boundary | Restart behavior |
 | --- | --- |
-| Saved Step result | Advance routing without repeating that Step |
-| Code waiting with `ExecutableCode.recover` | Deliver the saved action/answer to the recovery continuation |
-| Code waiting without recovery support | Becomes `RUN_INTERRUPTED` |
-| In-flight uncertain effect or external Agent call | Cannot reconstruct the original call |
-| Terminal Run | Formal data remains; terminal checkpoint is not loaded as live history |
+| Completed Step result | Apply its validated route without executing that Step again |
+| Human wait with `ExecutableCode.recover` | Preserve action identity; accepted answers enter recovery with a fresh Call |
+| Accepted answer awaiting delivery | Deliver through the explicit recovery entry, never repeat the Code prefix |
+| Human wait without recovery support | Report `RUN_INTERRUPTED` |
+| Executing Code, model or delegated Agent wait | Report uncertain execution; do not replay external effects |
+| Terminal Run | Load a read-only historical view; retain formal data and known commit references |
 
-Recovery restores Stage business State and fresh capabilities. It cannot recreate JavaScript local variables, promises, Agent claims, or old instance statistics. Intent's Specification question/confirmation waits support recovery; its Solution waits currently require the live Service.
+Recovery restores Stage State and new capabilities. It cannot restore JavaScript locals, Promises, old Access objects, Agent claims or old-instance metrics. An accepted answer is saved before delivery; a checkpoint marks execution before continuation starts. Loom authors must provide `ExecutableCode.recover` at supported human-interaction boundaries.
 
-## Operational sequence
+Preserve the original operation and Service instance IDs. Receipt queries distinguish a found receipt, a missing receipt and a changed instance. Use `runs --operation-id UUID --origin-instance OLD` to find the Run created by that operation after restart; do not replay an old-instance mutation.
 
-Inspect existing work before stopping, retain exact compatible Workflow resources, restart, then query the recovered Run. Damaged or incompatible checkpoint files can block startup without being deleted.
+Checkpoint format 3 is intentionally incompatible with older formats. Corrupt or incompatible checkpoints can block startup and are preserved for inspection. There is no automatic migration or speculative replay. `recover --dry-run` and `recover` handle stale process resources, not business State or uncertain side effects.
 
-`recover --dry-run` and `recover` address stale process resources. They do not repair business State or retry an unknown effect.
-
-Keep `.intloom/` and formal `intloom/` data. Deleting either can remove connection identity, unfinished recovery, or committed outputs. No reconstruction from logs is provided.
-
-For a deliberately restored experiment, use [local execution mirrors](./mirrors.md); those Runs remain paused until explicit `run resume`.
+Deleting `.intloom/` or formal `intloom/` data can discard identity, recovery or committed results. Logs cannot reconstruct these resources. For an explicit historical experiment, use [execution mirrors](./mirrors.md); the restored branch stays paused until `resume`.

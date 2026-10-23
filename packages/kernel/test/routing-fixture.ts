@@ -4,8 +4,8 @@ import type {
   Blueprint,
   BlueprintStage,
   BlueprintStep,
-} from "../src/workflow/blueprint.ts";
-import type { RuntimeErrorCode } from "../src/errors/runtime.ts";
+} from "@intloom/loom-sdk";
+import type { KernelErrorCode } from "../src/errors.ts";
 import { resolveCurrentExecution } from "../src/runtime/resolve-current-execution.ts";
 import type { RunState } from "../src/runtime/run-state.ts";
 
@@ -15,7 +15,7 @@ export function routingFixture() {
   let initializations = 0;
   const runStep: BlueprintStep = {
     stepName: "run",
-    execution: { kind: "code", codeId: "flow/first/run" },
+    execution: { kind: "code", codeId: "run/first/run" },
     on: {
       complete: { kind: "step", stepName: "review" },
       retry: { kind: "step", stepName: "run" },
@@ -26,7 +26,7 @@ export function routingFixture() {
   };
   const review: BlueprintStep = {
     stepName: "review",
-    execution: { kind: "agent", agentId: "flow/first/review" },
+    execution: { kind: "agent", agentId: "run/first/review" },
     on: {
       retry: { kind: "step", stepName: "run" },
       complete: { kind: "stage_end" },
@@ -42,12 +42,12 @@ export function routingFixture() {
       complete: { kind: "stage", stageName: "second" },
       end: { kind: "stage", stageName: "second" },
       reenter: { kind: "stage", stageName: "first" },
-      finish: { kind: "workflow_end" },
+      finish: { kind: "loom_end" },
     },
   };
   const launch: BlueprintStep = {
     stepName: "launch",
-    execution: { kind: "code", codeId: "flow/second/launch" },
+    execution: { kind: "code", codeId: "run/second/launch" },
     on: { done: { kind: "stage_end" } },
   };
   const second: BlueprintStage = {
@@ -55,18 +55,19 @@ export function routingFixture() {
     stageName: "second",
     entryStepName: "launch",
     steps: { unused: { ...launch, stepName: "unused" }, launch },
-    on: { done: { kind: "workflow_end" } },
+    on: { done: { kind: "loom_end" } },
   };
   const blueprint: Blueprint = {
-    flowName: "flow",
+    loomName: "run",
+    inputs: ["prompt"],
     entryStageName: "first",
     stages: { second, first },
   };
   const run: RunState = {
     id: "RUN-1",
     execution: { source: "cli", agentExecutor: "service" },
-    flowName: blueprint.flowName,
-    intent: "original text",
+    loomName: blueprint.loomName,
+    input: { prompt: "original text" },
     cursor: {
       stageName: blueprint.entryStageName,
       stepName: first.entryStepName,
@@ -94,7 +95,7 @@ export function execution(blueprint: Blueprint, run: RunState) {
 
 export function rejectsUnchanged(
   run: RunState,
-  code: RuntimeErrorCode,
+  code: KernelErrorCode,
   action: () => unknown,
 ) {
   const before = {

@@ -14,10 +14,10 @@ cd my-project
 Initialization creates the project configuration without overwriting existing files. To set up a Workflow and Codex in one operation:
 
 ```sh
-intloom init my-project --workflow @intloom/workflow-intent --mcp codex
+intloom init my-project --loom @intloom/intent --mcp codex
 ```
 
-Use one initialization path. `--workflow` is repeatable, and `--start` optionally starts the Service after setup. The output reports scaffold, Workflow installation, MCP setup, and Service startup separately. Inspect partial success before repeating setup.
+Use one initialization path. `--loom` is repeatable, and `--start` optionally starts the Service after setup. The output reports scaffold, Workflow installation, MCP setup, and Service startup separately. Inspect partial success before repeating setup.
 
 ## Project directories
 

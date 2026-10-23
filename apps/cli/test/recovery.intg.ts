@@ -38,7 +38,9 @@ for (const backend of ["file", "sqlite"] as const)
     const root = await projectFixture(t, true, backend);
     assert.equal((await cli(root, ["start", "--json"])).code, 0);
     const client = await connectProject(root);
-    const receipt = await client.flow("fixture", "recovery acceptance");
+    const receipt = await client.run("fixture", {
+      prompt: "recovery acceptance",
+    });
     const waiting = await untilRun(
       client,
       receipt.runId,
@@ -155,7 +157,12 @@ for (const backend of ["file", "sqlite"] as const)
     const next = await connectProject(root);
     try {
       assert.deepEqual(await next.getRecord(done.runId), record);
-      assert.deepEqual(await next.listRuns(), []);
+      const history = await next.listRuns();
+      assert.deepEqual(
+        history.map((run) => run.runId),
+        [done.runId],
+      );
+      assert.equal(history[0]?.historical, true);
     } finally {
       await next.close();
     }

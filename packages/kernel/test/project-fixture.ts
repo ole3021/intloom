@@ -1,13 +1,11 @@
 import type { TestContext } from "node:test";
 import { initializationProject } from "./initialization-fixture.ts";
 
-export const configText = `intent:
-  apps: []
-llms:
+export const configText = `llms:
   default:
     provider: openai-compatible
     model: test-model
-    secret: ENV.INTLOOM_WORKFLOW_TEST_KEY
+    secret: ENV.INTLOOM_LOOM_TEST_KEY
     baseURL: https://model.invalid/v1
 `;
 
@@ -16,7 +14,7 @@ export async function projectFixture(t: TestContext) {
 }
 
 export function askingCode(codeId: string) {
-  return `export const codes = { [${JSON.stringify(codeId)}]: async (_input, access) => {
+  return `export const codes = { [${JSON.stringify(codeId)}]: async (access) => {
     await access.storage.getArtifact("fixture", "first");
     const answer = await access.interaction.confirm("Continue?");
     await access.state.update({ value: answer.isConfirmed ? "accepted" : "rejected" });

@@ -8,7 +8,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import type { ReadonlyJsonValue } from "../../shared/json.ts";
+import type { ReadonlyJsonValue } from "@intloom/loom-sdk";
 
 export const projects = sqliteTable(
   "storage_projects",
@@ -29,7 +29,7 @@ const columns = () => ({
     .notNull()
     .references(() => projects.projectId),
   id: text("id").notNull(),
-  flowName: text("flow_name").notNull(),
+  loomName: text("loom_name").notNull(),
   stageName: text("stage_name").notNull(),
   data: text("data", { mode: "json" }).$type<ReadonlyJsonValue>().notNull(),
   createdAt: text("created_at").notNull(),
@@ -45,7 +45,7 @@ export const artifacts = sqliteTable(
     primaryKey({ columns: [table.projectId, table.id] }),
     uniqueIndex("artifact_stage").on(
       table.projectId,
-      table.flowName,
+      table.loomName,
       table.stageName,
     ),
     index("artifact_created").on(table.projectId, table.createdAt, table.id),
@@ -61,7 +61,7 @@ export const records = sqliteTable("records", columns(), (table) => [
   index("record_created").on(table.projectId, table.createdAt, table.id),
   index("record_stage_created").on(
     table.projectId,
-    table.flowName,
+    table.loomName,
     table.stageName,
     table.createdAt,
     table.id,

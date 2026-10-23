@@ -1,59 +1,47 @@
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fail } from "../errors.ts";
+import type { SourceResource } from "./types.ts";
 
-const kinds = {
-  stages: "stage",
-  agents: "agent",
-  skills: "skill",
-  codes: "code",
-  schemas: "schema",
-  tools: "tool",
-  initializers: "initializer",
-} as const;
+export type ResourceKind = SourceResource["kind"];
 
 export function isPathWithin(root: string, file: string): boolean {
   const path = relative(root, file);
   return path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path);
 }
 
-export function resolveReference(root: string, reference: string) {
-  const match =
-    /^@(stages|agents|skills|codes|schemas|tools|initializers)\/([^:]+)(?::([A-Za-z_$][\w$]*))?$/.exec(
-      reference,
-    );
-  if (!match)
-    fail("INVALID_REFERENCE", `Invalid resource reference: ${reference}`);
-  const directory = match[1] as keyof typeof kinds;
-  const name = match[2] as string;
-  const suffix =
-    directory === "stages"
-      ? ".yaml"
-      : directory === "agents"
-        ? ".md"
-        : directory === "skills"
-          ? "/SKILL.md"
-          : ".ts";
-  const file = resolve(
-    root,
-    directory,
-    name.endsWith(suffix) ? name : `${name}${suffix}`,
-  );
-  if (
-    !isPathWithin(resolve(root, directory), file) ||
-    name.includes("\\") ||
-    name.split("/").includes("..") ||
-    file.endsWith(".d.ts")
-  ) {
+/** Resource kind comes from the declaration, never from a directory name. */
+export function resolveReference(
+  root: string,
+  reference: string,
+  kind: ResourceKind,
+  fromFile = resolve(root, "package.json"),
+) {
+  const match = /^(\.\.?\/[^#]+)(?:#([A-Za-z_$][\w$]*))?$/.exec(reference);
+  if (!match?.[1] || reference.includes("\\"))
     fail(
       "INVALID_REFERENCE",
-      `Resource must be a source file inside ${directory}: ${reference}`,
+      `Invalid relative resource reference: ${reference}`,
     );
-  }
-  if (["stages", "agents", "skills"].includes(directory) && match[3]) {
+  const file = resolve(dirname(fromFile), match[1]);
+  const suffix =
+    kind === "stage"
+      ? ".yaml"
+      : kind === "agent" || kind === "skill"
+        ? ".md"
+        : ".ts";
+  if (
+    !isPathWithin(root, file) ||
+    !file.endsWith(suffix) ||
+    file.endsWith(".d.ts")
+  )
+    fail(
+      "INVALID_REFERENCE",
+      `Resource must be a ${suffix} source file inside packageRoot: ${reference}`,
+    );
+  if ((kind === "stage" || kind === "agent" || kind === "skill") && match[2])
     fail(
       "INVALID_REFERENCE",
       `This resource has no module export selector: ${reference}`,
     );
-  }
-  return { file, kind: kinds[directory], exportName: match[3] ?? "default" };
+  return { file, kind, exportName: match[2] ?? "default" };
 }

@@ -1,18 +1,19 @@
+import { waitForRun } from "../src/operations/wait-run.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { projectFixture } from "./project-fixture.ts";
-import { compiledWorkflow } from "./initialization-fixture.ts";
+import { compiledLoom } from "./initialization-fixture.ts";
 import { runtimeFixture } from "./runtime-fixture.ts";
-import { agentId, codeId } from "./workflow-fixture.ts";
+import { agentId, codeId } from "./loom-fixture.ts";
 import { credential, testConfig } from "./agent-fixture.ts";
-import { initializeProject } from "../src/core/initialize-project.ts";
-import { flow, listRuns, listWorkflows } from "../src/core/execution.ts";
-import { createEffector } from "../src/effector/create-effector.ts";
-import { loadConfig } from "../src/core/load-config.ts";
+import { initializeProject } from "../src/host/create-project-execution.ts";
+import { run, listRuns, listLooms } from "./operations-harness.ts";
+import { createExecution } from "../src/execution/create-execution.ts";
+import { loadConfig } from "../src/host/config/load-config.ts";
 
 test("optional models and default policy preserve strict supplied config validation", async (t) => {
   const project = await projectFixture(t);
-  await project.configure("intent: {apps: []}\n");
+  await project.configure("");
   const config = await loadConfig(project.root);
   assert.equal(config.useMcpAgent, true);
   assert.equal(config.llms, undefined);
@@ -22,12 +23,12 @@ test("optional models and default policy preserve strict supplied config validat
     { llms: {} },
     { llms: { default: { model: "missing-provider" } } },
   ]) {
-    await project.configure(JSON.stringify({ intent: { apps: [] }, ...extra }));
+    await project.configure(JSON.stringify({ ...extra }));
     await assert.rejects(loadConfig(project.root), {
       code: "INVALID_REQUEST",
     });
   }
-  await project.configure("intent: {apps: []}\nuseMcpAgent: false\n");
+  await project.configure("useMcpAgent: false\n");
   assert.equal((await loadConfig(project.root)).useMcpAgent, false);
 });
 
@@ -35,19 +36,19 @@ test("model-free projects reject service admission and execute client Agents wit
   const project = await projectFixture(t);
   await project.add(
     "probe",
-    compiledWorkflow("probe", codeId, { [agentId]: "reasoning" }).replace(
+    compiledLoom("probe", codeId, { [agentId]: "thinking" }).replace(
       `execution: { kind: "code", codeId: ${JSON.stringify(codeId)} }`,
       `execution: { kind: "agent", agentId: ${JSON.stringify(agentId)} }`,
     ),
   );
-  await project.configure("intent: {apps: []}\n");
+  await project.configure("");
   const fixture = runtimeFixture();
   const network = t.mock.method(globalThis, "fetch", async () => {
     throw new Error("Unexpected model request");
   });
   const projectExecution = await initializeProject(project.root, {
     ...fixture.options,
-    effector: createEffector(),
+    executor: createExecution(),
   });
   const blueprint = projectExecution.registries.blueprints.probe;
   assert.ok(blueprint?.stages.first);
@@ -62,72 +63,96 @@ test("model-free projects reject service admission and execute client Agents wit
   assert.ok(agent);
   assert.equal("agent" in agent, false);
   for (const source of ["cli", "studio"] as const) {
-    const [view] = await listWorkflows(projectExecution, source);
+    const [view] = await listLooms(projectExecution, source);
     assert.ok(view?.isAvailable);
     assert.equal(view.readiness?.status, "configuration_required");
     const code = "INVALID_REQUEST";
-    await assert.rejects(flow(projectExecution, "probe", "test", source), {
+    await assert.rejects(
+      run(projectExecution, "probe", { prompt: "test" }, source),
+      {
+        code,
+      },
+    );
+    await assert.rejects(projectExecution.prepareExecution(blueprint, source), {
       code,
     });
-    await assert.rejects(
-      projectExecution.runtime.flow(blueprint, "direct", source),
-      { code },
-    );
   }
   assert.equal(initialize.mock.calls.length, 0);
   assert.equal(network.mock.calls.length, 0);
   assert.deepEqual(await listRuns(projectExecution), []);
   initialize.mock.restore();
-  const waiting = await flow(projectExecution, "probe", "client", "agent_ide");
+  const waiting = await run(
+    projectExecution,
+    "probe",
+    { prompt: "client" },
+    "agent_ide",
+  );
   assert.equal(waiting.status, "waiting");
   assert.ok(waiting.pendingAgentCall);
   const ref = { runId: waiting.runId, callId: waiting.pendingAgentCall.id };
-  const claim = await projectExecution.runtime.claimAgentCall({
+  const claim = await projectExecution.executor.delegated.claimAgentCall({
     ...ref,
     claimId: "test-client",
   });
-  const completed = await projectExecution.runtime.completeAgentCall({
-    ...ref,
-    ownerToken: claim.ownerToken,
-    result: { outcome: "complete" },
-  });
-  assert.equal(completed.status, "completed");
+  const completed = await projectExecution.executor.delegated.completeAgentCall(
+    {
+      ...ref,
+      ownerToken: claim.ownerToken,
+      result: { outcome: "complete" },
+    },
+  );
+  assert.equal(completed.status, "accepted");
+  assert.equal(
+    (await waitForRun(projectExecution.runtime, completed.runId)).status,
+    "completed",
+  );
   assert.equal(network.mock.calls.length, 0);
 });
 
 test("Code-only MCP Runs need no llms; CLI, Studio and MCP false still require service configuration", async (t) => {
   const project = await projectFixture(t);
-  await project.add("probe", compiledWorkflow("probe", codeId));
-  await project.configure("intent: {apps: []}\n");
+  await project.add("probe", compiledLoom("probe", codeId));
+  await project.configure("");
   const execution = await initializeProject(
     project.root,
     runtimeFixture().options,
   );
-  const done = await flow(execution, "probe", "code only", "agent_ide");
+  const done = await run(
+    execution,
+    "probe",
+    { prompt: "code only" },
+    "agent_ide",
+  );
   assert.equal(done.status, "completed");
   assert.deepEqual(done.execution, {
     source: "agent_ide",
     agentExecutor: "mcp_client",
   });
   for (const source of ["cli", "studio"] as const)
-    await assert.rejects(flow(execution, "probe", "no models", source), {
-      code: "INVALID_REQUEST",
-    });
-  await project.configure("intent: {apps: []}\nuseMcpAgent: false\n");
+    await assert.rejects(
+      run(execution, "probe", { prompt: "no models" }, source),
+      {
+        code: "INVALID_REQUEST",
+      },
+    );
+  await project.configure("useMcpAgent: false\n");
   const service = await initializeProject(
     project.root,
     runtimeFixture().options,
   );
-  await assert.rejects(flow(service, "probe", "no models", "agent_ide"), {
-    code: "INVALID_REQUEST",
-  });
+  await assert.rejects(
+    run(service, "probe", { prompt: "no models" }, "agent_ide"),
+    {
+      code: "INVALID_REQUEST",
+    },
+  );
   assert.deepEqual(await listRuns(service), []);
   assert.equal((await listRuns(execution)).length, 1);
 });
 
-test("missing credentials do not block loading; only the target Workflow's Agent roles are prepared", async (t) => {
+test("missing credentials do not block loading; only the target Loom's Agent roles are prepared", async (t) => {
   const project = await projectFixture(t);
-  const body = compiledWorkflow("probe", codeId, {
+  const body = compiledLoom("probe", codeId, {
     [agentId]: "coding",
   }).replace(
     `execution: { kind: "code", codeId: ${JSON.stringify(codeId)} }`,
@@ -150,13 +175,13 @@ test("missing credentials do not block loading; only the target Workflow's Agent
     project.root,
     runtimeFixture().options,
   );
-  assert.equal((await listWorkflows(execution))[0]?.isAvailable, true);
-  await assert.rejects(flow(execution, "probe", "test"), {
+  assert.equal((await listLooms(execution))[0]?.isAvailable, true);
+  await assert.rejects(run(execution, "probe", { prompt: "test" }), {
     code: "INVALID_REQUEST",
     message: /INTLOOM_NO_LLMS_MISSING_KEY/,
   });
   assert.deepEqual(await listRuns(execution), []);
-  const [clientView] = await listWorkflows(execution, "agent_ide");
+  const [clientView] = await listLooms(execution, "agent_ide");
   assert.ok(clientView?.isAvailable);
   assert.equal(clientView.readiness?.status, "available");
 });
@@ -166,7 +191,7 @@ test("one project keeps client calls separate from CLI, Studio and MCP service m
   const project = await projectFixture(t);
   await project.add(
     "probe",
-    compiledWorkflow("probe", codeId, { [agentId]: "reasoning" }).replace(
+    compiledLoom("probe", codeId, { [agentId]: "thinking" }).replace(
       `execution: { kind: "code", codeId: ${JSON.stringify(codeId)} }`,
       `execution: { kind: "agent", agentId: ${JSON.stringify(agentId)} }`,
     ),
@@ -210,14 +235,19 @@ test("one project keeps client calls separate from CLI, Studio and MCP service m
   );
   const execution = await initializeProject(project.root, {
     ...runtimeFixture().options,
-    effector: createEffector(),
+    executor: createExecution(),
   });
-  const client = await flow(execution, "probe", "client", "agent_ide");
+  const client = await run(
+    execution,
+    "probe",
+    { prompt: "client" },
+    "agent_ide",
+  );
   assert.ok(client.pendingAgentCall);
   assert.equal(network.mock.calls.length, 0);
   assert.equal(execution.executionStatus().preparedServiceAgents, 0);
   for (const source of ["cli", "studio"] as const) {
-    const completed = await flow(execution, "probe", source, source);
+    const completed = await run(execution, "probe", { prompt: source }, source);
     assert.equal(
       completed.status,
       "completed",
@@ -229,24 +259,32 @@ test("one project keeps client calls separate from CLI, Studio and MCP service m
   assert.equal(execution.executionStatus().preparedServiceAgents, 1);
   assert.deepEqual(await execution.runtime.getRun(client.runId), client);
   const ref = { runId: client.runId, callId: client.pendingAgentCall.id };
-  const claimed = await execution.runtime.claimAgentCall({
+  const claimed = await execution.executor.delegated.claimAgentCall({
     ...ref,
     claimId: "client",
   });
-  const done = await execution.runtime.completeAgentCall({
+  const done = await execution.executor.delegated.completeAgentCall({
     ...ref,
     ownerToken: claimed.ownerToken,
     result: { outcome: "complete" },
   });
-  assert.equal(done.status, "completed");
-  assert.deepEqual(done.execution, client.execution);
+  assert.equal(done.status, "accepted");
+  assert.deepEqual(
+    (await execution.runtime.getRun(done.runId)).execution,
+    client.execution,
+  );
   assert.equal(network.mock.calls.length, 2);
   await project.configure(JSON.stringify({ ...config, useMcpAgent: false }));
   const service = await initializeProject(project.root, {
     ...runtimeFixture().options,
-    effector: createEffector(),
+    executor: createExecution(),
   });
-  const external = await flow(service, "probe", "MCP service", "agent_ide");
+  const external = await run(
+    service,
+    "probe",
+    { prompt: "MCP service" },
+    "agent_ide",
+  );
   assert.equal(external.status, "completed");
   assert.deepEqual(external.execution, {
     source: "agent_ide",

@@ -1,4 +1,4 @@
-import { KERNEL_ERRORS } from "../errors/kernel.ts";
+import { ERRORS } from "../errors.ts";
 import { storageError } from "./errors.ts";
 
 /** Tracks accepted work independently of Runtime's logical stop. */
@@ -10,7 +10,7 @@ export function createLifecycle(close: () => void | Promise<void>) {
     run<T>(operation: () => T | Promise<T>): Promise<T> {
       if (closing)
         return Promise.reject(
-          KERNEL_ERRORS.create("KERNEL_UNAVAILABLE", {
+          ERRORS.create("KERNEL_UNAVAILABLE", {
             message: "Storage is closed.",
             retryable: false,
           }),

@@ -43,13 +43,13 @@ Obtain a compatible compiled Workflow archive with resolvable runtime dependenci
 Still from the repository root:
 
 ```sh
-node apps/cli/dist/bin.js init my-project --workflow /absolute/path/to/workflow.tgz
+node apps/cli/dist/bin.js init my-project --loom /absolute/path/to/loom.tgz
 node apps/cli/dist/bin.js --project my-project start
 ```
 
 Starting the service does not execute a Workflow. Choose an execution path next:
 
-- [CLI](./docs/guide/start/cmd.md): configure the project's model and credentials, then use `flow` to begin a Run.
+- [CLI](./docs/guide/start/cmd.md): configure the project's model and credentials, then use `run` to begin a Run.
 - [Agent IDE / MCP](./docs/guide/start/mcp.md): connect Codex or another capable MCP client. The default client Agent mode needs no project model configuration.
 
 Answer questions and confirmations to continue the same Run. Use `runs` to inspect execution, `attach` to continue from the terminal, and `artifacts` to inspect saved results. Process completion and the quality of its business results are separate things.
@@ -66,4 +66,4 @@ Model behavior and client support need validation in the intended environment. S
 - [Getting started](./docs/guide/start/installation.md)
 - [CLI command reference](./docs/guide/reference/cli.md)
 - [Create a Workflow](./docs/guide/development/create.md)
-- [AI-driven E2E testing](./e2e/README.md)
+- [AI-driven E2E testing](./apps/cli/src/e2e/README.md)

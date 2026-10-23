@@ -43,13 +43,13 @@ node apps/cli/dist/bin.js --help
 仍在仓库根目录执行：
 
 ```sh
-node apps/cli/dist/bin.js init my-project --workflow /absolute/path/to/workflow.tgz
+node apps/cli/dist/bin.js init my-project --loom /absolute/path/to/loom.tgz
 node apps/cli/dist/bin.js --project my-project start
 ```
 
 启动服务不会执行 Workflow。接下来选择执行方式：
 
-- [CLI](./docs/zh/guide/start/cmd.md)：配置项目模型和凭据，再通过 `flow` 开始一个 Run。
+- [CLI](./docs/zh/guide/start/cmd.md)：配置项目模型和凭据，再通过 `run` 开始一个 Run。
 - [Agent IDE / MCP](./docs/zh/guide/start/mcp.md)：连接 Codex 或其他具备相应能力的 MCP 客户端。默认客户端 Agent 模式不需要项目模型配置。
 
 回答问题并进行确认，继续同一个 Run。使用 `runs` 查看执行情况，使用 `attach` 从终端继续，使用 `artifacts` 查询保存的结果。流程完成与业务结果的质量是两件不同的事。
@@ -66,4 +66,4 @@ IntLoom 仍处于早期开发阶段。本地 Workflow 执行、CLI/MCP 接入、
 - [开始使用](./docs/zh/guide/start/installation.md)
 - [CLI 命令参考](./docs/zh/guide/reference/cli.md)
 - [创建 Workflow](./docs/zh/guide/development/create.md)
-- [AI-driven E2E testing](./e2e/README.md)
+- [AI-driven E2E testing](./apps/cli/src/e2e/README.md)

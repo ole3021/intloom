@@ -1,43 +1,17 @@
-workflow:
-  source: ..
-  flowName: intent
+version: 1
 models:
-  user: minimax-m3
-  cmd:
-    default:
-      model: glm-5.3
-      providerOptions:
-        openai:
-          reasoningEffort: low
-    reasoning:
-      model: glm-5.3
-      providerOptions:
-        openai:
-          reasoningEffort: low
-    coding: minimax-m3
-    review: minimax-m3
-  mcp:
-    worker:
-      model: glm-5.3
-      providerOptions:
-        openai:
-          reasoningEffort: low
-# Optional limits; this suite bounds model sessions without a case-size budget table.
+  user:
+    provider: openai-compatible
+    model: ENV.INTLOOM_E2E_MODEL
+    secret: ENV.INTLOOM_E2E_API_KEY
+    baseURL: ENV.INTLOOM_E2E_BASE_URL
+# CMD service and MCP worker default to the user model, in separate sessions.
+# Use --profile to select separate user, service.default/thinking/working/coding, and worker models.
 limits:
-  maxUserSteps: 160
+  maxUserSteps: 80
   maxAgentSteps: 64
-  modelConnectionTimeoutMs: 120000
+  maxDurationMs: 7200000
   modelIdleTimeoutMs: 180000
-# Omit maxDurationMs to use no E2E wall-clock limit.
-#   maxDurationMs: 7200000
-#   commandTimeoutMs: 30000
-#   modelConnectionRetries: 0
-preparation:
-  scripts:
-    - checks/prepare.ts
-acceptance:
-  instructions: acceptance.md
-
-# Enable the optional business-evidence script explicitly:
-#   scripts:
-#     - checks/results.ts
+checks:
+  - checks/contracts.mjs
+  - checks/history.mjs

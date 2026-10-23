@@ -1,8 +1,8 @@
-import type { StoredArtifact } from "../src/storage/types.ts";
+import type { StoredArtifact } from "@intloom/loom-sdk";
 
 export const artifact: StoredArtifact = {
   id: "ART-todo",
-  flowName: "fixture",
+  loomName: "fixture",
   stageName: "first",
   revision: 1,
   data: {

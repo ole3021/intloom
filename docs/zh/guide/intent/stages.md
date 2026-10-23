@@ -1,27 +1,37 @@
 ---
-title: Intent 的四个阶段
+title: Intent 四阶段
 ---
 
-# Intent 的四个阶段
+# Intent 四阶段
 
 ## Specification
 
-[Intent Analyst](./agents/intent-analyst.md) 提出累计需求变更和未回答问题。Code 检查提案、向用户提问、准备确认，并保存已接受的 Artifact/Record。反馈返回分析。
+`prepare → analyze → check_scope → draft → check → confirm → commit`
+
+同一个 Agent 在不同 Step 中分别分析和起草。分析读取 prompt、既有需求、真实代码和历史报告，区分事实与假设。草稿以“功能 → 需求 → 验收条件”为核心，Domain 可选。批量编辑 Tool 接收可编辑对象，Code 分配正式 ID。
+
+Code 检查引用、范围与覆盖。缺失信息经 `resolve` 获取真实回答。确认时展示完整提案、变化、本轮工作及完成条件。提交保存完整需求快照与本轮 Record；`roundCriteria` 只保存在 Record。
 
 ## Solution
 
-[Solution Designer](./agents/solution-designer.md) 使用固定的已确认 Specification、读取项目文件，提出设计变更和命令计划。Code 核验引用与检查，完成澄清和确认，保存 Solution Artifact/Record。
+`prepare → analyze → check_analysis → design → check → confirm → commit`
+
+读取本 Run 的 Specification Record。先分析实际系统，再定义受影响设计对象、约束、有依赖顺序的实施安排和验证计划；执行阶段为 `implementation`、`validation` 或 `both`。
+
+Coverage 连接工作项、目标、实施项与验证项。分析问题返回 analyze，设计或覆盖问题返回 design。真实确认后提交完整方案 Record 和设计 Artifact。
 
 ## Implementation
 
-[Implementation Developer](./agents/implementation-developer.md) 根据已确认需求与设计修改项目文件。Code 对照声明与实际变更并执行约定命令。检查失败返回修复反馈，最终提交前重新核验快照，保存 Implementation Record。
+`prepare → implement → verify → observe（需要时）→ check → resolve（需要时）→ commit`
+
+读取固定方案和实际文件，在读取后修改。Code 记录真实操作、净变化和候选摘要；每个实施项必须说明已实施、复用或未完成。
+
+命令由 Code 执行，过程性验证依靠实际观察和来源。修复限制在确认范围内。同候选重试须有新诊断证据或用户提供的条件变化；未结算命令不自动重放。部分交接必须得到绑定候选版本的明确选择。最终只保存 Implementation Record，不另设 Artifact。
 
 ## Validation
 
-[Validation Analyst](./agents/validation-analyst.md) 读取固定依据和交付证据，提出目标评估与发现。宿主 Code 管理重复检查、报告一致性和计算统计，最后保存 Validation Artifact。
+`prepare → verify → observe（需要时）→ assess → check → resolve（需要时）→ commit`
 
-## 共同规则
+读取交付候选和全部本轮目标。可采用适用的 implementation-only 证据；validation/both 的工作独立执行。Agent 提出补充取证请求、提交实际观察、逐目标判断并明确复核历史问题。
 
-Agent 提出业务内容，Code 管理真实人工回答、确认、命令证据和正式持久化。Stage State 与正式输出分别管理。
-
-正常阶段路线是线性的，但阶段内部存在反馈和检查循环。Specification 等待具备恢复入口，Solution 等待当前依赖原调用存活。参见[交互](./interaction.md)和[恢复](../usage/recovery.md)。
+Code 检查证据适用性、覆盖完整性和真实取证决定。`resolve` 针对展示的缺口提供继续、暂停或结束取证。失败或证据不足的有效报告可以提交；候选漂移、原执行未结算则阻断发布。Record 与累计 Artifact 原子提交。

@@ -26,16 +26,16 @@ and ask me the Workflow's questions and confirmations before continuing.
 At the end, show the Validation report and its evidence.
 ```
 
-The client calls `flow` once, inspects the returned Run, executes pending Agent tasks, and presents human actions. A Tool connection alone does not establish that the client implements this complete protocol.
+The client calls `run` once, inspects the returned Run, executes pending Agent tasks, and presents human actions. A Tool connection alone does not establish that the client implements this complete protocol.
 
 Keep user questions and confirmations visible. Client reasoning must not manufacture an answer or human approval.
 
 ## Inspect from the terminal
 
 ```sh
-intloom runs --flow intent
-intloom artifacts --flow intent
-intloom artifact --flow intent --stage validation
+intloom runs --loom intent
+intloom artifacts --loom intent
+intloom artifact --loom intent --stage validation
 ```
 
 If the client disconnects, inspect the same Run before deciding how to continue. See [MCP operations](../usage/mcp.md) and [Agent task protocol](../reference/mcp.md).

@@ -1,12 +1,15 @@
+import { randomUUID } from "node:crypto";
+import { admissionSchema } from "@intloom/kernel/operations";
+import type { LoomInput } from "@intloom/loom-sdk";
 import { packageVersion } from "../version.ts";
 import {
   Client,
   StreamableHTTPClientTransport,
 } from "@modelcontextprotocol/client";
-import type { ReadonlyJsonValue } from "@intloom/kernel";
+import type { ReadonlyJsonValue } from "@intloom/loom-sdk";
 import * as z from "zod";
-import { failure } from "../errors.ts";
-import { storedRecordSchema } from "../application/records.ts";
+import { failure, errorView } from "../errors.ts";
+import { storedRecordSchema } from "@intloom/kernel/operations";
 import {
   artifactPageSchema,
   parseArtifactQuery,
@@ -14,12 +17,12 @@ import {
   storedArtifactSchema,
   type ArtifactQuery,
   type ArtifactSelector,
-} from "../application/artifacts.ts";
+} from "@intloom/kernel/operations";
 import {
   errorViewSchema,
   runViewSchema,
-  workflowViewSchema,
-} from "../service/contracts.ts";
+  loomViewSchema,
+} from "@intloom/kernel/host";
 import type {
   ProjectClient,
   ProjectConnection,
@@ -106,8 +109,8 @@ export async function connectProjectClient(
           "PROJECT_REQUEST_FAILED",
           knownRunId
             ? `The request outcome is unknown for Run ${knownRunId}. Query get_run or attach with this Run ID; do not repeat the mutation.`
-            : name === "flow"
-              ? "The flow result is unknown and no Run ID was received. Inspect list_runs and logs before considering another flow; requestId is only for log correlation."
+            : name === "run"
+              ? "The run result is unknown and no Run ID was received. Inspect list_runs and logs before considering another run; requestId is only for log correlation."
               : "The request did not return a confirmed result. Query runs/attach or the committed Record before repeating an execution.",
           cause,
         );
@@ -150,9 +153,64 @@ export async function connectProjectClient(
     return parsed.data;
   }
   const oneRun = z.strictObject({ run: runViewSchema });
+  const status = await call(
+    "status",
+    {},
+    z.object({ service: z.object({ instanceId: z.uuid() }) }),
+  ).catch(async (cause) => {
+    await client.close().catch(() => {});
+    throw cause;
+  });
+  const serviceInstanceId = status.service.instanceId;
+  async function mutate(
+    name: string,
+    args: Record<string, unknown>,
+    runId?: string,
+  ) {
+    const operationId = randomUUID();
+    const lookup = `Query get_operation with operationId ${operationId} and serviceInstanceId ${serviceInstanceId} before another mutation.`;
+    const data = await call(
+      name,
+      { ...args, operationId, serviceInstanceId },
+      admissionSchema,
+      runId,
+    ).catch((cause) => {
+      const error = errorView(cause);
+      throw failure(
+        error.code,
+        `${error.message} ${lookup}`,
+        cause,
+        error.retryable,
+      );
+    });
+    if (data.receipt.status === "accepted")
+      return (
+        data.run ??
+        (
+          await call(
+            "get_run",
+            { runId: data.receipt.runId },
+            oneRun,
+            data.receipt.runId,
+          )
+        ).run
+      );
+    if (
+      data.receipt.status === "rejected" ||
+      data.receipt.status === "indeterminate"
+    )
+      throw failure(
+        data.receipt.error.code,
+        `${data.receipt.error.message}${data.receipt.status === "indeterminate" ? ` ${lookup}` : ""}`,
+      );
+    throw failure(
+      "OPERATION_PENDING",
+      `Query operation ${operationId} in Service ${serviceInstanceId} before resubmitting.`,
+    );
+  }
   return {
-    async flow(flowName: string, intent: string) {
-      return (await call("flow", { flowName, intent }, oneRun)).run;
+    async run(loomName: string, input: LoomInput) {
+      return mutate("run", { loomName, input });
     },
     async getRun(runId: string) {
       return (await call("get_run", { runId }, oneRun, runId)).run;
@@ -162,30 +220,28 @@ export async function connectProjectClient(
       actionId: string,
       answer: ReadonlyJsonValue,
     ) {
-      return (
-        await call("answer_ask", { runId, actionId, answer }, oneRun, runId)
-      ).run;
+      return mutate("answer_ask", { runId, actionId, answer }, runId);
     },
     async cancelRun(runId: string) {
-      return (await call("cancel_run", { runId }, oneRun, runId)).run;
+      return mutate("cancel_run", { runId }, runId);
     },
-    async listRuns(flowName?: string) {
+    async listRuns(loomName?: string) {
       return (
         await call(
           "list_runs",
-          flowName === undefined ? {} : { flowName },
+          loomName === undefined ? {} : { loomName },
           z.strictObject({ runs: z.array(runViewSchema) }),
         )
       ).runs;
     },
-    async listWorkflows() {
+    async listLooms() {
       return (
         await call(
-          "list_workflows",
+          "list_looms",
           {},
-          z.strictObject({ workflows: z.array(workflowViewSchema) }),
+          z.strictObject({ looms: z.array(loomViewSchema) }),
         )
-      ).workflows;
+      ).looms;
     },
     async getArtifact(selector: ArtifactSelector) {
       return (

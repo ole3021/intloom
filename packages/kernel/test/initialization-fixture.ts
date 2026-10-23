@@ -10,28 +10,27 @@ import {
 import { findPackageJSON } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
-import type { TestContext } from "node:test";
 import { parse, stringify } from "yaml";
-import type { WorkflowDependency } from "../src/core/schemas/loom-config.ts";
+import type { LoomDependency } from "../src/host/config/schemas/loom-config.ts";
 import { testConfig } from "./agent-fixture.ts";
 
-export async function initializationProject(t: TestContext) {
-  const root = await realpath(
-    await mkdtemp(resolve(tmpdir(), "workflow-init-")),
-  );
+export async function initializationProject(t: {
+  after(cleanup: () => Promise<void>): void;
+}) {
+  const root = await realpath(await mkdtemp(resolve(tmpdir(), "loom-init-")));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const installation = resolve(root, ".intloom/workflows");
+  const installation = resolve(root, ".intloom/looms");
   await mkdir(resolve(installation, "node_modules"), { recursive: true });
   const zod = findPackageJSON("zod", import.meta.url);
   if (!zod) throw new Error("Zod is not installed");
   await symlink(dirname(zod), resolve(installation, "node_modules/zod"), "dir");
-  const workflows: WorkflowDependency[] = [];
+  const looms: LoomDependency[] = [];
   async function configure(value: string | Record<string, unknown>) {
     await writeFile(
       resolve(root, "intloom.yaml"),
       stringify({
         ...(typeof value === "string" ? parse(value) : value),
-        workflows,
+        looms,
       }),
     );
   }
@@ -40,7 +39,7 @@ export async function initializationProject(t: TestContext) {
     name: string,
     body: string,
     local = false,
-    protocol = "2026-10-08",
+    protocol = "2026-10-15",
   ) {
     const directory = resolve(installation, "node_modules", name);
     const output = local ? resolve(directory, "dist") : directory;
@@ -51,34 +50,34 @@ export async function initializationProject(t: TestContext) {
         name,
         version: "1.0.0",
         type: "module",
-        intloom: { type: "workflow", version: protocol },
+        loom: { type: "loom", version: protocol },
         exports: {
           ".": {
-            types: local ? "./dist/workflow.d.ts" : "./workflow.d.ts",
-            default: local ? "./dist/workflow.js" : "./workflow.js",
+            types: local ? "./dist/loom.d.ts" : "./loom.d.ts",
+            default: local ? "./dist/loom.js" : "./loom.js",
           },
           "./package.json": "./package.json",
         },
       }),
     );
-    await writeFile(resolve(output, "workflow.js"), body);
-    workflows.push({ name, version: "1.0.0", sha256: "a".repeat(64) });
+    await writeFile(resolve(output, "loom.js"), body);
+    looms.push({ name, version: "1.0.0", sha256: "a".repeat(64) });
     await configure(await readFile(resolve(root, "intloom.yaml"), "utf8"));
     return output;
   }
-  return { root, installation, workflows, add, configure };
+  return { root, installation, looms, add, configure };
 }
 
-export function compiledWorkflow(
-  flowName: string,
+export function compiledLoom(
+  loomName: string,
   codeId: string,
   agents: Record<string, string> = {},
 ) {
   return `import * as z from "zod";
-export const blueprint = { flowName: ${JSON.stringify(flowName)}, entryStageName: "first", stages: {
+export const blueprint = {inputs:["prompt"], loomName: ${JSON.stringify(loomName)}, entryStageName: "first", stages: {
   first: { stageName: "first", initializeState: () => ({ value: "initial" }), stateSchema: z.object({ value: z.string() }), entryStepName: "run",
     steps: { run: { stepName: "run", execution: { kind: "code", codeId: ${JSON.stringify(codeId)} }, on: { complete: { kind: "stage_end" } } } },
-    on: { complete: { kind: "workflow_end" } } }
+    on: { complete: { kind: "loom_end" } } }
 } };
 export const codes = { [${JSON.stringify(codeId)}]: () => ({ outcome: "complete" }) };
 export const agentSpecs = { ${Object.entries(agents)

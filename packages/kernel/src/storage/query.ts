@@ -7,7 +7,8 @@ import {
   querySchema,
   timestampSchema,
 } from "./schemas.ts";
-import type { ListPage, StorageQuery, StorageCategory } from "./types.ts";
+import type { ListPage, StorageQuery } from "@intloom/loom-sdk";
+import type { StorageCategory } from "./types.ts";
 
 interface Position {
   readonly createdAt: string;
@@ -40,7 +41,7 @@ export function prepareQuery(
       JSON.stringify([
         scope,
         category,
-        query.flowName ?? null,
+        query.loomName ?? null,
         query.stageName ?? null,
         ids ?? null,
         query.createdAfter ?? null,
@@ -68,11 +69,11 @@ export function prepareQuery(
 export type PreparedQuery = ReturnType<typeof prepareQuery>;
 
 export function matches(
-  entry: Position & { flowName: string; stageName: string },
+  entry: Position & { loomName: string; stageName: string },
   query: PreparedQuery,
 ): boolean {
   return (
-    (query.flowName === undefined || entry.flowName === query.flowName) &&
+    (query.loomName === undefined || entry.loomName === query.loomName) &&
     (query.stageName === undefined || entry.stageName === query.stageName) &&
     (query.ids === undefined || query.ids.includes(entry.id)) &&
     (query.createdAfter === undefined ||

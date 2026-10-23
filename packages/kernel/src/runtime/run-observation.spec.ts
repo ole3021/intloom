@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { runtimeFixture, deferred } from "../../test/runtime-fixture.ts";
-import { createRuntime } from "./create-runtime.ts";
+import { createRuntimeHarness } from "../../test/runtime-harness.ts";
 import { createRuntimeObservation } from "./run-observation.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import { ERRORS } from "../errors.ts";
 
 test("Kernel metrics retain actual commit references and exclude long human waits from execution budget", async (t) => {
   const f = runtimeFixture();
@@ -13,7 +13,7 @@ test("Kernel metrics retain actual commit references and exclude long human wait
     serviceInstanceId: randomUUID(),
     limits: { maxDurationMs: 80 },
   });
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await access.storage.commit([]);
     await access.interaction.confirm("Confirm the fixed fixture?");
     return { outcome: "complete" };
@@ -23,7 +23,7 @@ test("Kernel metrics retain actual commit references and exclude long human wait
     appendedRecords: [
       {
         id: "actual-record",
-        flowName: "fixture",
+        loomName: "fixture",
         stageName: "first",
         data: null,
         createdAt: new Date().toISOString(),
@@ -32,9 +32,9 @@ test("Kernel metrics retain actual commit references and exclude long human wait
     removedArtifactIds: [],
     removedRecordIds: [],
   });
-  const runtime = createRuntime({ ...f.options, observation });
+  const runtime = createRuntimeHarness({ ...f.options, observation });
   t.after(() => runtime.suspend());
-  const waiting = await runtime.flow(f.blueprint, "fixed fixture");
+  const waiting = await runtime.run(f.blueprint, { prompt: "fixed fixture" });
   assert.equal(waiting.status, "waiting");
   await delay(180);
   const stillWaiting = await runtime.getRun(waiting.runId);
@@ -89,9 +89,9 @@ test("stable request identities deduplicate usage, retain unknown fields, and ga
     await observation.observer.beforeStep({ requestId: "two" });
     assert.fail("a second request must be blocked");
   };
-  const runtime = createRuntime({ ...f.options, observation });
+  const runtime = createRuntimeHarness({ ...f.options, observation });
   t.after(() => runtime.suspend());
-  const run = await runtime.flow(f.blueprint, "budget");
+  const run = await runtime.run(f.blueprint, { prompt: "budget" });
   assert.equal(run.status, "failed");
   assert.equal(run.stopReason, "budget_exceeded");
   assert.equal(run.metrics?.calls.modelRequests, 1);
@@ -117,7 +117,7 @@ test("a known late commit and usage update metadata after cancellation without r
       appendedRecords: [
         {
           id: "late-record",
-          flowName: "fixture",
+          loomName: "fixture",
           stageName: "first",
           data: null,
           createdAt: new Date().toISOString(),
@@ -127,7 +127,7 @@ test("a known late commit and usage update metadata after cancellation without r
       removedRecordIds: [],
     };
   };
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     await observation.observer.beforeStep({ requestId: "known" });
     try {
       await access.storage.commit([]);
@@ -139,11 +139,13 @@ test("a known late commit and usage update metadata after cancellation without r
         outputTokens: 2,
       });
     }
-    throw RUNTIME_ERRORS.create("STEP_EXECUTION_FAILED");
+    throw ERRORS.create("STEP_EXECUTION_FAILED");
   };
-  const runtime = createRuntime({ ...f.options, observation });
+  const runtime = createRuntimeHarness({ ...f.options, observation });
   t.after(() => runtime.suspend());
-  const launched = await runtime.startFlow(f.blueprint, "late result");
+  const launched = await runtime.startRun(f.blueprint, {
+    prompt: "late result",
+  });
   await entered.promise;
   await runtime.cancelRun(launched.runId);
   const stopped = await runtime.getRun(launched.runId);

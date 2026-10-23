@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -39,7 +40,7 @@ test("CLI, Studio backend and Agent IDE share business clients and resume the sa
   t.after(async () => {
     await Promise.all([cli.close(), studio.close(), ide.close()]);
   });
-  const receipt = await cli.flow("fixture", "  shared\n意图  ");
+  const receipt = await cli.run("fixture", { prompt: "  shared\n意图  " });
   assert.equal(receipt.status, "running");
   const original = await untilRun(
     cli,
@@ -47,12 +48,12 @@ test("CLI, Studio backend and Agent IDE share business clients and resume the sa
     (run) => run.status === "waiting",
   );
   assert.deepEqual(await studio.getRun(original.runId), original);
-  const [ideWorkflow] = await ide.listWorkflows();
-  const [cliWorkflow] = await cli.listWorkflows();
-  assert.ok(ideWorkflow?.isAvailable && cliWorkflow?.isAvailable);
-  assert.equal(ideWorkflow.flowName, cliWorkflow.flowName);
-  assert.equal(ideWorkflow.readiness?.agentExecutor, "mcp_client");
-  assert.equal(cliWorkflow.readiness?.agentExecutor, "service");
+  const [ideLoom] = await ide.listLooms();
+  const [cliLoom] = await cli.listLooms();
+  assert.ok(ideLoom?.isAvailable && cliLoom?.isAvailable);
+  assert.equal(ideLoom.loomName, cliLoom.loomName);
+  assert.equal(ideLoom.readiness?.agentExecutor, "mcp_client");
+  assert.equal(cliLoom.readiness?.agentExecutor, "service");
   assert.deepEqual(original.execution, {
     source: "cli",
     agentExecutor: "service",
@@ -94,7 +95,9 @@ test("CLI, Studio backend and Agent IDE share business clients and resume the sa
   assert.equal(await studio.getArtifact({ artifactId: "missing" }), null);
   assert.deepEqual((await studio.listArtifacts()).data, []);
 
-  const secondReceipt = await studio.flow("fixture", "retain after close");
+  const secondReceipt = await studio.run("fixture", {
+    prompt: "retain after close",
+  });
   const waiting = await untilRun(
     studio,
     secondReceipt.runId,
@@ -140,15 +143,17 @@ for (const version of ["2025-11-25", "2026-07-28"] as const)
       assert.fail("Studio presents its own forms"),
     );
     const tools = (await raw.listTools()).tools;
-    assert.ok(tools.some((tool) => tool.name === "flow"));
-    const flow = tools.find((tool) => tool.name === "flow");
-    assert.deepEqual(Object.keys(flow?.inputSchema.properties ?? {}).sort(), [
-      "flowName",
-      "intent",
+    assert.ok(tools.some((tool) => tool.name === "run"));
+    const run = tools.find((tool) => tool.name === "run");
+    assert.deepEqual(Object.keys(run?.inputSchema.properties ?? {}).sort(), [
+      "input",
+      "loomName",
+      "operationId",
+      "serviceInstanceId",
     ]);
     const cli = await connectProject(root);
     t.after(() => cli.close());
-    const receipt = await cli.flow("fixture", "Studio form");
+    const receipt = await cli.run("fixture", { prompt: "Studio form" });
     const waiting = await untilRun(
       cli,
       receipt.runId,
@@ -156,7 +161,12 @@ for (const version of ["2025-11-25", "2026-07-28"] as const)
     );
     const interaction = await raw.callTool({
       name: "interact",
-      arguments: { runId: waiting.runId, actionId: pending(waiting).id },
+      arguments: {
+        runId: waiting.runId,
+        actionId: pending(waiting).id,
+        operationId: randomUUID(),
+        serviceInstanceId: waiting.serviceInstanceId,
+      },
     });
     const content = interaction.structuredContent;
     assert.ok(
@@ -165,10 +175,12 @@ for (const version of ["2025-11-25", "2026-07-28"] as const)
     assert.equal(content.interaction, "unavailable");
     assert.deepEqual(await cli.getRun(waiting.runId), waiting);
     const rejected = await raw.callTool({
-      name: "flow",
+      name: "run",
       arguments: {
-        flowName: "fixture",
-        intent: "reject override",
+        loomName: "fixture",
+        input: { prompt: "reject override" },
+        operationId: randomUUID(),
+        serviceInstanceId: waiting.serviceInstanceId,
         source: "agent_ide",
       },
     });

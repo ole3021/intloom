@@ -1,6 +1,6 @@
 {
   "name": "@intloom/compiler",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "type": "module",
   "exports": {
     ".": {
@@ -27,7 +27,7 @@
     "zod": "^4.6.5",
     "typescript": "7.0.2",
     "acorn": "^8.15.0",
-    "@intloom/workflow-sdk": "workspace:*"
+    "@intloom/loom-sdk": "workspace:*"
   },
   "license": "Apache-2.0",
   "repository": {
@@ -45,5 +45,5 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Build compiled IntLoom Workflow packages"
+  "description": "Build compiled IntLoom Loom packages"
 }

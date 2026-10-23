@@ -1,5 +1,9 @@
+import type { AgentModelType, LoomInputKind } from "@intloom/loom-sdk";
 import type { CompileOptions } from "../types.ts";
-import type { SourceLocation } from "../source/types.ts";
+import type { ResourceAsset, SourceLocation } from "../source/types.ts";
+export type { ResourceAsset } from "../source/types.ts";
+import type { CompilerDiagnostic } from "../diagnostics.ts";
+import type { SourcePackage } from "../source/schemas.ts";
 
 export type StepTarget =
   | { readonly kind: "step"; readonly stepName: string }
@@ -16,7 +20,7 @@ export interface StepModel {
 
 export type StageTarget =
   | { readonly kind: "stage"; readonly stageName: string }
-  | { readonly kind: "workflow_end" };
+  | { readonly kind: "loom_end" };
 
 export interface StageModel {
   readonly stageName: string;
@@ -29,13 +33,9 @@ export interface StageModel {
 }
 
 export interface ModuleReference {
+  readonly location?: SourceLocation;
   readonly sourceFile: string;
   readonly exportName: string;
-}
-
-export interface ResourceAsset {
-  readonly sourceFile: string;
-  readonly outputPath: string;
 }
 
 export interface CodeModel {
@@ -59,16 +59,18 @@ export interface AgentModel {
   readonly description: string;
   readonly instructions: string;
   /** Configuration role name; Compiler does not read consumer model configuration. */
-  readonly llm: string;
+  readonly llm: AgentModelType;
   readonly outputSchema: ModuleReference;
   readonly skills: readonly SkillModel[];
   readonly tools: readonly ModuleReference[];
 }
 
-export interface WorkflowModel {
+export interface LoomModel {
+  readonly manifest: SourcePackage;
   readonly exclusive?: boolean;
   readonly options: CompileOptions;
-  readonly flowName: string;
+  readonly loomName: string;
+  readonly inputs: readonly LoomInputKind[];
   readonly version: string;
   readonly entryStageName: string;
   readonly stages: Readonly<Record<string, StageModel>>;
@@ -77,8 +79,9 @@ export interface WorkflowModel {
   readonly assets: readonly ResourceAsset[];
 }
 
-export interface LinkedWorkflow {
-  readonly model: WorkflowModel;
+export interface LinkedLoom {
+  readonly model: LoomModel;
   readonly codeIds: Readonly<Record<string, string>>;
   readonly agentIds: Readonly<Record<string, string>>;
+  readonly diagnostics: readonly CompilerDiagnostic[];
 }

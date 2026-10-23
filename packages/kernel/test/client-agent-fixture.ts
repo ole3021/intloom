@@ -4,14 +4,13 @@ import {
   type AgentTool,
   type AgentExecutionAccess,
   type JsonValue,
-} from "@intloom/workflow-sdk";
-import { createRuntime } from "../src/runtime/create-runtime.ts";
-import { createEffector } from "../src/effector/create-effector.ts";
+} from "@intloom/loom-sdk";
+import { createRuntimeHarness } from "./runtime-harness.ts";
+import { createExecution } from "../src/execution/create-execution.ts";
 import { resolveRunExecution } from "../src/runtime/execution-policy.ts";
 import { runtimeFixture } from "./runtime-fixture.ts";
-import { source, agentId } from "./workflow-fixture.ts";
-import type { LoadedAgent } from "../src/workflow/types.ts";
-import type { RuntimeOptions } from "../src/runtime/contracts.ts";
+import { source, agentId } from "./loom-fixture.ts";
+import type { LoadedAgent } from "../src/loom/types.ts";
 import type { RunView } from "../src/runtime/run-view.ts";
 import assert from "node:assert/strict";
 
@@ -47,7 +46,7 @@ export function clientAgentFixture() {
       description: "Fixture",
       instructions:
         "Add to the value using Tools, then return complete or retry.",
-      llm: "reasoning",
+      llm: "thinking",
       outputSchema: z.strictObject({ outcome: z.enum(["complete", "retry"]) }),
       tools,
       skills: [],
@@ -63,10 +62,10 @@ export function clientAgentFixture() {
       },
     },
   });
-  const options: RuntimeOptions = {
+  const options: import("./runtime-harness.ts").TestRuntimeOptions = {
     ...f.options,
     agentResources: { [agentId]: resource },
-    effector: createEffector(),
+    executor: createExecution(),
     prepareExecution: async (_blueprint, entry) =>
       resolveRunExecution(entry, true),
   };
@@ -81,7 +80,7 @@ export function clientAgentFixture() {
     get writes() {
       return writes;
     },
-    create: () => createRuntime(options),
+    create: () => createRuntimeHarness(options),
   };
 }
 
