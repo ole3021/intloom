@@ -23,6 +23,7 @@
     "test": "node scripts/test-scripts.ts && turbo run test",
     "test:intg": "turbo run test:intg",
     "test:package": "turbo run test:package",
+    "test:artifacts": "node scripts/test-package-artifacts.ts --clean",
     "verify": "bun run check && bun run test && bun run test:intg && bun run test:package && node scripts/release-manifest.ts"
   },
   "devDependencies": {

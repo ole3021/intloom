@@ -34,19 +34,8 @@ jobs:
       - name: Validate package archives
         run: node scripts/release-manifest.ts
       - name: Upload package test artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ./.github/actions/upload-package-artifacts
         with:
-          name: npm-consumer-build
-          path: |
-            apps/cli/.publish/
-            apps/cli/.publish-intloom/
-            packages/utils/dist/
-            packages/loom-sdk/dist/
-            packages/compiler/dist/
-            packages/intent/dist/
-            .release/*.tgz
-          include-hidden-files: true
-          if-no-files-found: error
           retention-days: 7
 
   package-tests:

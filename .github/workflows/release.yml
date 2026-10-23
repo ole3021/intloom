@@ -72,20 +72,10 @@ jobs:
       - name: Validate selected release archives
         if: steps.plan.outputs.has-release == 'true'
         run: node scripts/release-manifest.ts --selected
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Upload package test artifacts
+        uses: ./.github/actions/upload-package-artifacts
         if: steps.plan.outputs.has-release == 'true'
         with:
-          name: npm-consumer-build
-          path: |
-            apps/cli/.publish/
-            apps/cli/.publish-intloom/
-            packages/utils/dist/
-            packages/loom-sdk/dist/
-            packages/compiler/dist/
-            packages/intent/dist/
-            .release/*.tgz
-          include-hidden-files: true
-          if-no-files-found: error
           retention-days: 30
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: steps.plan.outputs.has-release == 'true'

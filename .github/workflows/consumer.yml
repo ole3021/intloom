@@ -36,10 +36,4 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Test prepared package artifacts
-        run: >-
-          node --test
-          packages/utils/test/package/*.intg.ts
-          packages/loom-sdk/test/package/*.intg.ts
-          packages/compiler/test/package/*.intg.ts
-          packages/intent/test/package/*.intg.ts
-          apps/cli/test/package/*.intg.ts
+        run: node scripts/test-package-artifacts.ts

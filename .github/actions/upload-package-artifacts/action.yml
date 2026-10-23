@@ -1,0 +1,20 @@
+name: Upload package test artifacts
+description: Validate and upload the same package test inputs for CI and releases.
+inputs:
+  retention-days:
+    description: Number of days to retain the prepared test artifacts.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Check every package test artifact
+      id: artifacts
+      shell: bash
+      run: node scripts/package-test-artifacts.ts
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: npm-consumer-build
+        path: ${{ steps.artifacts.outputs.paths }}
+        include-hidden-files: true
+        if-no-files-found: error
+        retention-days: ${{ inputs.retention-days }}
