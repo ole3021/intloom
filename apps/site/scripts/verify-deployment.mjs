@@ -33,7 +33,7 @@ for (const [path, status] of checks) {
     );
 }
 
-const summary = `Site verified: ${origin.href}\nCommit: ${process.env.GITHUB_SHA ?? "local"}\n`;
+const summary = `Website HTTP statuses verified: ${origin.href}\nCommit: ${process.env.SITE_COMMIT ?? process.env.GITHUB_SHA ?? "local"}\n`;
 console.log(summary);
 if (process.env.GITHUB_STEP_SUMMARY)
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);

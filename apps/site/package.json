@@ -8,9 +8,9 @@
     "build": "rspress build",
     "typecheck": "tsc --noEmit",
     "test": "node --test scripts/*.spec.ts",
-    "ci:check": "wrangler deploy --dry-run",
-    "ci:deploy": "wrangler deploy",
-    "ci:preview": "wrangler versions upload",
+    "deploy:check": "wrangler deploy --dry-run",
+    "deploy:production": "wrangler deploy",
+    "deploy:preview": "wrangler versions upload",
     "test:intg": "node --test test/*.intg.ts"
   },
   "devDependencies": {

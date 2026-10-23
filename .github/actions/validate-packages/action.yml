@@ -1,0 +1,20 @@
+name: Validate and pack packages
+description: Check source and prepare package artifacts without running the website pipeline.
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: bun install --frozen-lockfile
+    - name: Check formatting and package types
+      shell: bash
+      run: bun run check --filter='!intloom-site'
+    - name: Run repository and package unit tests
+      shell: bash
+      run: bun run test --filter='!intloom-site'
+    - name: Run package integration tests
+      shell: bash
+      run: bun run test:intg --filter='!intloom-site'
+    - name: Pack packages
+      shell: bash
+      run: bun run pack --filter='!intloom-site'

@@ -63,6 +63,15 @@ Registry tests use controlled responses to cover propagation retries, integrity 
 
 Local validation does not establish a successful remote publication or OIDC authentication.
 
+### GitHub Actions
+
+- `CI` runs on Pull Requests, pushes to `main`, and manual dispatch. `Validate and pack packages` runs repository formatting, package types, repository/package unit tests, package integration tests, packing, and archive validation. `Test package artifacts` then calls the reusable `Package tests` matrix. Feature pushes no longer duplicate full PR CI. New runs cancel older CI runs for the same ref; CI has no deployment side effects.
+- `Package tests` consumes the caller's `npm-consumer-build` artifact without rebuilding it. Its matrix covers Linux/macOS and minimum/latest Node 26. Caller job names distinguish ordinary CI artifacts from release artifacts.
+- `Website` owns website validation and deployment. Previews depend only on website validation. Production also requires successful `main` CI for the same source commit. See the [website deployment contract](../apps/site/README.md#deployment).
+- `Package release` retains its independent `main` push/manual trigger and the sequence `Prepare release` → `Test release artifacts` → `Publish to npm` → `Verify npm packages` → `Create GitHub releases`. Both CI and release preparation use the [shared package validation action](../.github/actions/validate-packages/action.yml); release preparation still validates its own fixed archives. Prepublication tests and postpublication npm installations remain separate evidence. Release runs queue without cancelling in-progress publication. Both release artifacts are retained for 30 days so failed consumer jobs can reuse their original inputs; ordinary CI artifacts remain available for 7 days.
+
+Workflow file paths for package tests and publication remain unchanged. When adopting these display names, update any required status checks or rulesets referencing the old job names; include the Website build check if website validation is required for merging. Live-model E2E remains an explicit developer execution, not a claim made by these workflows.
+
 ### Shared consumer probes
 
 `consumer.mjs` checks the public Compiler/SDK/Intent imports, Loom protocol,
