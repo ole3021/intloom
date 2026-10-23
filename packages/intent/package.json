@@ -24,7 +24,7 @@
   },
   "scripts": {
     "dev": "node --test --watch \"stages/**/*.spec.ts\" \"src/**/*.spec.ts\"",
-    "build": "intloom build",
+    "build": "node ../../apps/cli/dist/bin.js build",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test \"stages/**/*.spec.ts\" \"src/**/*.spec.ts\" \"e2e/checks/*.spec.mjs\"",
     "test:intg": "node --test \"test/*.intg.ts\"",
