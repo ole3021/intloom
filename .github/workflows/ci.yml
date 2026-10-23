@@ -1,21 +1,24 @@
 name: CI
+run-name: CI · ${{ github.event_name }} · ${{ github.head_ref || github.ref_name }}
 
 on:
   pull_request:
   push:
-    branches: [main, 'feat-*']
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check:
+  validate:
+    name: Validate and pack packages
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      SITE_CHANNEL: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
-      WRANGLER_SEND_METRICS: 'false'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -26,98 +29,16 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version-file: package.json
-      - run: bun install --frozen-lockfile
-      - run: bun run check
-      - run: bun run test
-      - run: bun run test:intg
-      - run: bun run pack
-      - run: node scripts/release-manifest.ts
-      - run: bun run --cwd apps/site ci:check
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Validate and pack packages
+        uses: ./.github/actions/validate-packages
+      - name: Validate package archives
+        run: node scripts/release-manifest.ts
+      - name: Upload package test artifacts
+        uses: ./.github/actions/upload-package-artifacts
         with:
-          name: npm-consumer-build
-          path: |
-            apps/cli/.publish/
-            apps/cli/.publish-intloom/
-            packages/utils/dist/
-            packages/workflow-sdk/dist/
-            packages/compiler/dist/
-            packages/intent/dist/
-            .release/*.tgz
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 7
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: >-
-          github.event_name != 'pull_request' && github.ref_type == 'branch' && (github.ref_name == 'main' || (startsWith(github.ref_name, 'feat-') && !contains(github.ref_name, '/')))
-        with:
-          name: site-dist
-          path: apps/site/dist
-          if-no-files-found: error
           retention-days: 7
 
-  consumers:
-    needs: check
+  package-tests:
+    name: Test package artifacts
+    needs: validate
     uses: ./.github/workflows/consumer.yml
-
-  deploy:
-    needs: check
-    if: >-
-      github.event_name != 'pull_request' && github.ref_type == 'branch' && (github.ref_name == 'main' || (startsWith(github.ref_name, 'feat-') && !contains(github.ref_name, '/')))
-    concurrency:
-      group: site-${{ github.ref }}
-      cancel-in-progress: false
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment:
-      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
-      url: ${{ steps.deploy.outputs.deployment-url }}
-    env:
-      WRANGLER_SEND_METRICS: 'false'
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '26.4.0'
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version-file: package.json
-      - run: bun install --frozen-lockfile
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: site-dist
-          path: apps/site/dist
-      - name: Select deployment target and reject stale commits
-        id: target
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node apps/site/scripts/deployment-target.mjs
-      - name: Deploy static assets
-        id: deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DEPLOY_SCRIPT: ${{ steps.target.outputs.script }}
-          PREVIEW_ALIAS: ${{ steps.target.outputs.alias }}
-          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/site-deploy.ndjson
-        run: |
-          args=()
-          if [ -n "$PREVIEW_ALIAS" ]; then
-            args+=(--preview-alias "$PREVIEW_ALIAS")
-          fi
-          bun run --cwd apps/site "$DEPLOY_SCRIPT" "${args[@]}"
-          node --input-type=module <<'NODE'
-          import { appendFileSync, readFileSync } from "node:fs";
-          const entries = readFileSync(process.env.WRANGLER_OUTPUT_FILE_PATH, "utf8")
-            .trim().split("\n").map(line => JSON.parse(line));
-          const result = entries.findLast(entry => entry.type === "deploy" || entry.type === "version-upload");
-          const url = result?.type === "version-upload" ? result.preview_url : result?.targets?.[0];
-          if (!url || new URL(url).protocol !== "https:") throw new Error("Missing HTTPS deployment URL in Wrangler output.");
-          appendFileSync(process.env.GITHUB_OUTPUT, `deployment-url=${url}\n`);
-          NODE
-      - name: Verify deployment
-        env:
-          SITE_URL: ${{ steps.deploy.outputs.deployment-url }}
-        run: node apps/site/scripts/verify-deployment.mjs

@@ -1,20 +1,19 @@
 [
   {
     "type": "section-header",
-    "label": "了解 IntLoom"
+    "label": "认识 IntLoom"
   },
   "introduction",
-  "workflow",
-  "status",
-  {
-    "type": "section-header",
-    "label": "开始使用"
-  },
-  "getting-started",
   {
     "type": "dir",
-    "name": "quickstart",
-    "label": "快速开始",
+    "name": "about",
+    "label": "产品介绍",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "start",
+    "label": "开始使用",
     "collapsed": false
   },
   {
@@ -25,14 +24,32 @@
   },
   {
     "type": "dir",
+    "name": "intent",
+    "label": "Intent Workflow",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "concepts",
+    "label": "概念与工作原理",
+    "collapsed": true
+  },
+  {
+    "type": "dir",
     "name": "development",
-    "label": "开发工作流",
+    "label": "开发 Workflow",
     "collapsed": true
   },
   {
     "type": "dir",
     "name": "reference",
     "label": "参考",
+    "collapsed": true
+  },
+  {
+    "type": "dir",
+    "name": "help",
+    "label": "FAQ 与故障排查",
     "collapsed": true
   }
 ]

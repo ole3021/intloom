@@ -1,53 +1,45 @@
 ---
 title: ProjectClient reference
-description: Connect a trusted Node.js backend to the shared project service without owning Run state.
 ---
 
 # ProjectClient reference
 
-`@intloom/cli` exports a Node.js client for trusted local applications and backend integration. It is not a browser SDK. The host owns execution; a client connection does not own the lifetime of its Runs.
-
-## Connect to a local project
+`@intloom/cli` exports a trusted local Node.js client. It connects to an already running Service and does not own Run lifetime.
 
 ```ts
 import { connectProject } from "@intloom/cli";
 
 const client = await connectProject("/absolute/path/to/project");
 try {
-  const workflows = await client.listWorkflows();
-  console.log(workflows);
+  console.log(await client.listLooms());
 } finally {
   await client.close();
 }
 ```
 
-Start the service before connecting. `connectProject` binds the CLI source. For a Studio backend, use `discoverProjectConnection(projectRoot, "studio")`, then `connectProjectClient(connection)`. This selects the service-model policy; a finished Studio UI is not included.
-
-An explicit `ProjectConnection` contains `{ url, token }`. Keep it in the trusted backend. The explicit connection factory does not read local files, and passing a URL does not change the host's loopback-only service policy.
-
 ## Methods
 
 | Method | Result |
 | --- | --- |
-| `flow(flowName, intent)` | New Run snapshot at a wait or terminal state |
-| `getRun(runId)` | Current Run snapshot |
-| `listRuns(flowName?)` | Current-host Run snapshots |
-| `listWorkflows()` | Loaded Workflow views |
-| `answerAsk(runId, actionId, answer)` | Continued Run |
-| `cancelRun(runId)` | Terminal or unchanged terminal Run |
-| `getRecord(recordId)` | Stored Record or `null` |
-| `getArtifact(selector)` | Stored Artifact or `null` |
-| `listArtifacts(query?)` | Metadata page with optional cursor |
-| `close()` | Release the client connection; idempotent |
+| run(loomName, input) | Accepted Run snapshot |
+| getRun(runId) | Current snapshot |
+| listRuns(loomName?) | Active Runs and retained terminal history |
+| listLooms() | Loaded definitions |
+| answerAsk(runId, actionId, answer) | Continued Run |
+| cancelRun(runId) | Terminal snapshot |
+| getRecord(recordId) | Record or null |
+| getArtifact(selector) | Artifact or null |
+| listArtifacts(query?) | Metadata page |
+| close() | Idempotent connection release |
 
-`selector` is `{ artifactId }` or `{ flowName, stageName }`. Public Artifact list queries accept `flowName`, `stageName`, `limit`, and `cursor`. Render pending human actions from `RunView`, collect real answers, and submit them using their action IDs.
+Artifact selectors are `{ artifactId }` or `{ loomName, stageName }`. List queries support loomName, stageName, limit and cursor.
 
-These business methods do not include client Agent task ownership operations; external Agent IDEs use the [MCP task protocol](./mcp.md). Package installation functions are separate local administration APIs, not ProjectClient methods.
+## Explicit backend integration
 
-## Errors and ownership
+`discoverProjectConnection(projectRoot, "studio")` plus `connectProjectClient(connection)` selects the Studio backend source policy, using Service models. A complete Studio UI is not supplied by this API.
 
-The client validates response shapes and preserves classified business errors. Invalid responses become `PROJECT_RESPONSE_INVALID`, connection failures `PROJECT_CONNECTION_FAILED`, uncertain requests `PROJECT_REQUEST_FAILED`, and use after close `PROJECT_CLIENT_CLOSED`.
+`ProjectConnection` contains url and private token and belongs in the trusted backend, not browser code. `ProjectClientOptions.requestId` provides logging correlation, not execution deduplication.
 
-Requests are not automatically replayed. A request's optional `requestId` is log correlation, not deduplication. After a connection failure, another client can inspect the original Run. Closing a client does not cancel it.
+External Agent ownership operations use [MCP](./mcp.md), not these methods. Connection close leaves Runs active. Errors include PROJECT_CONNECTION_FAILED, PROJECT_REQUEST_FAILED, PROJECT_RESPONSE_INVALID and PROJECT_CLIENT_CLOSED. Requests are not automatically replayed.
 
-Exported types include `ProjectClient`, `ProjectConnection`, `ProjectClientOptions`, `RunView`, `PendingUserAction`, `RunErrorView`, `WorkflowView`, `StoredRecord`, `StoredArtifact`, and `ListPage`.
+Each mutation binds a fresh operation UUID to the connected Service instance. An uncertain error preserves both identities for `get_operation`; never resubmit the business operation to resolve uncertainty. Use CLI Core or MCP directly when the caller needs explicit receipt and retry identity control.

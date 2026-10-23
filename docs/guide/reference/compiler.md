@@ -1,70 +1,64 @@
 ---
 title: Compiler reference
-description: compileWorkflow options, generated artifacts, validation boundaries, and build errors.
 ---
 
 # Compiler reference
 
-`@intloom/compiler` is a build-time library. It has no standalone CLI and is not required by an installed Workflow at runtime.
-
-## compileWorkflow
+`intloom build [path]` builds a Loom source package; the default path is the current directory. It calls the single public operation of `@intloom/compiler`, `compileLoom()`. Compiler uses SDK contracts without depending on Kernel or executing business modules.
 
 ```ts
-import { compileWorkflow } from "@intloom/compiler";
+import { compileLoom } from "@intloom/compiler";
 
-await compileWorkflow({
-  packageRoot: "/absolute/path/to/workflow-package",
+const result = await compileLoom({
+  packageRoot: "/absolute/path/to/loom-package",
   tsconfigFile: "tsconfig.build.json",
 });
+console.log(result.outputPath, result.diagnostics);
 ```
 
-| Option | Requirement |
+| Option | Contract |
 | --- | --- |
-| `packageRoot` | Required package directory |
-| `tsconfigFile` | Optional configuration path inside the package; default `tsconfig.build.json` |
-| `logger` | Optional Utils logger owned by the caller |
+| `packageRoot` | Required source package directory |
+| `tsconfigFile` | In-package config, default `tsconfig.build.json` |
+| `logger` | Optional Utils logger |
 
-Return type is `Promise<void>`. Outputs are written to the package's `dist`; the function does not return a live runtime or an Agent registry. Without an explicit logger it uses the current logging context or stays silent.
+Returns `Promise<CompileResult>` containing `packageRoot`, `outputPath`, `packageName`, `packageVersion`, `loomName` and `diagnostics`. CLI displays warnings; library callers can inspect the result.
 
-## Inputs and output
+## Definitions, checks and output
 
-Compilation reads package metadata and `workflow.yaml`, follows Stage/Code/Agent/Schema/Tool/Skill/initializer references, validates definitions and exports, allocates resource IDs, generates an entry, invokes TypeScript, packages referenced assets, and validates emitted artifacts.
+Definitions live in `package.json.loom`, using protocol `2026-10-15`. Stages use YAML and relative resource paths with optional `#exportName`. See the [definition reference](./workflow-yaml.md).
 
-Expected output includes:
+Compiler validates documents before following explicit references, links routes, generates the entry, invokes TypeScript and verifies the distribution. The generated entry checks Blueprint, Code, initializers, JSON-valued Schemas, Tools and AgentSpec against SDK. Author settings cannot disable these contract checks.
 
-```text
-dist/
-├── workflow.generated.js
-├── workflow.generated.d.ts
-├── workflow.generated.js.map
-└── compiled referenced modules and Skill assets
-```
+TypeScript compiles only the generated entry and its module dependencies; inherited `include` and project `references` cannot expand the compilation scope. Skill directory assets are copied separately. Tests, escaping references and undeclared JavaScript/declaration dependencies are rejected. npm dependencies are not bundled.
 
-Relative source `.ts` imports become `.js` output imports. Declarations and source maps accompany production modules. Tests and test directories are excluded. The source package must declare the generated JS and declaration entries and include `dist` in `files`.
+`dist` contains `loom.generated.js`, declarations/source maps, referenced modules, Skill assets and an independent `package.json`. Compiler generates the manifest and its root entry exports exactly `blueprint`, `codes`, `agentSpecs`; `loom` retains only protocol `type` and `version`. Source export maps, scripts and development dependencies are not copied into the distribution manifest.
 
-## Build guarantees and limits
+Local re-exports support named exports, aliases, `export *` and cyclic chains with an actual defining binding. Missing or ambiguous bindings fail; `export *` does not forward default. Third-party package runtime behavior still requires consumer verification.
 
-Business modules are inspected without executing them to obtain exports. Initializers are emitted as callable resources; compilation does not run them. Referenced runtime packages must be declared as dependencies or peers. Schema/Tool shape checks and source export inspection are not a substitute for actual installed-host execution.
+## Warnings and errors
 
-Builds use temporary output and replace `dist` after validation. Failed validation preserves the previous output. A generated entry coordinates concurrent builds for the same package. Do not delete it while a build is active; inspect stale build resources after an interrupted process.
+`UNREACHABLE_STAGE` and `UNREACHABLE_STEP` identify nodes unreachable from the Loom entry along declared routes. They neither block the build nor remove nodes. Legal cycles are accepted. Reachability does not predict outcomes returned by Code or models.
 
-No npm publication, model request, Run scheduling, package-root manifest generation, or automatic version update is performed.
-
-## Errors
+Diagnostics contain `severity`, `code`, `message`, available file/line/column/Stage/Step locations and related resource locations. Independent document structure errors are reported together; dependent work stops after failure. Errors are thrown as `LoomError`, with structured diagnostics in `cause.diagnostics` and an available first location in `cause.location`.
 
 | Code | Meaning |
 | --- | --- |
-| `SOURCE_READ_FAILED` | Source root or resource could not be read |
-| `SOURCE_PARSE_FAILED` | Invalid JSON/YAML/frontmatter, including duplicate keys |
-| `INVALID_WORKFLOW` | Invalid definition or topology |
-| `INVALID_REFERENCE` | Invalid, missing, or disallowed resource reference |
-| `INVALID_BUILD_CONFIG` | Invalid build configuration or output location |
-| `TYPESCRIPT_FAILED` | TypeScript compilation failed |
-| `INVALID_OUTPUT` | Emitted module, dependency, or export boundary failed verification |
-| `BUILD_FAILED` | Build coordination or publication of local output failed |
+| SOURCE_READ_FAILED | Unreadable source/resource |
+| SOURCE_PARSE_FAILED | Invalid JSON, YAML or frontmatter |
+| INVALID_LOOM | Invalid definition/topology |
+| INVALID_REFERENCE | Disallowed resource reference |
+| INVALID_BUILD_CONFIG | Invalid build configuration |
+| TYPESCRIPT_FAILED | TypeScript or SDK contract failure |
+| INVALID_OUTPUT | Export, declaration, dependency or asset failure |
+| BUILD_FAILED | Lock, output replacement or cleanup failure |
 
-Diagnostics include source locations when available. Inspect the reported failure, correct the source, and rebuild; do not treat an old surviving `dist` as the new build's success.
+## Repeatable builds and interruptions
 
-If building and cleanup both fail, the original Compiler error code, message, and location remain available. `error.cause.cause` is an `AggregateError` containing the original error first, followed by cleanup failures. Cleanup attempts both the temporary directory and generated entry; recovery backups are retained when output restoration fails.
+Code/Agent IDs are stable for relative resource paths, exports and complete Agent bindings. Identical source, configuration, dependencies and toolchain should produce identical artifacts. Logical ID stability does not establish code-version identity; Kernel recovery still considers actual artifact content.
 
-A cleanup-only failure reports `BUILD_FAILED` and explicitly states that `dist` has already been updated. Check remaining build resources before retrying; this is not a validation failure that preserves the previous output.
+`.intloom-build.lock` records the owner process; generated source and candidate output live in `.intloom-build-*`. Only verified output replaces `dist`. Validation failures preserve old output. Cleanup failures after replacement report that output may already be updated; failed restoration retains the backup location.
+
+After a process crash, verify the recorded owner has exited, inspect temporary `previous-dist` backups, then remove the stale lock and rebuild. Compiler never automatically steals locks or deletes interrupted recovery evidence.
+
+Building does not execute a Run, call a model, publish to npm or bump versions. Continue with [building and distribution](../development/build.md).

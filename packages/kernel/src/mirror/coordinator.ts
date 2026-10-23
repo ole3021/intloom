@@ -1,4 +1,8 @@
 import {
+  decodeCheckpoint,
+  encodeCheckpoint,
+} from "../runtime/recovery/codec.ts";
+import {
   lstat,
   open,
   realpath,
@@ -14,22 +18,22 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { LoomError } from "@intloom/utils";
 import {
-  checkpointSchema,
-  openRunCheckpointStore,
-  type RunCheckpoint,
-} from "../runtime/recovery/store.ts";
+  checkpointSnapshotSchema,
+  type CheckpointSnapshot,
+} from "../runtime/recovery/contracts.ts";
+import { openRunCheckpointStore } from "../host/checkpoints/store.ts";
 import type { StorageHandle } from "../storage/contracts.ts";
 import { storageSnapshotSchema } from "../storage/snapshot.ts";
 import { openFileStorage } from "../storage/file/open.ts";
 import { openSqliteStorage } from "../storage/sqlite/open.ts";
 import {
   manifestSchema,
-  jsonCopy,
   digest,
   type MirrorManifest,
   type MirrorControl,
   type MirrorScope,
 } from "./contracts.ts";
+import { jsonCopy } from "../shared/json.ts";
 import {
   copyFiles,
   isMissing,
@@ -45,8 +49,7 @@ import {
   type MirrorFileOptions,
 } from "./files.ts";
 import { createWriteGate } from "./write-gate.ts";
-import { sampleRunObservation } from "../runtime/run-observation.ts";
-import type { RunEntry } from "../runtime/run-entry.ts";
+import { getLogger } from "@intloom/utils";
 
 const names = [
   "mirror.json",
@@ -75,8 +78,8 @@ function boundaryPath(
     (name ?? "unknown").replace(/[^a-zA-Z0-9_-]/gu, "_").slice(0, 100);
   const stage = `stages/${String(b.stageVisitId).padStart(4, "0")}-${label(b.stageName)}`;
   const step = `${stage}/steps/${String(b.stepVisitId).padStart(4, "0")}-${label(b.stepName)}`;
-  const path = b.kind.startsWith("workflow_")
-    ? `workflow/${b.kind === "workflow_start" ? "start" : "end"}`
+  const path = b.kind.startsWith("loom_")
+    ? `loom/${b.kind === "loom_start" ? "start" : "end"}`
     : b.kind.startsWith("step_")
       ? `${step}/${b.kind === "step_before" ? "before" : "after"}`
       : `${stage}/${b.kind === "stage_before_init" ? "before-init" : b.kind === "stage_start" ? "start" : "end"}`;
@@ -100,12 +103,16 @@ export function createMirrorCoordinator(
     gate,
     assertOpen: gate.assertOpen,
     async capture(
-      entry: RunEntry,
-      checkpoint: RunCheckpoint,
+      checkpoint: CheckpointSnapshot,
       pending: NonNullable<MirrorControl["capturePending"]>,
+      observation: () => {
+        metrics?: unknown;
+        results?: unknown;
+        settled?: boolean;
+      } = () => ({}),
     ): Promise<void> {
       // Freeze before any await; this copy is the safe-boundary control truth.
-      const fixed = checkpointSchema.parse(jsonCopy(checkpoint));
+      const fixed = checkpointSnapshotSchema.parse(jsonCopy(checkpoint));
       await gate.capture(async () => {
         const started = performance.now();
         const root = mirrorRoot(project);
@@ -155,7 +162,11 @@ export function createMirrorCoordinator(
               "Project files changed during mirror capture; no image was published.",
             );
           const digests = {
-            checkpoint: await writeJson(temporary, "checkpoint.json", fixed),
+            checkpoint: await writeJson(
+              temporary,
+              "checkpoint.json",
+              encodeCheckpoint(fixed),
+            ),
             storage: await writeJson(temporary, "storage.json", snapshot),
             filesManifest: await writeJson(
               temporary,
@@ -163,8 +174,7 @@ export function createMirrorCoordinator(
               manifestFiles,
             ),
           };
-          sampleRunObservation(entry.state);
-          const meta = entry.state.observation;
+          const meta = observation();
           const terminal = fixed.phase === "terminal";
           const manifest: MirrorManifest = {
             schemaVersion: 1,
@@ -175,9 +185,9 @@ export function createMirrorCoordinator(
               mirrorId: fixed.control?.sourceMirrorId ?? null,
               traceId: fixed.control?.sourceTraceId ?? null,
             },
-            workflow: {
-              name: fixed.run.flowName,
-              identityAtCapture: fixed.workflowIdentity,
+            loom: {
+              name: fixed.run.loomName,
+              identityAtCapture: fixed.loomIdentity,
             },
             storageBackend: storage.backend as "file" | "sqlite",
             complete: true,
@@ -205,11 +215,11 @@ export function createMirrorCoordinator(
                     metrics: meta.metrics,
                     results: meta.results,
                     settled: meta.settled,
-                  }) as unknown as import("../shared/json.ts").JsonValue,
+                  }) as unknown as import("@intloom/loom-sdk").JsonValue,
                 }
               : {}),
-            ...(entry.observationBaseline
-              ? { observationBaseline: entry.observationBaseline }
+            ...(fixed.observationBaseline
+              ? { observationBaseline: fixed.observationBaseline }
               : {}),
           };
           await writeJson(temporary, "mirror.json", manifest);
@@ -239,7 +249,7 @@ export function createMirrorCoordinator(
             });
             await rename(index, join(traceDirectory, "run.json"));
           } catch (cause) {
-            entry.logger.warn("mirror_index_failed", { err: cause });
+            getLogger().warn("mirror_index_failed", { err: cause });
           }
         } finally {
           await rm(temporary, { recursive: true, force: true });
@@ -269,27 +279,27 @@ export async function readMirrorDirectory(directory: string) {
     if (digest(await readBytes(directory, name)) !== expected)
       throw new Error(`Mirror digest mismatch: ${name}`);
   }
-  const checkpoint = checkpointSchema.parse(raw["checkpoint.json"]);
+  const checkpoint = decodeCheckpoint(raw["checkpoint.json"]);
   if (
-    checkpoint.version !== 2 ||
-    checkpoint.schemaVersion !== 2 ||
+    checkpoint.version !== 3 ||
+    checkpoint.schemaVersion !== 3 ||
     !checkpoint.control ||
     checkpoint.run.id !== manifest.runId ||
     checkpoint.control.traceId !== manifest.traceId ||
-    checkpoint.run.flowName !== manifest.workflow.name ||
-    checkpoint.workflowIdentity !== manifest.workflow.identityAtCapture ||
+    checkpoint.run.loomName !== manifest.loom.name ||
+    checkpoint.loomIdentity !== manifest.loom.identityAtCapture ||
     !isDeepStrictEqual(checkpoint.control.boundary, manifest.boundary)
   )
     throw new Error("Mirror checkpoint identity or format is inconsistent.");
   const boundary = manifest.boundary;
   const phases = {
-    workflow_start: ["stage_pending"],
+    loom_start: ["stage_pending"],
     stage_before_init: ["stage_pending"],
     stage_start: ["step_ready"],
     step_before: ["step_ready"],
     step_after: ["step_result"],
     stage_end: ["stage_pending", "terminal"],
-    workflow_end: ["terminal"],
+    loom_end: ["terminal"],
   };
   if (
     !phases[boundary.kind].includes(checkpoint.phase) ||
@@ -308,7 +318,7 @@ export async function readMirrorDirectory(directory: string) {
       "Mirror boundary, phase, visits or recoverability are inconsistent.",
     );
   if (
-    ["workflow_start", "stage_before_init"].includes(boundary.kind) &&
+    ["loom_start", "stage_before_init"].includes(boundary.kind) &&
     checkpoint.stage
   )
     throw new Error(
@@ -501,7 +511,7 @@ async function diffSummary(
     validatedRoute: next.checkpoint.validatedRoute ?? null,
   };
 }
-/** Offline inspection keeps unknown fields and does not load the Workflow. */
+/** Offline inspection keeps unknown fields and does not load the Loom. */
 export async function inspectMirror(project: string, mirrorId: string) {
   const directory = await findMirror(project, mirrorId);
   const raw = Object.fromEntries(
@@ -534,7 +544,7 @@ export async function inspectMirror(project: string, mirrorId: string) {
     limitations: [
       "Only the declared local file scope and formal Storage are restored.",
       "External services and effects are not copied or reversed.",
-      "Current target Workflow and configuration are required for execution.",
+      "Current target Loom and configuration are required for execution.",
     ],
   };
 }
@@ -600,7 +610,7 @@ export function validateScope(
   manifest: MirrorManifest,
   scope: MirrorScope,
 ): void {
-  if (!manifest.restorable || manifest.boundary.kind === "workflow_end")
+  if (!manifest.restorable || manifest.boundary.kind === "loom_end")
     throw new Error(
       manifest.reason ?? "Mirror is not a resumable safe boundary.",
     );
@@ -616,7 +626,7 @@ export function validateScope(
 export function restoreFailure(cause: unknown): LoomError<string> {
   return new LoomError(
     "MIRROR_RESTORE_FAILED",
-    `${cause instanceof Error ? cause.message : String(cause)} Please manually execute the Workflow from the beginning to generate new mirrors.`,
+    `${cause instanceof Error ? cause.message : String(cause)} Please manually execute the Loom from the beginning to generate new mirrors.`,
     { retryable: false, cause },
   );
 }
@@ -624,7 +634,7 @@ export function restoreFailure(cause: unknown): LoomError<string> {
 export async function commitRestore(
   target: string,
   source: Awaited<ReturnType<typeof readMirrorDirectory>>,
-  checkpoint: RunCheckpoint,
+  checkpoint: CheckpointSnapshot,
   protectedPaths: string[],
   options: {
     dryRun?: boolean;

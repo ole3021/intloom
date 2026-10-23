@@ -1,79 +1,67 @@
 ---
-title: Workflow YAML reference
-description: Source fields, resource references, routes, metadata, and compiled exports.
+title: Loom definition reference
 ---
 
-# Workflow YAML reference
+# Loom definition reference
 
-The Compiler reads `workflow.yaml` from the package root. Workflow and Stage source objects are strict; unknown fields and duplicate YAML keys are rejected.
-
-## Workflow document
-
-| Field | Meaning |
-| --- | --- |
-| `workflow.name` | Registered execution name (`flowName`) |
-| `workflow.exclusive` | Optional boolean; true excludes competing active Runs in the same host |
-| `workflow.entry` | Entry Stage key |
-| `workflow.stages.<key>.stage` | Stage resource reference |
-| `workflow.stages.<key>.on.<outcome>` | `{ target: <stage-key> }` or `{ end: true }` |
-
-## Stage document
-
-| Field | Meaning |
-| --- | --- |
-| `stage.name` | Stage name matching its Workflow declaration |
-| `stage.state.schema` | Zod Schema resource reference |
-| `stage.state.initialize` | State initializer resource reference |
-| `stage.entry` | Entry Step key |
-| `stage.steps.<key>` | Code or Agent Step |
-
-A Code Step contains `type: code`, `code: <reference>`, and `on` routes.
-
-An Agent Step contains `type: agent`, `agent: <reference>`, `llm`, `outputSchema: <reference>`, and `on` routes. Optional `skills` and `tools` arrays default to empty. Runtime model roles are `reasoning`, `coding`, and `review`.
-
-For either Step type, each `on.<outcome>` is `{ target: <step-key> }` or `{ end: true }`. A Stage end forwards that outcome to its Workflow-level route. Do not put both `target` and `end` in one route.
-
-Names must be nonempty, have no surrounding whitespace, and avoid reserved object keys `__proto__`, `prototype`, and `constructor`. Entries and targets must resolve within their respective topology.
-
-## Resource references
-
-| Reference | Source |
-| --- | --- |
-| `@stages/review` | `stages/review.yaml` |
-| `@agents/reviewer` | `agents/reviewer.md` |
-| `@skills/review` | `skills/review/SKILL.md` |
-| `@codes/check` | Default export from `codes/check.ts` |
-| `@schemas/state` | Default export from `schemas/state.ts` |
-| `@initializers/state` | Default export from `initializers/state.ts` |
-| `@tools/review:readDraft` | Named export `readDraft` from `tools/review.ts` |
-
-TypeScript resources accept a `:exportName` selector; without it they use the default export. Stage, Agent, and Skill references have no export selector. Nested resource directories are supported. References must stay within their resource directory and cannot use traversal, backslashes, or `.d.ts` source files.
-
-These `@...` values are Compiler source references, not TypeScript import aliases. Relative TypeScript source imports use `.ts`; output imports are rewritten to `.js`.
-
-## Markdown metadata
-
-Agent and Skill Markdown starts with YAML frontmatter containing `name` and `description`; the body contains instructions. Step YAML binds the Agent to its model role, Tools, Skills, and final output Schema.
-
-## Package metadata and exports
+The top-level definition lives in `package.json.loom`; each Stage has its own YAML document. There is no separate `loom.yaml`. Unknown definition fields, duplicate keys and reserved names are rejected.
 
 ```json
 {
+  "name": "review-loom",
+  "version": "0.1.0",
   "type": "module",
-  "intloom": {
-    "type": "workflow",
-    "version": "2026-10-08"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/workflow.generated.d.ts",
-      "default": "./dist/workflow.generated.js"
+  "loom": {
+    "type": "loom",
+    "version": "2026-10-15",
+    "name": "review",
+    "inputs": ["prompt"],
+    "entry": "review",
+    "stages": {
+      "review": {
+        "stage": "./stages/review/stage.yaml",
+        "on": {"complete": {"end": true}}
+      }
     }
-  },
-  "files": ["dist"]
+  }
 }
 ```
 
-This fragment supplements a full package manifest, including name, version, and runtime dependencies. Compiler validates the source package's generated-entry layout. It emits named `blueprint`, `codes`, and `agentSpecs` exports; it does not publish an internal wrapper or instantiate Agents at build time.
+`loom.name` is the registered name. `inputs` selects fixed slots from `prompt`, `files`, `dirs`, `urls`; every declared slot is required. `exclusive` is optional; `entry` selects a Stage key. Package and protocol versions are independent.
 
-See [Create a Workflow](../development/create.md) for a complete package and [Compiler](./compiler.md) for build behavior.
+```yaml
+stage:
+  name: review
+  state:
+    schema: "./schema/state.ts"
+    initialize: "./code/initialize.ts"
+  entry: check
+  steps:
+    check:
+      type: code
+      code: "./code/check.ts"
+      on:
+        complete:
+          end: true
+```
+
+`stage.name` must match the top-level key. Code Steps require `type`, `code`, `on`; Agent Steps require `type`, `agent`, `llm`, `outputSchema`, `on`, with `skills` and `tools` defaulting to empty arrays. `llm` is `thinking`, `working` or `coding`.
+
+Routes are exactly `{ target: KEY }` or `{ end: true }`. A Step exit outcome is matched against its Stage’s `on` in `loom.stages`. Entries, targets and exit mappings must exist. Cycles are legal; unreachable nodes produce warnings.
+
+## Resource references
+
+| Reference | Resource |
+| --- | --- |
+| `./stages/review/stage.yaml` | Stage YAML |
+| `./agent/reviewer.md` | Agent Markdown |
+| `./skill/review/SKILL.md` | Skill Markdown and directory assets |
+| `./code/check.ts` | TypeScript default export |
+| `./schema/state.ts#stateSchema` | Named Schema export |
+| `./tool/draft.ts#readDraft` | Named Tool export |
+
+Paths resolve relative to the declaring file; fields determine resource kinds, not folder names. Package-internal `../` references can share `src`; escaping paths, backslashes and `.d.ts` resources are rejected. TypeScript selectors use `#exportName`; YAML/Markdown have no export selector. Local module re-exports are supported.
+
+Agent/Skill frontmatter contains only `name`, `description`; the body describes the role or capability. Stage definitions bind model purpose, Schema, Tools and Skills. Packaged Skill asset paths are relative to the entry. Private environment files and asset symlinks are rejected.
+
+Building generates an independent distribution manifest and three named exports. See [Compiler](./compiler.md) and the [complete example](../development/create.md).

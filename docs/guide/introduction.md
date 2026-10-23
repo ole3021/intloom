@@ -1,48 +1,27 @@
 ---
-title: About IntLoom
-description: Understand the framework, its public packages, and the path from intent to recorded results.
+title: What is IntLoom?
 ---
 
-# About IntLoom
+# What is IntLoom?
 
-IntLoom is a local workflow framework for coordinating agents, code, and human decisions. A project service loads installed Workflow packages, executes their steps, handles questions and confirmations, and stores the results that those workflows commit.
+IntLoom is a local Workflow framework that coordinates Agents, executable Code, and human decisions. A project Service loads installed Workflow packages, executes their declared stages and steps, presents questions and confirmations, and retains the results that Workflow Code commits.
 
-Use it when a task needs an explicit process: reasoning, deterministic checks, human review, and recorded outputs. A Workflow defines that process. The framework runs it; it does not prescribe the business stages every package must contain.
+A Workflow defines the process; a Run executes that process for one intent. Code performs deterministic operations, Agents reason with declared Tools and Skills, and people supply decisions at explicit interaction points. You can inspect execution and results through CMD, TUI, or MCP.
 
-## What you work with
+## Start with your goal
 
-- **A project** holds configuration, installed Workflow declarations, source files, and saved results.
-- **A Workflow** describes executable stages and steps. Installing a package makes its registered workflow available to the host.
-- **A Run** is one execution of a Workflow for an original intent. Questions and feedback continue that Run.
-- **Artifacts and Records** are formal results saved by Workflow Code. Their meaning belongs to the package that creates them.
-
-See [Core concepts](./workflow.md) for the execution and data boundaries.
-
-## Choose how to work
-
-| Goal | Start here |
+| Goal | Read next |
 | --- | --- |
-| Use a connected IDE's reasoning environment | [Run through MCP](./quickstart/mcp.md) |
-| Run from a terminal with a project-configured model | [Run through CLI](./quickstart/cli.md) |
-| Define a process of your own | [Create a Workflow](./development/create.md) |
-| Build a trusted Node.js client | [ProjectClient reference](./reference/project-client.md) |
+| Run IntLoom for the first time | [Installation](./start/installation.md) |
+| Develop software from an intent | [Intent Workflow](./intent/overview.md) |
+| Connect an external Agent | [MCP quick start](./start/mcp.md) |
+| Define your own process | [Create a Workflow](./development/create.md) |
+| Understand execution and data | [Architecture](./concepts/architecture.md) |
 
-Both execution paths use the same local service and business Tools. The executor is fixed when the Run is created; changing project configuration does not switch an existing Run to another model environment.
+## Framework and Workflow packages
 
-## Public package boundaries
+The CLI supplies the project Service and user interfaces. Business Workflows are installed separately. `@intloom/intent` provides Specification → Solution → Implementation → Validation; these four stages belong to that package, rather than every IntLoom Workflow.
 
-| Package | Purpose |
-| --- | --- |
-| `intloom` | Lightweight command entry, depending on the matching CLI version |
-| `@intloom/cli` | CLI, project service, MCP endpoints, and Node.js ProjectClient |
-| `@intloom/workflow-sdk` | Public Workflow contracts and Agent Tool helpers |
-| `@intloom/compiler` | Build-time Workflow compiler |
-| `@intloom/utils` | Shared logging, errors, and identifiers |
+Workflow authors use `@intloom/loom-sdk` at runtime and `@intloom/compiler` at build time. The private Kernel ships inside the CLI.
 
-`@intloom/kernel` is private and included with the CLI. Workflow authors depend on the SDK at runtime and the Compiler during development. They do not need a public Kernel installation. Workflow packages are installed separately from the CLI.
-
-## Documentation scope
-
-These pages describe the framework: setup, operation, extension, and reference. Package-specific business manuals and a gallery of complete applications are outside this documentation set. Check [Current capabilities](./status.md) before treating a supported interface as proof of a particular model, client, or deployment environment.
-
-Continue with [Getting started](./getting-started.md).
+Continue with [why IntLoom exists](./about/why.md) or [choose a usage mode](./about/choose.md).

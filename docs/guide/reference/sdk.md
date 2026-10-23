@@ -1,86 +1,59 @@
 ---
-title: Workflow SDK reference
-description: Public execution, State, Storage, interaction, and Agent Tool contracts.
+title: Loom SDK reference
 ---
 
-# Workflow SDK reference
+# Loom SDK reference
 
-Import public Workflow contracts from `@intloom/workflow-sdk`. It depends on Utils and Zod, not the private Kernel, model providers, database drivers, or Mastra.
+Import public contracts from `@intloom/loom-sdk`. No subpath or private Kernel dependency is needed.
 
-## Definition and execution types
+## Definitions and execution
 
-| Export | Contract |
+| Contract | Meaning |
 | --- | --- |
-| `Blueprint` | `flowName`, optional `exclusive`, entry Stage, and Stage definitions |
-| `BlueprintStage` | State Schema, initializer, entry Step, Steps, and Stage outcome routes |
-| `BlueprintStep` | Code/Agent execution reference and Step outcome routes |
-| `StageStateInitializer` | Receives Run/Workflow/Stage identity and intent; returns JSON Schema input, synchronously or asynchronously |
-| `StepResult` | `{ readonly outcome: string }` |
-| `ExecutableCode` | `(input, access) => StepResult \| Promise<StepResult>`, with optional `recover(saved, access)` |
-| `AgentSpec` | Instructions, model role, output Schema, Skills, and declared Tools |
-| `WorkflowModule` | Named `blueprint`, `codes`, and `agentSpecs` resources |
-
-`CodeRecovery` contains the saved action `{ id, kind, request }` and accepted answer. The recovery function uses restored State and fresh capabilities rather than the old function's local variables.
+| `Blueprint`, `BlueprintStage` | Initialized topology, entries, routing, Stage Schema/initializer |
+| `StageStateInitializer` | Run context to JSON Schema input on Stage entry |
+| `LoomModule` | Named `blueprint`, `codes` and `agentSpecs` exports |
+| `ExecutableCode` | `code(access)` plus optional `recover(saved, access)` |
+| `StepResult` | Only `outcome: string` |
+| `CodeExecutionAccess` | State, writable Storage, interaction, signal, optional Project |
+| `AgentExecutionAccess` | State, read-only Storage, signal, optional Project |
 
 ## StateAccess
 
-| Member | Behavior |
-| --- | --- |
-| `value` | Read-only business value, or `undefined` when absent |
-| `create(value)` | Create only when absent; validate with the Stage Schema |
-| `update(value)` | Replace the complete existing value; no implicit merge |
-| `clear()` | Idempotently remove the value; no automatic reinitialization |
+`value` is a recursive read view or undefined. `create(value)` requires absence. `update(value)` replaces existing State. `clear()` is idempotent. The host parses writes and preserves prior values on failure.
 
-`CodeExecutionAccess` includes State, writable Storage, interaction, cancellation signal, and optional project access. `AgentExecutionAccess` includes State, read-only Storage, signal, and optional project access. Capabilities expire with the execution.
+## Storage
 
-## StorageReadAccess
+Read access provides getArtifact(loomName, stageName), getArtifactById, getLatestRecord, getRecordById, listArtifacts and listRecords. Missing SDK reads return undefined. Lists use `{ data, nextCursor? }`.
 
-- `getArtifact(flowName, stageName)` and `getArtifactById(id)` return a stored Artifact or `undefined`.
-- `getLatestRecord(flowName, stageName)` and `getRecordById(id)` return a stored Record or `undefined`.
-- `listArtifacts(query)` and `listRecords(query)` return `{ data, nextCursor? }`.
+Writable access adds `commit(operations)`. Operations are create_artifact, replace_artifact, append_record, remove_artifact and remove_record. Replace/remove Artifact requires expectedRevision. Results report writtenArtifacts, appendedRecords and removed IDs.
 
-`StorageQuery` accepts `flowName`, `stageName`, `ids`, `createdAfter`, `createdBefore`, `order`, `limit`, and `cursor`. Order is `created_asc` or `created_desc` (default). Limit defaults to 50 and cannot exceed 200. Keep cursor query parameters consistent. The public CLI exposes a narrower query surface.
+`StorageQuery` supports loomName, stageName, ids, createdAfter/Before, order, limit and cursor. These SDK queries are broader than client list flags.
 
-`StoredArtifact` contains `id`, `flowName`, `stageName`, positive `revision`, JSON `data`, and creation/update timestamps. `StoredRecord` contains the same identity/location/data fields and a creation timestamp, without a revision.
+## Interaction and Tools
 
-## StorageAccess.commit
+`InteractionAccess.askQuestions` returns the complete answer array; `confirm` returns isConfirmed/optional feedback. Runtime owns action identity and lifetime. Loom Code owns business confirmation rules.
 
-`commit(operations)` applies an atomic batch. Duplicate targets within the same category and ID are invalid.
+`defineAgentTool` infers parsed input and raw output. `AgentTool<Input, Output, RawOutput = Output>` separates parser output from execute's result. Host parsers and JSON checks enforce the boundary.
 
-| Operation `type` | Required data |
-| --- | --- |
-| `create_artifact` | `id`, `payload` |
-| `replace_artifact` | `id`, `expectedRevision`, `payload` |
-| `append_record` | `id`, `payload` |
-| `remove_artifact` | `id`, `expectedRevision` |
-| `remove_record` | `id` |
+Tools receive `access` explicitly. Framework context bindings belong to Kernel and are not public SDK exports.
 
-`payload` is `{ flowName, stageName, data }`. The result contains `writtenArtifacts`, `appendedRecords`, `removedArtifactIds`, and `removedRecordIds`. Revision checks prevent stale replacement/removal; they do not provide historical reads.
+## ProjectAccess and lifetime
 
-## InteractionAccess
+`snapshot`, `read`, `write`, `remove` and `run` provide host-bound engineering operations. Commands use argument arrays and optional cwd/timeoutMs; results retain exitCode, stdout/stderr, timeout and truncation.
 
-`askQuestions(questions)` accepts a nonempty flat array. Each question has `id`, `question`, `isSkippable`, optional `description`, and optional `{ id, label, description? }` options. Answers use `questionId`, `isSkipped`, and answer text when not skipped.
+Every access belongs to a current call. Await operations and do not retain capabilities afterward. See [authoring](../development/create.md) and [State/Storage](../development/state-storage.md).
 
-`confirm(context)` returns `{ isConfirmed, feedback? }`. Exported `userAskQuestionsSchema`, `userAnswerQuestionsSchema`, `userAskConfirmationSchema`, and `userAnswerConfirmationSchema` define the JSON contracts. Business rules such as required feedback remain the Workflow's responsibility.
+## Inputs, Agents and compiled protocol
 
-## AgentTool
+The SDK depends only on Zod. Inputs are fixed to `prompt`, `files`, `dirs`, and `urls`. Every declared slot is required; undeclared slots are rejected. `parseLoomInput` validates and detaches values without reading file, directory, or URL references.
 
-`defineAgentTool({ id, description, inputSchema, outputSchema, execute })` preserves Zod type inference. `execute(input, access)` can be synchronous or asynchronous. Original parsers execute in the host; client descriptions contain JSON Schemas.
+Model purposes are `thinking`, `working`, and `coding`. `AgentSpec.outputSchema` must parse to `StepResult`; the host still validates actual results and routing. `endsAgent(output)` can close subsequent Tools after a successful temporary submission, but neither commits formal data nor replaces the final outcome.
 
-`AgentTool<Input, Output, RawOutput = Output>` distinguishes parsed input, parsed output, and raw output. `execute` receives the input Schema's parsed value and returns input for the output Schema; the host parses that return value into the final result. For `z.string().transform(Number)` as the output Schema, return a string from `execute`, not the parsed number. The helper infers these types from Schemas without widening them to accommodate an invalid implementation. Existing two-parameter annotations remain suitable when the output Schema's input and output types agree.
+The current artifact protocol is `2026-10-15`, declared by `type: loom` and `version` inside `package.json.loom`. `loomModuleSchema` checks structure without executing Code, Tools, initializers, or business schemas. Shared identifier rules are `loomNameSchema`, `codeIdSchema`, and `agentIdSchema`. Compiler generates stable IDs; Kernel checks references, assets, and registration conflicts.
 
-An output transform with no representable output shape is advertised as unconstrained. Use an explicit output Schema after the transform, such as `.pipe(z.number())`, when clients need that shape. Tool results and final parsed Agent results must cross the JSON boundary.
+## Recovery and boundaries
 
-`getAgentExecutionAccess(context)` reads the `intloom.execution` binding for adapter integration. It validates every required State/Storage method, the State value member, cancellation signal, and optional Project methods; writable Storage and interaction are rejected. Validation does not read business State or invoke capability methods. Invalid bindings and lookup/inspection failures use `STEP_EXECUTION_FAILED`. Ordinary SDK Tools receive access directly and do not need a framework-specific request context. The host owns capability lifetime enforcement.
+`CodeRecovery` discriminates questions and confirmation by `kind`, with `actionId` and matching `request`/`answer` types. `codeRecoverySchema` checks this structure. The host also validates ownership and complete answers; the Loom must check that its business revision still matches the original request. Recovery must not replay earlier effects.
 
-## ProjectAccess
-
-Methods are `snapshot()`, `read(path)`, `write(path, content)`, `remove(path)`, and `run(command, signal?)`. Project access is optional; its root and lifetime are host-bound.
-
-`ProjectCommand` contains `command`, `args`, optional `cwd`, and optional `timeoutMs`. Results contain that command, `exitCode`, `stdout`, `stderr`, `timedOut`, and `truncated`. Commands do not use implicit shell parsing.
-
-The CLI host limits text operations to 1 MiB, file snapshots to 10,000 files and 16 MiB per file, and command timeouts to 300 seconds (default 60). It rejects symlinks and excludes generated/private paths from snapshots, including `.git`, `.intloom`, `intloom`, `node_modules`, `dist`, `coverage`, `.turbo`, `.env*`, `.dev.vars*`, and IntLoom configuration. A snapshot is therefore not a complete audit of all process-accessible files.
-
-## Metadata and compatibility
-
-`workflowProtocolVersion` is `2026-10-08`; `workflowMetadataSchema` validates the protocol declaration. Protocol and npm package versions serve different purposes. `Query` and `SnapshotCategory` are deprecated aliases; use `StorageQuery` and `StorageCategory` in new code.
+Runtime cursors, storage snapshot types, and framework contexts belong to Kernel. Deprecated `Query` and `SnapshotCategory` aliases are removed. Rebuild and reinstall artifacts using older protocols.

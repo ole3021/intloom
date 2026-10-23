@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { applyStepResult } from "./apply-step-result.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import { ERRORS } from "../errors.ts";
 import { resolveCurrentExecution } from "./resolve-current-execution.ts";
 import type { Resolution } from "./routing.ts";
 
@@ -50,7 +50,7 @@ describe("applyStepResult", () => {
     );
     assert.equal(run.status, "running");
     assert.equal(run.id, "RUN-1");
-    assert.equal(run.intent, "original text");
+    assert.equal(run.input.prompt, "original text");
     assert.equal(run.createdAt, createdAt);
     assert.deepEqual(run.updatedAt, now);
     assert.equal(initializations(), 0);
@@ -243,15 +243,14 @@ describe("applyStepResult", () => {
       if (status === "waiting") {
         run.pendingAction = {
           id: "ASK-1",
-          flowName: run.flowName,
+          loomName: run.loomName,
           cursor: { ...run.cursor },
           kind: "user_ask_confirmation",
           request: { question: "Continue?" },
           createdAt: run.updatedAt.toISOString(),
         };
       }
-      if (status === "failed")
-        run.lastError = RUNTIME_ERRORS.create("RUN_STOPPED");
+      if (status === "failed") run.lastError = ERRORS.create("RUN_STOPPED");
       rejectsUnchanged(run, "EXECUTION_OWNERSHIP_LOST", () =>
         applyStepResult(blueprint, run, executed, { outcome: "complete" }, now),
       );

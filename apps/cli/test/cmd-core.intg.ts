@@ -20,9 +20,9 @@ test("CMD preserves full intent, returns admission, answers JSON and shares auth
     operationId = randomUUID();
   const intent = "  中文\n完整意图 --project literal `x` $quoted  ";
   const args = [
-    "flow",
+    "run",
     "fixture",
-    "--intent",
+    "--prompt",
     intent,
     "--instance",
     serviceInstanceId,
@@ -104,7 +104,7 @@ test("compound init preserves scaffold on later failure and Codex plans protect 
   const projectPath = join(root, "partial");
   const partial = await core.initProject({
     projectPath,
-    workflows: [join(root, "missing.tgz")],
+    looms: [join(root, "missing.tgz")],
   });
   assert.equal(partial.ok, false);
   if (!partial.ok) {
@@ -114,7 +114,7 @@ test("compound init preserves scaffold on later failure and Codex plans protect 
   }
   assert.match(
     await readFile(join(projectPath, "intloom.yaml"), "utf8"),
-    /workflows/u,
+    /looms/u,
   );
   await mkdir(join(projectPath, ".codex"));
   const file = join(projectPath, ".codex/config.toml");
@@ -156,7 +156,7 @@ test("built CLI --no-color overrides inherited FORCE_COLOR without stderr warnin
   );
   assert.equal(result.stderr, "");
   assert.equal(result.stdout.includes("\u001b"), false);
-  assert.match(result.stdout, /flow\s+Submit complete intent/u);
+  assert.match(result.stdout, /run\s+Run a Loom with the supplied inputs/u);
 });
 
 test("CMD defaults to readable text while explicit JSON retains the envelope, streams and exit status", {
@@ -170,10 +170,10 @@ test("CMD defaults to readable text while explicit JSON retains the envelope, st
   assert.equal(started.stderr, "");
   for (const [args, label] of [
     [["status"], /^Service running/u],
-    [["flows"], /^Workflows \(1\)/u],
+    [["looms"], /^Looms \(1\)/u],
     [["runs"], /^No Runs/u],
     [["doctor"], /^Project checks/u],
-    [["workflow", "list"], /^Workflow packages/u],
+    [["loom", "list"], /^Loom packages/u],
     [["config", "show"], /^Project configuration/u],
     [["mcp", "init", "--ide", "codex", "--plan"], /^MCP configuration create/u],
     [["logs", "--service"], /INFO\s+service ready/u],

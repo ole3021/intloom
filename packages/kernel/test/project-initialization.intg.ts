@@ -2,48 +2,47 @@ import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { test } from "node:test";
-import { compiledWorkflow } from "./initialization-fixture.ts";
+import { compiledLoom } from "./initialization-fixture.ts";
 import { askingCode, configText, projectFixture } from "./project-fixture.ts";
 import { runtimeFixture } from "./runtime-fixture.ts";
-import { codeId, agentId } from "./workflow-fixture.ts";
+import { codeId, agentId } from "./loom-fixture.ts";
 import {
   answerAsk,
   getRun,
   listRuns,
-  listWorkflows,
-  flow,
+  listLooms,
+  run,
   cancelAllRuns,
-} from "../src/core/execution.ts";
-import { initializeProject } from "../src/core/initialize-project.ts";
+} from "./operations-harness.ts";
+import { initializeProject } from "../src/host/create-project-execution.ts";
 
 test("initializes stable Registries and an idle Runtime without creating a Kernel facade", async (t) => {
   const project = await projectFixture(t);
-  await project.add(
-    "@test/workflow",
-    compiledWorkflow("fixture", codeId),
-    true,
-  );
+  await project.add("@test/loom", compiledLoom("fixture", codeId), true);
   const f = runtimeFixture();
   const execution = await initializeProject(project.root, f.options);
   t.after(() => cancelAllRuns(execution));
   assert.equal(execution.projectRoot, project.root);
   assert.equal(Object.isFrozen(execution), true);
   assert.equal(Object.isFrozen(execution.registries.codes), true);
-  assert.equal("flow" in execution, false);
+  assert.equal("run" in execution, false);
   assert.equal("state" in execution, false);
   assert.deepEqual(await listRuns(execution), []);
-  assert.equal((await flow(execution, "fixture", "text")).status, "completed");
+  assert.equal(
+    (await run(execution, "fixture", { prompt: "text" })).status,
+    "completed",
+  );
 });
 
-test("separate project environments isolate Runs with identical Flow and resource IDs", async (t) => {
+test("separate project environments isolate Runs with identical Loom and resource IDs", async (t) => {
   const a = await projectFixture(t);
   const b = await projectFixture(t);
-  const body = compiledWorkflow("fixture", codeId).replace(
+  const body = compiledLoom("fixture", codeId).replace(
     /export const codes = .*;/u,
     askingCode(codeId),
   );
-  await a.add("@test/workflow", body);
-  await b.add("@test/workflow", body);
+  await a.add("@test/loom", body);
+  await b.add("@test/loom", body);
   const fa = runtimeFixture();
   const fb = runtimeFixture();
   const readA = t.mock.method(fa.storage, "getArtifact", async () => undefined);
@@ -54,8 +53,8 @@ test("separate project environments isolate Runs with identical Flow and resourc
     await cancelAllRuns(ea);
     await cancelAllRuns(eb);
   });
-  const va = await flow(ea, "fixture", "A");
-  const vb = await flow(eb, "fixture", "B");
+  const va = await run(ea, "fixture", { prompt: "A" });
+  const vb = await run(eb, "fixture", { prompt: "B" });
   assert.ok(va.pendingAction && vb.pendingAction);
   assert.notEqual(ea.runtime, eb.runtime);
   assert.notEqual(ea.registries, eb.registries);
@@ -78,14 +77,14 @@ test("separate project environments isolate Runs with identical Flow and resourc
 
 test("reinitializing one project creates a new environment and never replaces the host's previous Runtime", async (t) => {
   const project = await projectFixture(t);
-  const body = compiledWorkflow("fixture", codeId).replace(
+  const body = compiledLoom("fixture", codeId).replace(
     /export const codes = .*;/u,
     askingCode(codeId),
   );
-  await project.add("@test/workflow", body);
+  await project.add("@test/loom", body);
   const f = runtimeFixture();
   const original = await initializeProject(project.root, f.options);
-  const waiting = await flow(original, "fixture", "text");
+  const waiting = await run(original, "fixture", { prompt: "text" });
   const newer = await initializeProject(project.root, f.options);
   t.after(async () => {
     await cancelAllRuns(original);
@@ -101,11 +100,11 @@ test("empty or fully unavailable dependencies still produce a diagnosable enviro
   const project = await projectFixture(t);
   const f = runtimeFixture();
   const empty = await initializeProject(project.root, f.options);
-  assert.deepEqual(await listWorkflows(empty), []);
+  assert.deepEqual(await listLooms(empty), []);
   assert.deepEqual(await listRuns(empty), []);
   await project.add(
     "@test/broken",
-    compiledWorkflow("broken", codeId, { [agentId]: "reasoning" }),
+    compiledLoom("broken", codeId, { [agentId]: "thinking" }),
   );
   const previous = process.env.INTLOOM_N5_MISSING_TEST_KEY;
   delete process.env.INTLOOM_N5_MISSING_TEST_KEY;
@@ -114,13 +113,10 @@ test("empty or fully unavailable dependencies still produce a diagnosable enviro
       process.env.INTLOOM_N5_MISSING_TEST_KEY = previous;
   });
   await project.configure(
-    configText.replace(
-      "INTLOOM_WORKFLOW_TEST_KEY",
-      "INTLOOM_N5_MISSING_TEST_KEY",
-    ),
+    configText.replace("INTLOOM_LOOM_TEST_KEY", "INTLOOM_N5_MISSING_TEST_KEY"),
   );
   const unavailable = await initializeProject(project.root, f.options);
-  const [failure] = await listWorkflows(unavailable);
+  const [failure] = await listLooms(unavailable);
   assert.ok(failure?.isAvailable);
   assert.equal(failure.readiness?.status, "available");
   assert.deepEqual(Object.keys(unavailable.registries.blueprints), ["broken"]);

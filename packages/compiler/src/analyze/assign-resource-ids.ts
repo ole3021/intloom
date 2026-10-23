@@ -1,18 +1,28 @@
-import { generateId } from "@intloom/utils";
-import type { WorkflowModel, LinkedWorkflow } from "./model.ts";
+import { codeIdSchema, agentIdSchema } from "@intloom/loom-sdk";
+import { createHash } from "node:crypto";
+import { fail } from "../errors.ts";
+import type { LoomModel } from "./model.ts";
 
-export function assignResourceIds(model: WorkflowModel): LinkedWorkflow {
-  const used = new Set<string>();
+/** Stable logical bindings retain the host's 21-character ID format and are namespaced across packages. */
+export function assignResourceIds(model: LoomModel) {
   function ids(
     keys: string[],
     prefix: string,
   ): Readonly<Record<string, string>> {
+    const used = new Set<string>();
     return Object.fromEntries(
-      keys.map((key) => {
-        let id: string;
-        do {
-          id = generateId(prefix);
-        } while (used.has(id));
+      keys.sort().map((key) => {
+        const digest = createHash("sha256")
+          .update(
+            JSON.stringify([model.manifest.name, model.loomName, prefix, key]),
+          )
+          .digest("base64url")
+          .slice(0, 21);
+        const id = (prefix === "CODE" ? codeIdSchema : agentIdSchema).parse(
+          `${prefix}-${digest}`,
+        );
+        if (used.has(id))
+          fail("INVALID_LOOM", `Logical resource ID collision: ${key}`);
         used.add(id);
         return [key, id];
       }),

@@ -1,6 +1,7 @@
 .section {
-  padding: 38px var(--site-section-inset) 58px;
-  margin: 28px;
+  padding: var(--site-spacing-07) var(--site-section-inset)
+    var(--site-spacing-10);
+  margin: var(--site-spacing-07);
   border: 1px solid var(--site-color-border);
 }
 .section::before {
@@ -27,14 +28,15 @@
 
 @media (max-width: 760px) {
   .section {
-    margin: 22px 20px;
+    margin: var(--site-spacing-06);
   }
 }
 
 @media (max-width: 480px) {
   .section {
-    padding: 25px var(--site-section-inset) 32px;
-    margin: 22px 15px;
+    padding: var(--site-spacing-06) var(--site-section-inset)
+      var(--site-spacing-07);
+    margin: var(--site-spacing-06) var(--site-spacing-05);
   }
   .section::before {
     width: 6px;

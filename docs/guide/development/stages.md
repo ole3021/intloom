@@ -1,73 +1,52 @@
 ---
-title: Stages, Steps, and routing
-description: Define state initialization and explicit outcome routes for compiled workflows.
+title: Define stages and routing
 ---
 
-# Stages, Steps, and routing
+# Define stages and routing
 
-Source YAML defines two routing levels. A Step routes to another Step or ends its Stage. The Stage then routes to another Stage or ends the Workflow.
+Define Loom topology in `package.json.loom` and Stage topology in YAML. Each entry and route target must resolve within its own topology.
 
-## Route outcomes explicitly
-
-```yaml
-stage:
-  name: review
-  state:
-    schema: "@schemas/review"
-    initialize: "@initializers/review"
-  entry: check
-  steps:
-    check:
-      type: code
-      code: "@codes/check"
-      on:
-        revise:
-          target: revise
-        accepted:
-          end: true
-    revise:
-      type: code
-      code: "@codes/revise"
-      on:
-        complete:
-          target: check
+```json
+{
+  "loom": {
+    "type": "loom",
+    "version": "2026-10-15",
+    "name": "review",
+    "inputs": ["prompt"],
+    "entry": "review",
+    "stages": {
+      "review": {
+        "stage": "./stages/review/stage.yaml",
+        "on": {"complete": {"end": true}}
+      }
+    }
+  }
+}
 ```
 
-This definition requires the referenced modules. Its enclosing Workflow must handle `accepted` in the route for this Stage. `complete` is a convention used by some packages, not an implicit success route.
+Inside a Stage, route a Code result back to another Step or to the Stage end:
 
-An execution returning `{ outcome: "revise" }` moves to the named Step. Returning `{ outcome: "accepted" }` ends the Stage with that outcome. An unhandled outcome fails the Run; an exception also fails execution rather than selecting a route automatically.
+```yaml
+check:
+  type: code
+  code: "./code/check.ts"
+  on:
+    repair_required:
+      target: revise
+    complete:
+      end: true
+```
+
+The second block is a fragment of `stage.steps` and requires a declared `revise` Step. Code must return exactly a matching `outcome`. Ending a Step forwards its outcome to the Stage's Loom route; missing routes fail rather than selecting a default.
 
 ## State lifecycle
 
-On Stage entry, the initializer receives `{ runId, flowName, stageName, intent }`. Its result is validated by the Stage's Schema and becomes current business State. Each Stage owns its own initialized value; leaving a Stage releases access to it.
+Every Stage declares `state.schema` and `state.initialize`. The initializer receives Run context and returns Schema input. State belongs to one Stage visit. A same-Stage Step loop retains it; reentering a Stage runs a fresh initializer.
 
-Read earlier formal results through Storage when a later Stage needs them. There is no automatic merge of the previous Stage's draft into the next Stage. Clearing State does not trigger automatic reinitialization.
+Pass data between stages through deliberate formal outputs rather than implicit State copying.
 
 ## Agent Steps
 
-```yaml
-review:
-  type: agent
-  agent: "@agents/reviewer"
-  llm: review
-  outputSchema: "@schemas/review-result"
-  tools:
-    - "@tools/review:readDraft"
-  skills:
-    - "@skills/review"
-  on:
-    accepted:
-      end: true
-    revise:
-      target: revise
-```
+Agent Steps declare instructions, model role, output Schema, Tools and Skills. The host parses final output and applies the returned outcome. Use `thinking`, `working` or `coding`.
 
-The Agent's final output Schema must parse to a valid Step result. Store analysis and proposals through business Tools; keep final output to the routing outcome. The `llm` role selects project configuration for service execution and remains part of the task description for client execution.
-
-## Concurrency and loops
-
-Set `workflow.exclusive: true` for project-writing workflows that must not overlap another active Run in the same host. The exclusion includes human and Agent waits. It does not prevent independent external editors from changing files.
-
-Routes may form loops. Define business repair budgets in State and enforce them in Code; the topology does not provide an automatic semantic termination guarantee. Validate assumptions again after user waits or external operations where upstream data may have changed.
-
-See [YAML reference](../reference/workflow-yaml.md) for fields and [Execution resources](./execution.md) for Code and Agent contracts.
+See [YAML reference](../reference/workflow-yaml.md) and [execution resources](./execution.md).

@@ -33,13 +33,11 @@ export async function workspace(t: TestContext) {
     await mkdtemp(resolve(tmpdir(), "intloom-compiler-")),
   );
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const root = resolve(directory, "workflow");
+  const root = resolve(directory, "loom");
   const consumer = resolve(directory, "consumer");
-  await cp(
-    fileURLToPath(new URL("../fixtures/workflow/", import.meta.url)),
-    root,
-    { recursive: true },
-  );
+  await cp(fileURLToPath(new URL("../fixtures/loom/", import.meta.url)), root, {
+    recursive: true,
+  });
   const config = JSON.parse(
     await readFile(resolve(root, "tsconfig.build.json"), "utf8"),
   );
@@ -55,13 +53,13 @@ export async function workspace(t: TestContext) {
   }
   await mkdir(resolve(directory, "node_modules/@intloom"), { recursive: true });
   await symlink(
-    fileURLToPath(new URL("../../../workflow-sdk/", import.meta.url)),
-    resolve(directory, "node_modules/@intloom/workflow-sdk"),
+    fileURLToPath(new URL("../../../loom-sdk/", import.meta.url)),
+    resolve(directory, "node_modules/@intloom/loom-sdk"),
     "dir",
   );
   await mkdir(resolve(consumer, "node_modules/@intloom"), { recursive: true });
   await symlink(
-    root,
+    resolve(root, "dist"),
     resolve(consumer, "node_modules/@intloom/compiler-fixture"),
     process.platform === "win32" ? "junction" : "dir",
   );
@@ -90,7 +88,7 @@ export async function snapshot(
 }
 export async function assertClean(root: string) {
   const entries = await readdir(root);
-  assert.equal(entries.includes("workflow.generated.ts"), false);
+  assert.equal(entries.includes(".intloom-build.lock"), false);
   assert.equal(
     entries.some((name) => name.startsWith(".intloom-build-")),
     false,

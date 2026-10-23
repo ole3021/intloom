@@ -15,7 +15,7 @@ describe("parseYaml", () => {
     ["malformed syntax", "items: ["],
   ] as const) {
     test(`rejects YAML ${label} with source location`, () => {
-      const file = resolve(tmpdir(), "workflow.yaml");
+      const file = resolve(tmpdir(), "loom.yaml");
       assert.throws(
         () => parseYaml({ file, text: yaml }),
         (error) => {

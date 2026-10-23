@@ -21,8 +21,14 @@ export function SiteFooter() {
         aria-pressed={paused}
         onClick={toggle}
       >
-        {paused ? "▶" : "Ⅱ"} {t("siteMotion")}
+        {paused ? (
+          <PlayFilled size={16} aria-hidden="true" />
+        ) : (
+          <PauseFilled size={16} aria-hidden="true" />
+        )}
+        {t("siteMotion")}
       </button>
     </footer>
   );
 }
+import { PauseFilled, PlayFilled } from "@carbon/icons-react";

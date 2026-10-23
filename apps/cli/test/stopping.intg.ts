@@ -17,7 +17,9 @@ test("cancel presentation, repeated cancellation and terminal Run command exits 
   assert.equal((await cli(root, ["start", "--json"])).code, 0);
   const client = await connectProject(root);
   try {
-    const receipt = await client.flow("fixture", "cancel acceptance");
+    const receipt = await client.run("fixture", {
+      prompt: "cancel acceptance",
+    });
     const waiting = await untilRun(
       client,
       receipt.runId,
@@ -27,7 +29,7 @@ test("cancel presentation, repeated cancellation and terminal Run command exits 
     assert.ok(record);
     const cancelled = await cli(root, ["cancel", waiting.runId, "--no-color"]);
     assert.equal(cancelled.code, 0);
-    assert.match(cancelled.stdout, /^Stopped/u);
+    assert.match(cancelled.stdout, /Stopped/u);
     assert.doesNotMatch(cancelled.stdout, /Execution failed/u);
     const stopped = await client.getRun(waiting.runId);
     assert.equal(stopped.status, "failed");
@@ -35,7 +37,9 @@ test("cancel presentation, repeated cancellation and terminal Run command exits 
     assert.equal(stopped.pendingAction, undefined);
     const repeat = await cli(root, ["cancel", waiting.runId, "--json"]);
     assert.equal(repeat.code, 0);
-    const repeatRun = JSON.parse(repeat.stdout).data;
+    const repeated = JSON.parse(repeat.stdout).data;
+    assert.equal(repeated.receipt.status, "accepted");
+    const repeatRun = repeated.run;
     assert.equal(repeatRun.status, stopped.status);
     assert.equal(repeatRun.updatedAt, stopped.updatedAt);
     assert.deepEqual(repeatRun.lastError, stopped.lastError);
@@ -44,7 +48,7 @@ test("cancel presentation, repeated cancellation and terminal Run command exits 
     assert.deepEqual(await client.getRecord(`once-${waiting.runId}`), record);
     const attached = await cli(root, ["attach", waiting.runId, "--no-color"]);
     assert.equal(attached.code, 1);
-    assert.match(attached.stdout, /^Stopped/u);
+    assert.match(attached.stdout, /Stopped/u);
     assert.equal((await cli(root, ["runs"])).code, 0);
     assert.match((await cli(root, ["status"])).stdout, /failed or stopped 1/u);
     assert.equal(
@@ -58,7 +62,7 @@ test("cancel presentation, repeated cancellation and terminal Run command exits 
     );
 
     for (const intent of ["complete acceptance", "fail-after-commit"]) {
-      const receipt = await client.flow("fixture", intent);
+      const receipt = await client.run("fixture", { prompt: intent });
       const run = await untilRun(
         client,
         receipt.runId,
@@ -106,11 +110,11 @@ test("cancel presentation, repeated cancellation and terminal Run command exits 
   }
 });
 
-test("a running flow returns its Run ID before another command stops it", async (t) => {
+test("a running run returns its Run ID before another command stops it", async (t) => {
   const root = await projectFixture(t);
   const filename = join(
     root,
-    ".intloom/workflows/node_modules/fixture-workflow/workflow.js",
+    ".intloom/looms/node_modules/fixture-loom/loom.js",
   );
   const source = await readFile(filename, "utf8");
   await writeFile(
@@ -124,9 +128,9 @@ test("a running flow returns its Run ID before another command stops it", async 
   assert.equal((await cli(root, ["start", "--json"])).code, 0);
   const client = await connectProject(root);
   const runningCommand = cli(root, [
-    "flow",
+    "run",
     "fixture",
-    "--intent",
+    "--prompt",
     "hold-running",
     "--json",
   ]);
@@ -176,7 +180,9 @@ for (const storage of ["file", "sqlite"] as const)
     );
     assert.match(info.logFile, /^LOG-\d{8}T\d{9}Z\.jsonl$/u);
     const client = await connectProject(root);
-    const receipt = await client.flow("fixture", "shutdown acceptance");
+    const receipt = await client.run("fixture", {
+      prompt: "shutdown acceptance",
+    });
     const waiting = await untilRun(
       client,
       receipt.runId,
@@ -319,10 +325,9 @@ test("stop refuses crashed-host leftovers and leaves connection, locks and commi
   const root = await projectFixture(t);
   assert.equal((await cli(root, ["start", "--json"])).code, 0);
   const client = await connectProject(root);
-  const receipt = await client.flow(
-    "fixture",
-    "retain committed record on crash",
-  );
+  const receipt = await client.run("fixture", {
+    prompt: "retain committed record on crash",
+  });
   await untilRun(client, receipt.runId, (run) => run.status === "waiting");
   await client.close();
   const info = JSON.parse(

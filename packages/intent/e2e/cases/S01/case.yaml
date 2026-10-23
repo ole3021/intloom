@@ -1,0 +1,8 @@
+id: S01
+version: 4
+name: Single-round local task CLI
+description: Complete feature development with four immutable Records and evidence-backed validation.
+rounds:
+  - id: create
+    input:
+      prompt: Build a local command-line task manager. I need to add tasks, list all tasks and mark tasks complete. Store tasks in a project-relative JSON file and preserve IDs across executions. Add focused tests and usage documentation while preserving the existing workspace conventions.

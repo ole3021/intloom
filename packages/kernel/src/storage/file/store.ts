@@ -13,7 +13,7 @@ export const storeSchema = z
     const ids = new Set<string>();
     const stages = new Set<string>();
     for (const item of store.artifacts) {
-      const stage = JSON.stringify([item.flowName, item.stageName]);
+      const stage = JSON.stringify([item.loomName, item.stageName]);
       if (
         ids.has(item.id) ||
         stages.has(stage) ||

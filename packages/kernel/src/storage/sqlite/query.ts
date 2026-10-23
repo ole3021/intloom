@@ -1,7 +1,7 @@
 import { and, eq, gt, inArray, lt, or, type SQL } from "drizzle-orm";
 import type { PreparedQuery } from "../query.ts";
 import { artifactSchema, recordSchema } from "../schemas.ts";
-import type { StoredArtifact, StoredRecord } from "../types.ts";
+import type { StoredArtifact, StoredRecord } from "@intloom/loom-sdk";
 import { artifacts, records } from "./schema.ts";
 
 export const artifactKey = (projectId: string, id: string) =>
@@ -25,8 +25,8 @@ export function queryConditions(
   query: PreparedQuery,
 ): SQL | undefined {
   const conditions = [eq(table.projectId, projectId)];
-  if (query.flowName !== undefined)
-    conditions.push(eq(table.flowName, query.flowName));
+  if (query.loomName !== undefined)
+    conditions.push(eq(table.loomName, query.loomName));
   if (query.stageName !== undefined)
     conditions.push(eq(table.stageName, query.stageName));
   if (query.ids !== undefined) conditions.push(inArray(table.id, query.ids));

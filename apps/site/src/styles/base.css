@@ -29,6 +29,15 @@ a {
   outline: 2px solid var(--site-color-accent);
   outline-offset: 4px;
 }
+:where(button):focus-visible {
+  outline-offset: -3px;
+}
+:where(button):active {
+  background-color: var(--site-color-surface-raised);
+}
+:where(a):active {
+  color: var(--site-color-accent-light);
+}
 [hidden] {
   display: none;
 }

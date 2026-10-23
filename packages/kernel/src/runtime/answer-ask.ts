@@ -1,46 +1,23 @@
-import type { ReadonlyJsonValue } from "../shared/json.ts";
+import type { ReadonlyJsonValue } from "@intloom/loom-sdk";
 import { getLogger } from "@intloom/utils";
 import type { RunView } from "./run-view.ts";
 import { toRunView } from "./to-run-view.ts";
-import { KERNEL_ERRORS } from "../errors/kernel.ts";
+import { ERRORS } from "../errors.ts";
 import { assertRunState } from "./assert-run-state.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
-import {
-  failRun,
-  notifyRunObservers,
-  type RunEntry,
-  waitUntilStable,
-} from "./run-entry.ts";
+import { failRun, notifyRunObservers, type RunEntry } from "./run-entry.ts";
 import { ownsCall } from "./call-scope.ts";
 import { saveCheckpoint } from "./recovery/checkpoint.ts";
 
-/** Validates and consumes synchronously; only the first valid submission for an action is delivered. */
-export function answerAsk(
-  entry: RunEntry,
-  actionId: string,
-  answer: ReadonlyJsonValue,
-): Promise<RunView> {
-  const result = acceptAnswer(entry, actionId, answer, true);
-  if (!result.stable) throw RUNTIME_ERRORS.create("RUN_STATE_INVALID");
-  return result.stable;
-}
-
+/** Validates and consumes synchronously; observing the continuation belongs to Operations. */
 export function submitAnswer(
   entry: RunEntry,
   actionId: string,
   answer: ReadonlyJsonValue,
+  operation?: import("./contracts.ts").OperationRef,
+  effect: () => void = () => {},
 ): RunView {
-  return acceptAnswer(entry, actionId, answer, false).accepted;
-}
-
-function acceptAnswer(
-  entry: RunEntry,
-  actionId: string,
-  answer: ReadonlyJsonValue,
-  waitForStable: boolean,
-): { accepted: RunView; stable?: Promise<RunView> } {
   if (typeof actionId !== "string" || !actionId.trim())
-    throw KERNEL_ERRORS.create("INVALID_REQUEST", {
+    throw ERRORS.create("INVALID_REQUEST", {
       message: "An answer must identify its pending action.",
     });
   const action = entry.state.pendingAction;
@@ -50,20 +27,21 @@ function acceptAnswer(
   const reply = entry.reply;
   const call = entry.activeCall;
   if (!reply || !call) {
-    const error = RUNTIME_ERRORS.create("RUN_STATE_INVALID", {
+    effect();
+    const error = ERRORS.create("RUN_STATE_INVALID", {
       message: "A waiting Run must retain its original execution and reply.",
     });
     delete entry.reply;
     delete entry.activeCall;
     failRun(entry, error);
     reply?.reject(error);
-    throw KERNEL_ERRORS.wrap("KERNEL_UNAVAILABLE", error);
+    throw ERRORS.wrap("KERNEL_UNAVAILABLE", error);
   }
   let deliver: () => void;
   try {
     deliver = reply.prepare(action, answer);
   } catch (cause) {
-    throw KERNEL_ERRORS.wrap("INVALID_REQUEST", cause, {
+    throw ERRORS.wrap("INVALID_REQUEST", cause, {
       message: "The answer does not satisfy the pending request.",
     });
   }
@@ -76,14 +54,19 @@ function acceptAnswer(
   )
     throw conflict();
 
-  entry.recoveredAnswer = { action, answer: structuredClone(answer) };
+  effect();
+  entry.recoveredAnswer = {
+    action,
+    answer: structuredClone(answer),
+    acceptedAt: new Date().toISOString(),
+    ...(operation ? { operation } : {}),
+  };
   delete entry.state.pendingAction;
   delete entry.reply;
   entry.state.status = "running";
   entry.state.updatedAt = new Date();
   try {
     saveCheckpoint(entry, "answered");
-    saveCheckpoint(entry, "executing");
   } catch (cause) {
     delete entry.activeCall;
     reply.reject(cause);
@@ -101,18 +84,28 @@ function acceptAnswer(
     actionId,
     waitDurationMs,
   });
-  // Leave the old waiting state, subscribe to the next stable state, then deliver the answer to the original Promise.
-  const stable = waitForStable ? waitUntilStable(entry) : undefined;
+  // Notify admission before delivering the answer to the original Promise.
   notifyRunObservers(entry);
-  deliver();
-  return {
-    accepted: toRunView(entry.state),
-    ...(stable === undefined ? {} : { stable }),
-  };
+  queueMicrotask(() => {
+    if (!ownsCall(entry, call)) {
+      reply.reject(
+        call.signal.reason ?? ERRORS.create("EXECUTION_OWNERSHIP_LOST"),
+      );
+      return;
+    }
+    try {
+      saveCheckpoint(entry, "executing");
+      deliver();
+    } catch (cause) {
+      reply.reject(cause);
+      call.abort(cause);
+    }
+  });
+  return toRunView(entry.state);
 }
 
 function conflict() {
-  return KERNEL_ERRORS.create("CONFLICT", {
+  return ERRORS.create("CONFLICT", {
     message: "The action is no longer the Run's current unanswered action.",
   });
 }

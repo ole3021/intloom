@@ -17,31 +17,31 @@ test("loads the compiler through the built package entry", async () => {
     new URL("../../dist/index.js", import.meta.url).href,
   );
   const compiler = await import("@intloom/compiler");
-  assert.equal(typeof compiler.compileWorkflow, "function");
+  assert.equal(typeof compiler.compileLoom, "function");
 });
 
-test("installs public Compiler/SDK archives and compiles a Workflow without Kernel or repository links", {
+test("installs public Compiler/SDK archives and compiles a Loom without Kernel or repository links", {
   timeout: 120_000,
 }, async (t) => {
   const temporary = await mkdtemp(resolve(tmpdir(), "intloom-author-"));
   t.after(() => rm(temporary, { recursive: true, force: true }));
-  const project = resolve(temporary, "workflow");
+  const project = resolve(temporary, "loom");
   await cp(
-    fileURLToPath(new URL("../fixtures/workflow/", import.meta.url)),
+    fileURLToPath(new URL("../fixtures/loom/", import.meta.url)),
     project,
     { recursive: true },
   );
   const repository = fileURLToPath(new URL("../../../../", import.meta.url));
   const packages = await testArchives([
     "@intloom/compiler",
-    "@intloom/workflow-sdk",
+    "@intloom/loom-sdk",
     "@intloom/utils",
   ]);
   const manifest = JSON.parse(
     await readFile(resolve(project, "package.json"), "utf8"),
   );
-  manifest.dependencies["@intloom/workflow-sdk"] =
-    `file:${packages["@intloom/workflow-sdk"]}`;
+  manifest.dependencies["@intloom/loom-sdk"] =
+    `file:${packages["@intloom/loom-sdk"]}`;
   manifest.devDependencies = {
     "@intloom/compiler": `file:${packages["@intloom/compiler"]}`,
     "@types/node": "^26",
@@ -67,12 +67,19 @@ test("installs public Compiler/SDK archives and compiles a Workflow without Kern
   );
   await writeFile(
     resolve(project, "codes/sdk-contract.ts"),
-    'import type { Blueprint, ExecutableCode } from "@intloom/workflow-sdk"; export const code: ExecutableCode = () => ({ outcome: "done" }); export type Contract = Blueprint;',
+    'import type { Blueprint, ExecutableCode } from "@intloom/loom-sdk"; export const code: ExecutableCode = () => ({ outcome: "done" }); export type Contract = Blueprint;',
+  );
+  await writeFile(
+    resolve(project, "codes/run.ts"),
+    (await readFile(resolve(project, "codes/run.ts"), "utf8")) +
+      '\nexport { code } from "./sdk-contract.ts";\n',
   );
   await run(
     "npm",
     [
       "install",
+      "--cache",
+      resolve(temporary, "npm-cache"),
       "--engine-strict",
       "--ignore-scripts",
       "--no-audit",
@@ -83,9 +90,17 @@ test("installs public Compiler/SDK archives and compiles a Workflow without Kern
       timeout: 90_000,
     },
   );
+  // Local archives install the authoring toolchain; the emitted package records publishable ranges.
+  manifest.dependencies["@intloom/loom-sdk"] = JSON.parse(
+    await readFile(
+      resolve(project, "node_modules/@intloom/loom-sdk/package.json"),
+      "utf8",
+    ),
+  ).version;
+  await writeFile(resolve(project, "package.json"), JSON.stringify(manifest));
   await writeFile(
     resolve(project, "build.mjs"),
-    'import assert from "node:assert/strict"; import { compileWorkflow } from "@intloom/compiler"; await assert.rejects(import("@intloom/kernel"), { code: "ERR_MODULE_NOT_FOUND" }); await compileWorkflow({ packageRoot: process.cwd() }); const output = await import("./dist/workflow.generated.js"); assert.equal(typeof output.blueprint.flowName, "string"); assert.equal(typeof Object.values(output.codes)[0], "function");',
+    'import assert from "node:assert/strict"; import { compileLoom } from "@intloom/compiler"; await assert.rejects(import("@intloom/kernel"), { code: "ERR_MODULE_NOT_FOUND" }); await compileLoom({ packageRoot: process.cwd() }); const output = await import("./dist/loom.generated.js"); assert.equal(typeof output.blueprint.loomName, "string"); assert.equal(typeof Object.values(output.codes)[0], "function");',
   );
   await run(process.execPath, [resolve(project, "build.mjs")], {
     cwd: project,
@@ -93,7 +108,7 @@ test("installs public Compiler/SDK archives and compiles a Workflow without Kern
   });
   assert.match(
     await readFile(resolve(project, "dist/codes/sdk-contract.d.ts"), "utf8"),
-    /@intloom\/workflow-sdk/u,
+    /@intloom\/loom-sdk/u,
   );
 });
 

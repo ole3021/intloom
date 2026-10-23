@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { openLog, getLogger, withLogger, silentLogger } from "@intloom/utils";
 import { runtimeFixture } from "../../test/runtime-fixture.ts";
-import { createRuntime } from "./create-runtime.ts";
+import { createRuntimeHarness } from "../../test/runtime-harness.ts";
 
 test("repeated steps and resumed Code retain distinct execution identities across concurrent Runs", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "intloom-runtime-log-"));
@@ -14,7 +14,7 @@ test("repeated steps and resumed Code retain distinct execution identities acros
   t.after(() => logs.close());
   const f = runtimeFixture();
   const visits = new Map<string, number>();
-  f.codes.start = async (_input, access) => {
+  f.codes.start = async (access) => {
     const intent = String((access.state.value as { intent: string }).intent);
     const visit = (visits.get(intent) ?? 0) + 1;
     visits.set(intent, visit);
@@ -24,7 +24,7 @@ test("repeated steps and resumed Code retain distinct execution identities acros
     getLogger().debug("after_wait");
     return { outcome: "complete" };
   };
-  const runtime = createRuntime({ ...f.options, logger: logs.logger });
+  const runtime = createRuntimeHarness({ ...f.options, logger: logs.logger });
   const requestEvents: string[] = [];
   const requestLogger = {
     ...silentLogger,
@@ -33,8 +33,10 @@ test("repeated steps and resumed Code retain distinct execution identities acros
     },
   };
   const views = await Promise.all([
-    withLogger(requestLogger, () => runtime.flow(f.blueprint, "PRIVATE_A")),
-    runtime.flow(f.blueprint, "PRIVATE_B"),
+    withLogger(requestLogger, () =>
+      runtime.run(f.blueprint, { prompt: "PRIVATE_A" }),
+    ),
+    runtime.run(f.blueprint, { prompt: "PRIVATE_B" }),
   ]);
   for (const view of views) {
     assert.ok(view.pendingAction);

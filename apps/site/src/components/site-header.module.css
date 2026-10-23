@@ -7,7 +7,7 @@
   justify-content: space-between;
   gap: 24px;
   height: var(--site-header-height);
-  padding-inline: 27px;
+  padding-inline: var(--site-spacing-06);
   margin-inline: var(--site-rail-width);
   border: 1px solid var(--site-color-border);
   border-top: 0;
@@ -17,6 +17,9 @@
 .brand {
   display: inline-flex;
   flex-shrink: 0;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
 }
 .logo {
   width: 64px;
@@ -24,7 +27,7 @@
 .header nav {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: var(--site-spacing-06);
   font: var(--site-type-label);
   font-size: var(--site-text-nav);
   letter-spacing: 0.07em;
@@ -36,16 +39,24 @@
   white-space: nowrap;
   transition: color 0.25s var(--site-motion-ease);
 }
+.header nav > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--site-spacing-08);
+}
 .header a:hover,
 .header a[aria-current="page"] {
   color: var(--site-color-accent);
+}
+.header a:active {
+  color: var(--site-color-accent-light);
 }
 .search {
   display: flex;
 }
 .language {
   border: 1px solid var(--site-color-border);
-  padding: 6px;
+  padding: 0 var(--site-spacing-03);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -55,9 +66,9 @@
 .github {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--site-spacing-03);
   border: 1px solid var(--site-color-border);
-  padding: 10px 15px;
+  padding: 0 var(--site-spacing-05);
   background-image: repeating-linear-gradient(
     135deg,
     #ffffff08 0 1px,
@@ -70,16 +81,25 @@
 .header .github:hover {
   border-color: var(--site-color-accent);
 }
+.header .github:active,
+.header .language:active {
+  background-color: var(--site-color-surface-raised);
+}
 @media (max-width: 760px) {
   .header {
-    padding-inline: 15px;
-    gap: 14px;
+    padding-inline: var(--site-spacing-05);
+    gap: var(--site-spacing-04);
   }
   .header nav {
-    gap: 15px;
+    gap: var(--site-spacing-04);
+  }
+  .header nav > a {
+    min-height: 44px;
   }
   .github {
-    padding: 8px;
+    justify-content: center;
+    min-width: 44px;
+    padding: 0;
   }
   .github span {
     display: none;
@@ -90,14 +110,17 @@
     display: none;
   }
   .header {
-    padding-inline: 10px;
-    gap: 10px;
+    padding-inline: var(--site-spacing-03);
+    gap: var(--site-spacing-03);
   }
   .logo {
     width: 38px;
   }
   .header nav {
-    gap: 8px;
+    gap: var(--site-spacing-03);
+  }
+  .header nav > a {
+    min-height: 44px;
   }
   .github {
     border: 0;
@@ -106,11 +129,17 @@
   }
 }
 @media (max-width: 359px) {
+  .header {
+    margin-inline: var(--site-spacing-02);
+  }
   .header nav {
-    gap: 8px;
+    gap: 2px;
   }
   .header {
-    padding-inline: 8px;
-    gap: 6px;
+    padding-inline: var(--site-spacing-02);
+    gap: var(--site-spacing-02);
+  }
+  .logo {
+    width: 32px;
   }
 }

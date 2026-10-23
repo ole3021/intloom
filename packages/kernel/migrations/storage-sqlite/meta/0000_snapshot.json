@@ -21,8 +21,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "flow_name": {
-          "name": "flow_name",
+        "loom_name": {
+          "name": "loom_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -67,7 +67,7 @@
       "indexes": {
         "artifact_stage": {
           "name": "artifact_stage",
-          "columns": ["project_id", "flow_name", "stage_name"],
+          "columns": ["project_id", "loom_name", "stage_name"],
           "isUnique": true
         },
         "artifact_created": {
@@ -152,8 +152,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "flow_name": {
-          "name": "flow_name",
+        "loom_name": {
+          "name": "loom_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -191,7 +191,7 @@
           "name": "record_stage_created",
           "columns": [
             "project_id",
-            "flow_name",
+            "loom_name",
             "stage_name",
             "created_at",
             "id"

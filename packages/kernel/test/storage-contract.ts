@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import type { StorageHandle } from "../src/storage/contracts.ts";
-import type { StorageOperation, StoragePayload } from "../src/storage/types.ts";
+import type { StorageOperation, StoragePayload } from "@intloom/loom-sdk";
 
 export const payload: StoragePayload = {
-  flowName: "flow",
+  loomName: "run",
   stageName: "stage",
   data: { text: "original" },
 };
@@ -52,8 +52,8 @@ export function storageContract(
   }
   test(`${name}: input/output isolation, atomic content and persistent reopening`, async (t) => {
     const { directory, access, handle } = await fixture(t);
-    assert.equal(await access.getArtifact("flow", "stage"), undefined);
-    assert.equal(await access.getLatestRecord("flow", "stage"), undefined);
+    assert.equal(await access.getArtifact("run", "stage"), undefined);
+    assert.equal(await access.getLatestRecord("run", "stage"), undefined);
     const input = { ...payload, data: { text: "saved" } };
     const pending = access.commit([{ ...create, payload: input }, append]);
     input.data.text = "changed";
@@ -66,12 +66,12 @@ export function storageContract(
     assert.deepEqual((await access.getArtifactById("artifact"))?.data, {
       text: "saved",
     });
-    assert.equal((await access.getLatestRecord("flow", "stage"))?.id, "record");
+    assert.equal((await access.getLatestRecord("run", "stage"))?.id, "record");
     await handle.dispose();
     const reopened = await open(directory);
     storageCleanup(t, () => reopened.dispose());
     assert.deepEqual(
-      (await reopened.access.getArtifact("flow", "stage"))?.data,
+      (await reopened.access.getArtifact("run", "stage"))?.data,
       { text: "saved" },
     );
     assert.deepEqual(
@@ -181,7 +181,7 @@ export function storageContract(
     ]);
     assert.deepEqual(removed.removedArtifactIds, [first.id]);
     assert.deepEqual(removed.removedRecordIds, ["record"]);
-    assert.equal(await access.getArtifact("flow", "stage"), undefined);
+    assert.equal(await access.getArtifact("run", "stage"), undefined);
     assert.equal(await access.getRecordById("record"), undefined);
     await handle.dispose();
     const reopened = await open(directory);
@@ -280,7 +280,7 @@ export function storageContract(
     );
     assert.equal(rest.nextCursor, undefined);
     assert.equal(
-      (await access.getLatestRecord("flow", "stage"))?.id,
+      (await access.getLatestRecord("run", "stage"))?.id,
       sorted.at(-1),
     );
     const timestamp = first.data[0]?.createdAt;
@@ -294,7 +294,7 @@ export function storageContract(
       0,
     );
     assert.equal(
-      (await access.listRecords({ flowName: "wrong" })).data.length,
+      (await access.listRecords({ loomName: "wrong" })).data.length,
       0,
     );
     assert.equal(

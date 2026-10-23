@@ -1,0 +1,13 @@
+id: M01
+version: 5
+name: Create then adjust and remove features
+description: Two real Runs in one fresh project; the second changes and retires requirements while preserving formal history.
+rounds:
+  - id: create
+    input:
+      prompt: Create a local command-line task manager supporting add, list, complete and reopen. Persist task IDs, titles and completion flags in a project-relative JSON file. Include focused tests and usage documentation.
+    knowledge: rounds/create.md
+  - id: adjust
+    input:
+      prompt: Adjust the existing task list command to support all, active and completed filters, defaulting to active. Remove the reopen command and its public documentation and tests; completed tasks can no longer be reopened. Preserve adding, completing, task IDs, stored data and creation order. Update focused tests and usage documentation for this round.
+    knowledge: rounds/adjust.md

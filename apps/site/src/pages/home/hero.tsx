@@ -1,5 +1,7 @@
+import { ChevronDown } from "@carbon/icons-react";
 import styles from "./hero.module.css";
 import { Command } from "../../components/command.tsx";
+import { Arrow } from "../../components/brand.tsx";
 import { IntentField } from "./intent-field/index.tsx";
 
 export function Hero() {
@@ -32,7 +34,7 @@ export function Hero() {
           <Command command="npx intloom start" />
           <p>Start your local project service.</p>
           <a href="#cli">
-            Set up the CLI <span aria-hidden="true">↘</span>
+            Set up the CLI <ChevronDown size={16} aria-hidden="true" />
           </a>
         </div>
       </div>
@@ -48,7 +50,7 @@ export function Hero() {
         <span
           className={`${styles["hero-instrument-label"]} ${styles["hero-instrument-hint"]}`}
         >
-          MOVE TO EXPLORE <span>↙</span>
+          MOVE TO EXPLORE <Arrow direction="down-left" />
         </span>
       </div>
     </section>

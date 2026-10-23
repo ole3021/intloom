@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useI18n, useLocation } from "@rspress/core/runtime";
 import { useMotionControl } from "../motion/motion-provider.tsx";
 import { usePageMotion } from "../motion/reveal.tsx";
+import { DevelopmentNotice } from "./development-notice.tsx";
 import styles from "./site-frame.module.css";
 
 export function SiteFrame({
@@ -26,6 +27,7 @@ export function SiteFrame({
       <a className={styles.skip} href="#main">
         {t("siteSkip")}
       </a>
+      {pathname === "/" && <DevelopmentNotice />}
       {children}
     </div>
   );

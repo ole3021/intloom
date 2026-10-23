@@ -1,4 +1,4 @@
-name: Package consumers
+name: Package tests
 
 on:
   workflow_call:
@@ -7,7 +7,8 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  test:
+    name: Test artifacts · ${{ matrix.os }} · Node ${{ matrix.node }}
     strategy:
       fail-fast: false
       matrix:
@@ -25,7 +26,8 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version-file: package.json
-      - run: bun install --frozen-lockfile
+      - name: Install test tooling
+        run: bun install --frozen-lockfile
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: npm-consumer-build
@@ -33,11 +35,5 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
-      - name: Verify prepared archives on the consumer runtime
-        run: >-
-          node --test
-          packages/utils/test/package/*.intg.ts
-          packages/workflow-sdk/test/package/*.intg.ts
-          packages/compiler/test/package/*.intg.ts
-          packages/intent/test/package/*.intg.ts
-          apps/cli/test/package/*.intg.ts
+      - name: Test prepared package artifacts
+        run: node scripts/test-package-artifacts.ts

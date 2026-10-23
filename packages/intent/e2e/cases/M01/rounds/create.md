@@ -1,0 +1,2 @@
+## K10 — Initial round
+Implement add, list, complete and reopen. Listing shows all tasks in creation order. Complete marks an existing task completed; reopen marks it active. Repeating either operation on a task already in that state is harmless. Unknown IDs fail without mutation. Preserve IDs and states across executions. Missing storage means an empty list. Include usage documentation and focused tests. No filtering is required in this round.

@@ -1,6 +1,6 @@
 import * as z from "zod";
-import { KERNEL_ERRORS } from "../errors/kernel.ts";
-import type { StorageOperation } from "./types.ts";
+import { ERRORS } from "../errors.ts";
+import type { StorageOperation } from "@intloom/loom-sdk";
 import { invalid } from "./errors.ts";
 
 export const nameSchema = z
@@ -23,7 +23,7 @@ export const timestampSchema = z.iso
   .datetime({ precision: 3 })
   .refine((value) => new Date(value).toISOString() === value);
 export const payloadSchema = z.strictObject({
-  flowName: nameSchema,
+  loomName: nameSchema,
   stageName: nameSchema,
   data: z.json(),
 });
@@ -63,7 +63,7 @@ const operationSchema = z.discriminatedUnion("type", [
 ]);
 export const querySchema = z
   .strictObject({
-    flowName: nameSchema.optional(),
+    loomName: nameSchema.optional(),
     stageName: nameSchema.optional(),
     ids: z.array(nameSchema).optional(),
     createdAfter: timestampSchema.optional(),
@@ -82,7 +82,7 @@ export function parseInput<T>(schema: z.ZodType<T>, value: unknown): T {
   try {
     return schema.parse(value);
   } catch (cause) {
-    throw KERNEL_ERRORS.wrap("INVALID_REQUEST", cause);
+    throw ERRORS.wrap("INVALID_REQUEST", cause);
   }
 }
 

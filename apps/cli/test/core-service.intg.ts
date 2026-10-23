@@ -34,35 +34,43 @@ test("a lost mutation response is recovered from its receipt without submitting 
       return response;
     },
   );
-  const result = await core.flow({
+  const result = await core.run({
     projectPath,
     serviceInstanceId,
     operationId,
-    flowName: "fixture",
-    intent: "one admission",
+    loomName: "fixture",
+    input: { prompt: "one admission" },
   });
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.equal(result.error.code, "REQUEST_OUTCOME_UNKNOWN");
+    assert.match(result.error.message, /CLI_SERVICE_OFFLINE/u);
     assert.equal(result.outcome, "unknown");
+    assert.equal(result.meta.operationId, operationId);
+    assert.equal(result.meta.projectRoot, projectPath);
+    assert.equal(result.meta.serviceInstanceId, serviceInstanceId);
   }
   const receipt = await core.getOperation({
     projectPath,
     serviceInstanceId,
     operationId,
   });
-  assert.ok(receipt.ok && receipt.data?.status === "accepted");
+  assert.ok(
+    receipt.ok &&
+      receipt.data.status === "found" &&
+      receipt.data.receipt.status === "accepted",
+  );
   const run = await core.getRun({
     projectPath,
     serviceInstanceId,
-    runId: receipt.data.runId,
+    runId: receipt.data.receipt.runId,
   });
   assert.ok(run.ok);
   const all = await core.listRuns({ projectPath });
   assert.ok(all.ok);
   assert.deepEqual(
     all.data.map((item) => item.runId),
-    [receipt.data.runId],
+    [receipt.data.receipt.runId],
   );
   assert.equal(submissions, 1);
 });
@@ -72,7 +80,7 @@ test("stale configuration revisions preserve the latest edit through the public 
   const core = createCliCore();
   const initial = await core.readProjectConfig({ projectPath });
   assert.ok(initial.ok);
-  const configuration = "intent: {apps: []}\n# latest user edit\n";
+  const configuration = "# latest user edit\n{}\n";
   const updated = await core.updateProjectConfig({
     projectPath,
     revision: initial.data.revision,
@@ -82,7 +90,7 @@ test("stale configuration revisions preserve the latest edit through the public 
   const stale = await core.updateProjectConfig({
     projectPath,
     revision: initial.data.revision,
-    configuration: "intent: {apps: []}\n# stale edit\n",
+    configuration: "# stale edit\n{}\n",
   });
   assert.equal(stale.ok, false);
   if (!stale.ok) assert.equal(stale.error.code, "CONFLICT");
@@ -111,10 +119,10 @@ test("Core uses the independent Kernel process and shares full snapshots across 
     projectPath,
     serviceInstanceId,
     operationId,
-    flowName: "fixture",
-    intent: "  preserve\n完整输入  ",
+    loomName: "fixture",
+    input: { prompt: "  preserve\n完整输入  " },
   };
-  const [a, b] = await Promise.all([first.flow(input), second.flow(input)]);
+  const [a, b] = await Promise.all([first.run(input), second.run(input)]);
   assert.ok(a.ok && b.ok, JSON.stringify({ a, b }));
   assert.equal(a.data.receipt.status, "accepted");
   assert.ok(a.data.run);
@@ -138,9 +146,13 @@ test("Core uses the independent Kernel process and shares full snapshots across 
     serviceInstanceId,
     operationId,
   });
-  assert.ok(receipt.ok && receipt.data?.status === "accepted");
-  assert.equal(receipt.data.runId, runId);
-  const conflict = await first.flow({ ...input, intent: "changed" });
+  assert.ok(
+    receipt.ok &&
+      receipt.data.status === "found" &&
+      receipt.data.receipt.status === "accepted",
+  );
+  assert.equal(receipt.data.receipt.runId, runId);
+  const conflict = await first.run({ ...input, input: { prompt: "changed" } });
   assert.equal(conflict.ok, false);
   if (!conflict.ok) assert.equal(conflict.error.code, "OPERATION_CONFLICT");
   const runs = await first.listRuns({ projectPath });
@@ -156,12 +168,12 @@ test("closing an observer or timing out never consumes a human action or cancels
   const started = await core.startService({ projectPath });
   assert.ok(started.ok);
   const serviceInstanceId = started.data.service.instanceId;
-  const created = await core.flow({
+  const created = await core.run({
     projectPath,
     serviceInstanceId,
     operationId: randomUUID(),
-    flowName: "fixture",
-    intent: "wait",
+    loomName: "fixture",
+    input: { prompt: "wait" },
   });
   assert.ok(created.ok && created.data.run);
   const runId = created.data.run.runId;
@@ -217,12 +229,12 @@ test("project observation starts with a full snapshot; instance mismatch cannot 
     break;
   }
   const wrong = randomUUID();
-  const refused = await core.flow({
+  const refused = await core.run({
     projectPath,
     serviceInstanceId: wrong,
     operationId: randomUUID(),
-    flowName: "fixture",
-    intent: "never",
+    loomName: "fixture",
+    input: { prompt: "never" },
   });
   assert.equal(refused.ok, false);
   if (!refused.ok) {
@@ -251,7 +263,7 @@ test("no model configuration is required for Service/Core queries", {
   const projectPath = await projectFixture(t, false);
   const core = createCliCore();
   assert.ok((await core.startService({ projectPath })).ok);
-  const result = await core.listWorkflows({ projectPath });
+  const result = await core.listLooms({ projectPath });
   assert.ok(result.ok);
   assert.deepEqual(result.data, []);
   assert.doesNotThrow(() => JSON.stringify(result));

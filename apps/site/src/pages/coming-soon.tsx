@@ -15,7 +15,7 @@ export function ComingSoon({ title }: { title: string }) {
         </h1>
         <p>In development. Check back soon.</p>
         <a href="/">
-          Back to IntLoom <Arrow />
+          Back to IntLoom <Arrow direction="right" />
         </a>
       </section>
     </main>

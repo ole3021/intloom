@@ -1,3 +1,4 @@
+import { verifyCliSetup } from "../../../scripts/consumer.ts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createServer } from "node:http";
@@ -7,8 +8,8 @@ import { test } from "node:test";
 import { parse } from "yaml";
 import { startService, stopService } from "@intloom/cli";
 import { temporaryDirectory } from "./directory-fixture.ts";
-import { cli } from "./project-fixture.ts";
-import { packFixture, packDirectory } from "./workflow-fixture.ts";
+import { bin, cli, compiledLoom } from "./project-fixture.ts";
+import { packFixture, packDirectory } from "./loom-fixture.ts";
 
 async function configure(root: string) {
   await writeFile(
@@ -90,21 +91,21 @@ test("bare package installs registry latest, pins archive identity, disables scr
   let latest = "1.0.0";
   let url = "";
   const server = createServer((req, res) => {
-    const version = /fixture-workflow-(1\.0\.0|2\.0\.0)\.tgz$/.exec(
+    const version = /fixture-loom-(1\.0\.0|2\.0\.0)\.tgz$/.exec(
       req.url ?? "",
     )?.[1];
     if (version) {
       res.end(bytes.get(version));
       return;
     }
-    if (req.url !== "/fixture-workflow") {
+    if (req.url !== "/fixture-loom") {
       res.writeHead(404).end();
       return;
     }
     res.setHeader("content-type", "application/json");
     res.end(
       JSON.stringify({
-        name: "fixture-workflow",
+        name: "fixture-loom",
         "dist-tags": { latest },
         versions: Object.fromEntries(
           [first, second].map(({ manifest }) => [
@@ -112,7 +113,7 @@ test("bare package installs registry latest, pins archive identity, disables scr
             {
               ...manifest,
               dist: {
-                tarball: `${url}/-/fixture-workflow-${manifest.version}.tgz`,
+                tarball: `${url}/-/fixture-loom-${manifest.version}.tgz`,
                 shasum: createHash("sha1")
                   .update(bytes.get(manifest.version) ?? "")
                   .digest("hex"),
@@ -147,26 +148,23 @@ test("bare package installs registry latest, pins archive identity, disables scr
   const root = join(base, "project");
   const initialized = await cli(root, [
     "init",
-    "--workflow",
-    "fixture-workflow",
+    "--loom",
+    "fixture-loom",
     "--json",
   ]);
   assert.equal(initialized.code, 0, initialized.stdout);
   const file = join(root, "intloom.yaml");
   const config = parse(await readFile(file, "utf8"));
-  assert.deepEqual(config.workflows, [
+  assert.deepEqual(config.looms, [
     {
-      name: "fixture-workflow",
+      name: "fixture-loom",
       version: "1.0.0",
       sha256: createHash("sha256")
         .update(bytes.get("1.0.0") ?? "")
         .digest("hex"),
     },
   ]);
-  const installed = join(
-    root,
-    ".intloom/workflows/node_modules/fixture-workflow",
-  );
+  const installed = join(root, ".intloom/looms/node_modules/fixture-loom");
   await assert.rejects(readFile(join(installed, "SCRIPT_RAN")), {
     code: "ENOENT",
   });
@@ -195,13 +193,13 @@ test("bare package installs registry latest, pins archive identity, disables scr
   const selected = join(base, "version-selected");
   const exact = await cli(selected, [
     "init",
-    "--workflow",
-    "fixture-workflow@1.0.0",
+    "--loom",
+    "fixture-loom@1.0.0",
     "--json",
   ]);
   assert.equal(exact.code, 0, exact.stdout);
   assert.equal(
-    parse(await readFile(join(selected, "intloom.yaml"), "utf8")).workflows[0]
+    parse(await readFile(join(selected, "intloom.yaml"), "utf8")).looms[0]
       .version,
     "1.0.0",
   );
@@ -214,8 +212,8 @@ test("local archives are checked during restore; invalid packages and duplicate 
   const valid = await packFixture(base, "1.0.0");
   const other = await packFixture(base, "2.0.0", false);
   for (const [name, args] of [
-    ["invalid", ["--workflow", other.archive]],
-    ["duplicate", ["--workflow", valid.archive, "--workflow", valid.archive]],
+    ["invalid", ["--loom", other.archive]],
+    ["duplicate", ["--loom", valid.archive, "--loom", valid.archive]],
   ] as const) {
     const root = join(base, name);
     const result = await cli(root, ["init", ...args, "--json"]);
@@ -224,12 +222,7 @@ test("local archives are checked during restore; invalid packages and duplicate 
     assert.ok((await readdir(root)).includes("intloom.yaml"));
   }
   const root = join(base, "valid");
-  const result = await cli(root, [
-    "init",
-    "--workflow",
-    valid.archive,
-    "--json",
-  ]);
+  const result = await cli(root, ["init", "--loom", valid.archive, "--json"]);
   assert.equal(result.code, 0, result.stdout);
   await configure(root);
   const before = await readFile(join(root, "intloom.yaml"), "utf8");
@@ -240,10 +233,44 @@ test("local archives are checked during restore; invalid packages and duplicate 
   );
   await packDirectory(join(base, "fixture-1.0.0"), base);
   await assert.rejects(startService({ projectRoot: root }), {
-    code: "CLI_WORKFLOW_INTEGRITY_FAILED",
+    code: "CLI_LOOM_INTEGRITY_FAILED",
   });
   assert.equal(await readFile(join(root, "intloom.yaml"), "utf8"), before);
   await assert.rejects(readFile(join(root, "intloom/store.json")), {
     code: "ENOENT",
+  });
+});
+
+test("release consumer setup probe uses current Loom commands and readiness fields", {
+  timeout: 180_000,
+}, async (t) => {
+  const base = await temporaryDirectory(t, async (directory) => {
+    await stopService(join(directory, "project")).catch(() => {});
+  });
+  const { manifest } = await packFixture(base, "1.0.0");
+  const directory = join(base, "fixture-1.0.0");
+  const cliManifest = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  const sdkManifest = JSON.parse(
+    await readFile(
+      new URL("../../../packages/loom-sdk/package.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  await writeFile(
+    join(directory, "package.json"),
+    JSON.stringify({
+      ...manifest,
+      dependencies: { zod: sdkManifest.dependencies.zod },
+    }),
+  );
+  await writeFile(join(directory, "index.js"), compiledLoom);
+  await verifyCliSetup({
+    command: [process.execPath, bin],
+    directory: base,
+    version: cliManifest.version,
+    loomPackage: manifest.name,
+    loomSource: await packDirectory(directory, base),
   });
 });

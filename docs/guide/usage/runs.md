@@ -1,69 +1,51 @@
 ---
-title: Run, answer, and cancel
-description: Manage Run identity, human waits, Agent tasks, and terminal results.
+title: Observe, answer, and cancel Runs
 ---
 
-# Run, answer, and cancel
+# Observe, answer, and cancel Runs
 
-Create one Run for an intent. Continue it with its returned identity. Repeating `flow` creates new work; it is not a resume operation.
-
-```sh
-intloom flow your_flow --intent-file intent.txt
-intloom runs
-intloom runs --flow your_flow
-intloom attach <runId>
-```
-
-Replace `your_flow` and `<runId>` with values returned by the service. An intent file of `-` reads stdin.
-
-## Read a Run
-
-| Field | Meaning |
-| --- | --- |
-| `runId` | Execution identity |
-| `flowName` | Registered Workflow name |
-| `status` | `running`, `waiting`, `completed`, or `failed` |
-| `cursor` | Current Stage and Step |
-| `execution` | Fixed source and Agent executor |
-| `pendingAction` | Human question or confirmation, when present |
-| `pendingAgentCall` | Client Agent task, when present |
-| `lastError` | Terminal failure code, message, and retryability |
-
-A waiting Run has one kind of pending work at a time. A client Agent wait does not authorize a human answer, and an ordinary CLI `attach` cannot perform the connected IDE's reasoning task.
-
-## Answer and review
-
-The TUI (`intloom` / `intloom tui`) displays questions and confirmation. CMD flow returns admission; attach inspects. Submit full JSON with intloom answer RUN --action ACTION --answer-file answer.json. Options resolve to actual answer text. Skip is available only when the Workflow permits it. Confirmation displays the Workflow-provided context before asking you to confirm or request changes.
-
-Cancelling an unsubmitted form leaves the Run waiting. Requesting changes submits a business answer and follows the package's feedback route. Closing the terminal does not by itself stop the project service.
-
-MCP clients use `interact`; when native forms are unavailable, they show the real question and use `answer_ask`. Programmatic Node.js clients use `answerAsk(runId, actionId, answer)`. Always use the current action ID and preserve the actual human answer. See [MCP](../reference/mcp.md) for answer shapes.
-
-## JSON and noninteractive use
+Create a Run once, retain its ID, and use that ID for every subsequent operation.
 
 ```sh
-intloom flow your_flow --intent "Describe the result" --json
-intloom attach <runId> --json
-intloom runs --json
+intloom run intent --prompt-file ./request.txt --json
+intloom runs --loom intent
+intloom attach RUN-example --json
+intloom wait RUN-example --timeout 30000
+intloom watch RUN-example
 ```
 
-Non-TTY, `--json`, and `--no-interactive` modes do not prompt. Flow returns admission immediately; use wait/watch to observe. JSON uses ok/data/meta: receipt data.run.status and query data.status describe execution. Failures return nonzero. JSON business output is separate from progress and logs on stderr.
+`wait` defaults to `action_or_terminal`. `--until terminal` waits past questions without answering them. Timeouts and Ctrl+C end observation only. `watch` reconciles snapshots on reconnect without resubmitting execution.
 
-A request timeout or client disconnect can leave the original Run executing. Query it before retrying; requests are not automatically replayed.
+## Answer the current action
 
-## Cancel one Run or stop the host
+Read `pendingAction` and retain its exact ID. A questions action requires every question exactly once:
+
+```json
+[
+  {"questionId": "platform", "isSkipped": false, "answer": "Web"},
+  {"questionId": "notes", "isSkipped": true}
+]
+```
+
+Use actual question IDs. Skip only questions that allow skipping. A confirmation action uses:
+
+```json
+{"isConfirmed": false, "feedback": "Please revise the storage requirement."}
+```
 
 ```sh
-intloom cancel <runId>
-intloom stop
+intloom answer RUN-example --action ASK-example --answer-file ./answer.json
 ```
 
-`cancel` explicitly ends a Run, revokes its current execution access, and prevents future recovery. Cancellation is represented as `failed` with `RUN_STOPPED`; the terminal UI displays Stopped. Repeated cancellation preserves terminal business state; known late metadata can settle independently. A missing Run is an error.
+Stale or invalid answers preserve the pending action. After an uncertain response, inspect the Run before submitting again.
 
-`stop` shuts down the project service and preserves unfinished recovery checkpoints. It does not promise that every interrupted Run can resume. See [Recovery](./recovery.md).
+## Cancellation and uncertain writes
 
-Neither action rolls back committed Storage data or prior file edits. Independently running native IDE commands may continue outside the host's control.
+```sh
+intloom cancel RUN-example
+intloom operation OPERATION-UUID --instance INSTANCE-ID --json
+```
 
-## Concurrency and retained Runs
+Cancellation becomes `failed` with `RUN_STOPPED` and preserves committed data and project effects. Query uncertain admission receipts using the original operation and instance. Explicit replay requires the original parameters, `--operation-id` and `--instance`.
 
-An exclusive Workflow rejects competing active Runs in the same host, including waits. This does not lock external editors or coordinate unrelated hosts. Completed Runs remain queryable in the current host; terminal checkpoint files are not reloaded as Runs after restart. Use formal results for durable history.
+Run statuses and receipt outcomes describe different things; see [CMD reference](../reference/cli.md). Resuming a restored mirror is a separate operation described in [mirrors](./mirrors.md).

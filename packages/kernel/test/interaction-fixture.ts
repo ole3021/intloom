@@ -2,7 +2,7 @@ import type { PendingUserAction, RunView } from "../src/runtime/run-view.ts";
 
 export const action: PendingUserAction = {
   id: "ACTION-original",
-  flowName: "test",
+  loomName: "test",
   cursor: { stageName: "first", stepName: "ask" },
   kind: "user_ask_questions",
   request: [
@@ -22,7 +22,7 @@ export const action: PendingUserAction = {
 export const view: RunView = {
   runId: "RUN-original",
   execution: { source: "cli", agentExecutor: "service" },
-  flowName: "test",
+  loomName: "test",
   cursor: action.cursor,
   status: "waiting",
   pendingAction: action,

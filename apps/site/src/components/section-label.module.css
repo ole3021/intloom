@@ -4,7 +4,7 @@
   display: flex;
   align-items: baseline;
   gap: 16px;
-  padding: 0 0 34px;
+  padding: 0 0 var(--site-spacing-07);
   color: var(--site-color-muted);
 }
 .section-label > span:first-child {
@@ -21,13 +21,13 @@
 
 @media (max-width: 650px) {
   .section-label {
-    padding-bottom: 28px;
+    padding-bottom: var(--site-spacing-06);
   }
 }
 
 @media (max-width: 480px) {
   .section-label {
-    padding-bottom: 28px;
-    gap: 10px;
+    padding-bottom: var(--site-spacing-06);
+    gap: var(--site-spacing-03);
   }
 }

@@ -37,7 +37,7 @@ test("built Storage subpaths reopen in another Node process and resolve shipped 
             type: "append_record",
             id: "persisted",
             payload: {
-              flowName: "flow",
+              loomName: "run",
               stageName: "stage",
               data: [1, true, null, "\u4e2d"],
             },
@@ -136,7 +136,7 @@ test("file process exit leaves a lock requiring explicit recovery and preserves 
         `
       import { openFileStorage } from '@intloom/kernel/storage/file';
       const handle = await openFileStorage({directory:process.argv[1]});
-      await handle.access.commit([{type:'append_record',id:'record',payload:{flowName:'flow',stageName:'stage',data:'saved'}}]);
+      await handle.access.commit([{type:'append_record',id:'record',payload:{loomName:'run',stageName:'stage',data:'saved'}}]);
       process.exit(0);
     `,
         directory,

@@ -18,7 +18,7 @@ async function workspace(t: TestContext) {
   const root = await realpath(
     await mkdtemp(resolve(tmpdir(), "compiler-cleanup-")),
   );
-  const entry = resolve(root, "workflow.generated.ts");
+  const entry = resolve(root, "loom.generated.ts");
   const temporary = resolve(root, ".intloom-build-test");
   await writeFile(entry, "generated entry");
   await mkdir(temporary);

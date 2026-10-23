@@ -5,12 +5,26 @@ import { fail } from "../errors.ts";
 import type { CompileOptions } from "../types.ts";
 import type {
   SourceDocument,
+  SourceLocation,
+  SourceReference,
   SourceResource,
   SourceSet,
   SourceText,
 } from "../source/types.ts";
-import { isPathWithin, resolveReference } from "../source/references.ts";
+import {
+  isPathWithin,
+  resolveReference,
+  type ResourceKind,
+} from "../source/references.ts";
+import {
+  metadataSchema,
+  packageSchema,
+  stageSchema,
+} from "../source/schemas.ts";
+import { sourceLocation } from "../source/locations.ts";
 import { parseYaml } from "./parse-document.ts";
+import { validateDocument } from "./validate-document.ts";
+import { collectSkillAssets } from "./collect-skill-assets.ts";
 
 async function readSource(root: string, file: string): Promise<SourceText> {
   try {
@@ -39,9 +53,9 @@ export async function loadSources(options: CompileOptions): Promise<SourceSet> {
     );
   }
   const packageSource = await readSource(root, resolve(root, "package.json"));
-  let packageValue: unknown;
+  let value: unknown;
   try {
-    packageValue = JSON.parse(packageSource.text) as unknown;
+    value = JSON.parse(packageSource.text);
   } catch (cause) {
     fail(
       "SOURCE_PARSE_FAILED",
@@ -50,65 +64,96 @@ export async function loadSources(options: CompileOptions): Promise<SourceSet> {
       cause,
     );
   }
+  // JSON is parsed strictly; the YAML reader supplies node locations and duplicate-key checks.
+  const document = { ...parseYaml(packageSource), value };
+  const packageJson = {
+    ...document,
+    value: validateDocument(packageSchema, document),
+  };
   const resources: SourceResource[] = [];
+  const references: SourceReference[] = [];
   const visited = new Set<string>();
-  const pending: { file: string; kind: SourceResource["kind"] }[] = [
-    { file: resolve(root, "workflow.yaml"), kind: "workflow" },
-  ];
-  function references(
-    value: unknown,
+  const pending: SourceReference[] = [];
+  function add(
+    reference: string,
+    kind: ResourceKind,
     document: SourceDocument,
-    pointer = "",
-    referenceValue = false,
-  ): void {
-    if (
-      referenceValue &&
-      typeof value === "string" &&
-      /^@(stages|agents|skills|codes|schemas|tools|initializers)\//.test(value)
-    ) {
-      try {
-        pending.push(resolveReference(root, value));
-      } catch (cause) {
-        fail(
-          "INVALID_REFERENCE",
-          `Invalid resource reference: ${value}`,
-          document.locations[pointer] ?? { file: document.source.file },
-          cause,
-        );
-      }
-    } else if (Array.isArray(value))
-      value.forEach((item, index) => {
-        references(item, document, `${pointer}/${index}`, referenceValue);
-      });
-    else if (value && typeof value === "object") {
-      Object.entries(value).forEach(([key, item]) => {
-        references(
-          item,
-          document,
-          `${pointer}/${key.replaceAll("~", "~0").replaceAll("/", "~1")}`,
-          [
-            "stage",
-            "schema",
-            "initialize",
-            "code",
-            "agent",
-            "outputSchema",
-            "skills",
-            "tools",
-          ].includes(key),
-        );
-      });
+    path: readonly (string | number)[],
+    scope: Pick<SourceLocation, "stageName" | "stepName"> = {},
+  ) {
+    const location = { ...sourceLocation(document, path), ...scope };
+    try {
+      const item = {
+        ...resolveReference(root, reference, kind, document.source.file),
+        fromFile: document.source.file,
+        reference,
+        location,
+      };
+      references.push(item);
+      pending.push(item);
+    } catch (cause) {
+      fail(
+        "INVALID_REFERENCE",
+        `Invalid resource reference: ${reference}`,
+        location,
+        cause,
+      );
     }
   }
-  while (pending.length) {
-    const item = pending.shift();
-    if (!item || visited.has(item.file)) continue;
-    visited.add(item.file);
+  for (const [name, stage] of Object.entries(packageJson.value.loom.stages))
+    add(stage.stage, "stage", packageJson, ["loom", "stages", name, "stage"], {
+      stageName: name,
+    });
+  for (let index = 0; index < pending.length; index++) {
+    const item = pending[index];
+    if (!item || visited.has(`${item.kind}:${item.file}`)) continue;
+    visited.add(`${item.kind}:${item.file}`);
     const source = await readSource(root, item.file);
-    if (item.kind === "workflow" || item.kind === "stage") {
-      const document = parseYaml(source);
-      resources.push({ kind: item.kind, document });
-      references(document.value, document);
+    if (item.kind === "stage") {
+      const parsed = parseYaml(source);
+      const document = {
+        ...parsed,
+        value: validateDocument(stageSchema, parsed),
+      };
+      const stage = document.value.stage;
+      const scope = { stageName: stage.name };
+      resources.push({ kind: "stage", document });
+      add(
+        stage.state.schema,
+        "schema",
+        document,
+        ["stage", "state", "schema"],
+        scope,
+      );
+      add(
+        stage.state.initialize,
+        "initializer",
+        document,
+        ["stage", "state", "initialize"],
+        scope,
+      );
+      for (const [stepName, step] of Object.entries(stage.steps)) {
+        const scope = { stageName: stage.name, stepName };
+        const path = ["stage", "steps", stepName];
+        if (step.type === "code")
+          add(step.code, "code", document, [...path, "code"], scope);
+        else {
+          add(step.agent, "agent", document, [...path, "agent"], scope);
+          add(
+            step.outputSchema,
+            "schema",
+            document,
+            [...path, "outputSchema"],
+            scope,
+          );
+          step.skills.forEach((ref, i) => {
+            add(ref, "skill", document, [...path, "skills", i], scope);
+          });
+          step.tools.forEach((ref, i) => {
+            add(ref, "tool", document, [...path, "tools", i], scope);
+          });
+        }
+      }
     } else if (item.kind === "agent" || item.kind === "skill") {
       const match = /^(?:\uFEFF)?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(
         source.text,
@@ -117,22 +162,28 @@ export async function loadSources(options: CompileOptions): Promise<SourceSet> {
         fail("SOURCE_PARSE_FAILED", "Markdown requires YAML frontmatter", {
           file: source.file,
         });
-      const offset = source.text.indexOf("\n") + 1;
-      const metadata = parseYaml(source, match[1], offset);
-      resources.push({
-        kind: item.kind,
-        metadata,
-        content: source.text.slice(match[0].length).trim(),
-      });
+      const parsed = parseYaml(source, match[1], source.text.indexOf("\n") + 1);
+      const metadata = {
+        ...parsed,
+        value: validateDocument(metadataSchema, parsed),
+      };
+      const content = source.text.slice(match[0].length).trim();
+      resources.push(
+        item.kind === "skill"
+          ? {
+              kind: "skill",
+              metadata,
+              content,
+              assets: await collectSkillAssets(root, item.file),
+            }
+          : { kind: "agent", metadata, content },
+      );
     } else resources.push({ kind: item.kind, source });
   }
   return {
     options: { ...options, packageRoot: root },
-    packageJson: {
-      source: packageSource,
-      value: packageValue,
-      locations: { "": { file: packageSource.file } },
-    },
+    packageJson,
     resources,
+    references,
   };
 }

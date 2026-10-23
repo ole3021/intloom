@@ -11,8 +11,11 @@
       "**",
       "!!**/dist",
       "!!**/.turbo",
+      "!!**/.intloom-build-*",
+      "!!**/loom.generated.ts",
       "!!**/node_modules",
-      "!!**/example"
+      "!!**/example",
+      "!!packages/intent/e2e/cases/*/workspace"
     ]
   },
   "formatter": {

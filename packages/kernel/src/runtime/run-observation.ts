@@ -1,11 +1,11 @@
+import { runFacts, isRunSettled } from "./run-facts.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import * as z from "zod";
-import type { StorageCommitResult } from "@intloom/workflow-sdk";
-import type { ServiceModelObserver } from "../effector/execution.ts";
+import type { ServiceModelObserver } from "../execution/execution.ts";
 import type { RunEntry } from "./run-entry.ts";
 import type { RunState } from "./run-state.ts";
-import { RUNTIME_ERRORS } from "../errors/runtime.ts";
+import { ERRORS } from "../errors.ts";
 
 const count = z.number().int().nonnegative();
 const amount = z.number().finite().nonnegative();
@@ -74,16 +74,6 @@ export const runActivitySchema = z.strictObject({
   agentId: z.string().optional(),
 });
 export type RunActivity = z.infer<typeof runActivitySchema>;
-export const runResultSchema = z.strictObject({
-  kind: z.enum(["artifact", "record", "removed_artifact", "removed_record"]),
-  id: z.string(),
-  stageName: z.string(),
-  stepName: z.string(),
-  executionId: count,
-  committedAt: z.iso.datetime(),
-  revision: positive.optional(),
-});
-export type RunResult = z.infer<typeof runResultSchema>;
 interface ModelRequest {
   id: string;
   modelId: string;
@@ -99,8 +89,6 @@ export interface RunObservationState {
   metrics: RunMetrics;
   limits: RunLimits;
   activity: RunActivity[];
-  results: RunResult[];
-  settled: boolean;
   stopReason?: "user_cancel" | "budget_exceeded";
   started: number;
   humanWait: number;
@@ -110,7 +98,6 @@ export interface RunObservationState {
   mirrorStartedAt?: number;
   waitingSince?: number;
   terminalAt?: number;
-  inFlight: number;
   requests: Map<string, ModelRequest>;
   toolIds: Set<string>;
   activeTools: Map<string, string>;
@@ -287,9 +274,9 @@ export function sampleRunObservation(state: RunState): void {
             ),
           ];
   if (state.status === "paused") meta.activity = [];
-  meta.settled = (terminal || state.status === "paused") && meta.inFlight === 0;
   const fingerprint = JSON.stringify({
     status: state.status,
+    pauseRequested: state.pauseRequested,
     cursor: state.cursor,
     pendingAction: state.pendingAction,
     pendingAgentCall: state.pendingAgentCall,
@@ -299,8 +286,8 @@ export function sampleRunObservation(state: RunState): void {
     },
     metrics: meta.metrics,
     activity: meta.activity,
-    results: meta.results,
-    settled: meta.settled,
+    results: runFacts(state).results,
+    settled: isRunSettled(state),
     stopReason: meta.stopReason,
   });
   if (fingerprint !== meta.fingerprint) {
@@ -353,7 +340,7 @@ export function createRuntimeObservation(options: {
     const meta = binding?.entry.state.observation;
     const cancel = binding && controls.get(binding.entry);
     if (!binding || !meta || !cancel)
-      throw RUNTIME_ERRORS.create("STEP_EXECUTION_FAILED", {
+      throw ERRORS.create("STEP_EXECUTION_FAILED", {
         message: "Model observation requires a bound Run execution.",
       });
     return { ...binding, meta, cancel };
@@ -361,8 +348,7 @@ export function createRuntimeObservation(options: {
   const observer: ServiceModelObserver = {
     beforeStep(request) {
       const { entry, meta, cancel } = modelContext();
-      if (entry.state.status !== "running")
-        throw RUNTIME_ERRORS.create("RUN_STOPPED");
+      if (entry.state.status !== "running") throw ERRORS.create("RUN_STOPPED");
       sampleRunObservation(entry.state);
       const id = request?.requestId ?? randomUUID();
       if (meta.requests.has(id)) return;
@@ -394,7 +380,7 @@ export function createRuntimeObservation(options: {
                 : undefined;
       if (exceeded) {
         stop(entry, meta, exceeded, cancel);
-        throw RUNTIME_ERRORS.create("RUN_STOPPED", {
+        throw ERRORS.create("RUN_STOPPED", {
           message: `Run stopped by execution limit (${exceeded}).`,
         });
       }
@@ -463,15 +449,12 @@ export function createRuntimeObservation(options: {
         revision: 0,
         started: performance.now(),
         humanWait: 0,
-        inFlight: 0,
         limits,
         prices: options.prices ?? [],
         requests: new Map(),
         toolIds: new Set(),
         activeTools: new Map(),
         activity: [],
-        results: [],
-        settled: false,
         metrics: {
           scope: "service_instance",
           serviceInstanceId: options.serviceInstanceId,
@@ -520,7 +503,7 @@ export function createRuntimeObservation(options: {
           )
             stop(entry, meta, "duration", cancel);
           if (
-            meta.settled &&
+            isRunSettled(state) &&
             (state.status === "completed" || state.status === "failed")
           ) {
             if (!meta.summaryLogged) {
@@ -574,36 +557,6 @@ export function createRuntimeObservation(options: {
 }
 export type RuntimeObservation = ReturnType<typeof createRuntimeObservation>;
 
-/** Commit references describe actual success, including a known late commit whose caller lost ownership. */
-export function recordRunCommit(
-  entry: RunEntry,
-  cursor: { stageName: string; stepName: string },
-  executionId: number,
-  result: StorageCommitResult,
-) {
-  const meta = entry.state.observation;
-  if (!meta) return;
-  const base = {
-    ...cursor,
-    executionId,
-    committedAt: new Date().toISOString(),
-  };
-  for (const artifact of result.writtenArtifacts)
-    meta.results.push({
-      ...base,
-      kind: "artifact",
-      id: artifact.id,
-      revision: artifact.revision,
-    });
-  for (const record of result.appendedRecords)
-    meta.results.push({ ...base, kind: "record", id: record.id });
-  for (const id of result.removedArtifactIds)
-    meta.results.push({ ...base, kind: "removed_artifact", id });
-  for (const id of result.removedRecordIds)
-    meta.results.push({ ...base, kind: "removed_record", id });
-  sampleRunObservation(entry.state);
-}
-
 export function observeExternalTool(
   entry: RunEntry,
   toolCallId: string,
@@ -616,11 +569,9 @@ export function observeExternalTool(
     meta.metrics.calls.tools++;
   }
   meta.activeTools.set(id, new Date().toISOString());
-  meta.inFlight++;
   sampleRunObservation(entry.state);
   return () => {
     meta.activeTools.delete(id);
-    meta.inFlight--;
     sampleRunObservation(entry.state);
   };
 }

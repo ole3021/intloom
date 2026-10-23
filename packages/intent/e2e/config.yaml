@@ -1,0 +1,17 @@
+version: 1
+models:
+  user:
+    provider: openai-compatible
+    model: ENV.INTLOOM_E2E_MODEL
+    secret: ENV.INTLOOM_E2E_API_KEY
+    baseURL: ENV.INTLOOM_E2E_BASE_URL
+# CMD service and MCP worker default to the user model, in separate sessions.
+# Use --profile to select separate user, service.default/thinking/working/coding, and worker models.
+limits:
+  maxUserSteps: 80
+  maxAgentSteps: 64
+  maxDurationMs: 7200000
+  modelIdleTimeoutMs: 180000
+checks:
+  - checks/contracts.mjs
+  - checks/history.mjs

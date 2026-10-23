@@ -26,7 +26,7 @@ Workflow 定义一个流程，Run 是针对一个意图的一次执行。Agents 
 
 ## 开始使用
 
-所有 IntLoom 包统一要求 Node.js 26.4.0+。开发本仓库需要 Node.js 26.4.0+、Bun 1.4.0+ 和 npm。以下使用源码版本；发布版本的使用前提和完整配置步骤见[安装指南](./docs/zh/guide/quickstart/installation.md)。
+所有 IntLoom 包统一要求 Node.js 26.4.0+。开发本仓库需要 Node.js 26.4.0+、Bun 1.4.0+ 和 npm。以下使用源码版本；发布版本的使用前提和完整配置步骤见[安装指南](./docs/zh/guide/start/installation.md)。
 
 在仓库根目录构建 CLI，并查看帮助：
 
@@ -43,14 +43,14 @@ node apps/cli/dist/bin.js --help
 仍在仓库根目录执行：
 
 ```sh
-node apps/cli/dist/bin.js init my-project --workflow /absolute/path/to/workflow.tgz
+node apps/cli/dist/bin.js init my-project --loom /absolute/path/to/loom.tgz
 node apps/cli/dist/bin.js --project my-project start
 ```
 
 启动服务不会执行 Workflow。接下来选择执行方式：
 
-- [CLI](./docs/zh/guide/quickstart/cli.md)：配置项目模型和凭据，再通过 `flow` 开始一个 Run。
-- [Agent IDE / MCP](./docs/zh/guide/quickstart/mcp.md)：连接 Codex 或其他具备相应能力的 MCP 客户端。默认客户端 Agent 模式不需要项目模型配置。
+- [CLI](./docs/zh/guide/start/cmd.md)：配置项目模型和凭据，再通过 `run` 开始一个 Run。
+- [Agent IDE / MCP](./docs/zh/guide/start/mcp.md)：连接 Codex 或其他具备相应能力的 MCP 客户端。默认客户端 Agent 模式不需要项目模型配置。
 
 回答问题并进行确认，继续同一个 Run。使用 `runs` 查看执行情况，使用 `attach` 从终端继续，使用 `artifacts` 查询保存的结果。流程完成与业务结果的质量是两件不同的事。
 
@@ -58,11 +58,12 @@ node apps/cli/dist/bin.js --project my-project start
 
 IntLoom 仍处于早期开发阶段。本地 Workflow 执行、CLI/MCP 接入、文件与 SQLite 存储，以及有限的重启恢复已经实现。Studio 仍在规划中。
 
-模型表现与客户端支持需要在实际使用环境中验证。支持的行为和验证边界见[当前能力](./docs/zh/guide/status.md)。
+模型表现与客户端支持需要在实际使用环境中验证。支持的行为和验证边界见[版本与兼容性](./docs/zh/guide/reference/compatibility.md)。
 
 ## 文档
 
 - [关于 IntLoom](./docs/zh/guide/introduction.md)
-- [开始使用](./docs/zh/guide/getting-started.md)
+- [开始使用](./docs/zh/guide/start/installation.md)
 - [CLI 命令参考](./docs/zh/guide/reference/cli.md)
 - [创建 Workflow](./docs/zh/guide/development/create.md)
+- [AI-driven E2E testing](./apps/cli/src/e2e/README.md)

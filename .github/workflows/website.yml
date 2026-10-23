@@ -1,0 +1,141 @@
+name: Website
+run-name: Website · ${{ github.event_name }} · ${{ github.event.workflow_run.head_branch || github.head_ref || github.ref_name }}
+
+on:
+  pull_request:
+  push:
+    branches: ['feat-*']
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SITE_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+  SITE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+  SITE_CHANNEL: ${{ (github.event.workflow_run.head_branch || github.ref_name) == 'main' && 'production' || 'preview' }}
+  WRANGLER_SEND_METRICS: 'false'
+
+jobs:
+  build:
+    name: Build and test website
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'))
+    concurrency:
+      group: website-build-${{ github.event.workflow_run.head_branch || github.ref_name }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SITE_COMMIT }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '26.4.0'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Check website formatting and types
+        run: |
+          bunx --no-install biome check apps/site
+          bun run --cwd apps/site typecheck
+      - name: Test website tooling
+        run: bun run --cwd apps/site test
+      - name: Build website
+        run: bun run build --filter=intloom-site
+      - name: Check rendered pages and links
+        run: bun run --cwd apps/site test:intg
+      - name: Check deployment configuration
+        run: bun run --cwd apps/site deploy:check
+      - name: Upload tested website
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site-dist
+          path: apps/site/dist
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy website (${{ (github.event.workflow_run.head_branch || github.ref_name) == 'main' && 'production' || 'preview' }})
+    needs: build
+    if: >-
+      github.event_name != 'pull_request' && github.ref_type == 'branch' &&
+      ((github.event.workflow_run.head_branch || github.ref_name) == 'main' ||
+       (startsWith(github.ref_name, 'feat-') && !contains(github.ref_name, '/')))
+    concurrency:
+      group: site-${{ github.event.workflow_run.head_branch || github.ref_name }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    environment:
+      name: ${{ (github.event.workflow_run.head_branch || github.ref_name) == 'main' && 'production' || 'preview' }}
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SITE_COMMIT }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '26.4.0'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Install deployment tooling
+        run: bun install --frozen-lockfile
+      - name: Download tested website
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: site-dist
+          path: apps/site/dist
+      - name: Check deployment target and production CI
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SITE_CI_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: node apps/site/scripts/deployment-target.mjs
+      - name: ${{ env.SITE_CHANNEL == 'production' && 'Deploy production website' || 'Upload website preview' }}
+        if: steps.target.outputs.deploy == 'true'
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOY_SCRIPT: ${{ steps.target.outputs.script }}
+          PREVIEW_ALIAS: ${{ steps.target.outputs.alias }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/site-deploy.ndjson
+        run: |
+          args=()
+          if [ -n "$PREVIEW_ALIAS" ]; then
+            args+=(--preview-alias "$PREVIEW_ALIAS")
+          fi
+          bun run --cwd apps/site "$DEPLOY_SCRIPT" "${args[@]}"
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from "node:fs";
+          const entries = readFileSync(process.env.WRANGLER_OUTPUT_FILE_PATH, "utf8")
+            .trim().split("\n").map(line => JSON.parse(line));
+          const result = entries.findLast(entry => entry.type === "deploy" || entry.type === "version-upload");
+          const url = result?.type === "version-upload" ? result.preview_url : result?.targets?.[0];
+          if (!url || new URL(url).protocol !== "https:") throw new Error("Missing HTTPS deployment URL in Wrangler output.");
+          appendFileSync(process.env.GITHUB_OUTPUT, `deployment-url=${url}\n`);
+          NODE
+      - name: Check deployed page HTTP statuses
+        if: steps.target.outputs.deploy == 'true'
+        env:
+          SITE_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: node apps/site/scripts/verify-deployment.mjs

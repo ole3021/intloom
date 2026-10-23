@@ -38,7 +38,7 @@ html:root {
   --rp-nav-height: var(--site-header-height);
   --rp-sidebar-width: 260px;
   --rp-outline-width: 220px;
-  --rp-sidebar-padding: 22px;
+  --rp-sidebar-padding: var(--site-spacing-06);
   --rp-sidebar-margin-left: 0px;
   --rp-outline-margin-right: 0px;
   --rp-content-padding-x: 48px;
@@ -82,13 +82,13 @@ html:root {
   font-weight: var(--site-weight-heading);
   letter-spacing: -0.05em;
   line-height: 1.12;
-  margin-bottom: 28px;
+  margin-bottom: var(--site-spacing-07);
 }
 .rp-doc h2 {
   font-size: var(--site-text-title);
   font-weight: var(--site-weight-heading);
   letter-spacing: -0.035em;
-  padding-top: 28px;
+  padding-top: var(--site-spacing-07);
   border-top: 1px solid var(--site-color-border);
   margin-top: 48px;
 }
@@ -126,7 +126,7 @@ html:root {
 .rp-doc blockquote {
   border-left: 2px solid var(--site-color-accent);
   background: var(--site-color-surface);
-  padding: 12px 20px;
+  padding: var(--site-spacing-05) var(--site-spacing-06);
 }
 .rp-doc-layout__sidebar,
 .rp-doc-layout__outline {
@@ -158,7 +158,7 @@ html:root {
 @media (max-width: 768px) {
   html:root {
     --rp-sidebar-width: min(300px, 85vw);
-    --rp-sidebar-padding: 20px;
+    --rp-sidebar-padding: var(--site-spacing-05);
     --rp-content-padding-x: 24px;
     --rp-content-padding-y: 32px;
   }
@@ -174,7 +174,7 @@ html:root {
 }
 @media (max-width: 480px) {
   html:root {
-    --rp-content-padding-x: 18px;
+    --rp-content-padding-x: var(--site-spacing-05);
   }
 }
 
@@ -211,7 +211,7 @@ html:root {
 }
 @media (max-width: 768px) {
   .rp-sidebar-item {
-    min-height: 36px;
+    min-height: 44px;
   }
 }
 .rp-toc-item__text {

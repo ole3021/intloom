@@ -1,5 +1,5 @@
 import type { CliCore, CoreResult, ServiceRunView } from "../core/index.ts";
-import type { WorkflowView } from "@intloom/kernel";
+import type { LoomView } from "@intloom/kernel";
 export interface TuiSnapshot {
   projectPath: string;
   connection:
@@ -10,20 +10,22 @@ export interface TuiSnapshot {
     | "unavailable"
     | "disconnected";
   instanceId?: string | undefined;
-  workflows: readonly WorkflowView[];
+  ready: boolean;
+  looms: readonly LoomView[];
   runs: readonly ServiceRunView[];
   message: string;
 }
 /** UI connection and selection state only; Run snapshots and counters come intact from Core. */
 export function createTuiSession(
-  core: CliCore,
+  core: Pick<CliCore, "getServiceStatus" | "startService" | "watchProject">,
   projectPath: string,
   changed: (state: TuiSnapshot) => void,
 ) {
   let state: TuiSnapshot = {
     projectPath,
     connection: "loading",
-    workflows: [],
+    ready: false,
+    looms: [],
     runs: [],
     message: "Loading project…",
   };
@@ -35,11 +37,35 @@ export function createTuiSession(
     state = { ...state, ...patch };
     changed(state);
   };
-  async function refresh() {
+  async function refresh(options: { startIfStopped?: boolean } = {}) {
     const current = ++generation;
     observer?.abort();
-    const result = await core.getServiceStatus({ projectPath });
+    publish({ ready: false, message: "Connecting to the project Service…" });
+    let result = await core.getServiceStatus({ projectPath });
     if (disposed || current !== generation) return;
+    if (
+      result.ok &&
+      result.data.status === "stopped" &&
+      options.startIfStopped
+    ) {
+      publish({
+        connection: "loading",
+        message: "Starting the project Service…",
+      });
+      const started = await core.startService({
+        projectPath: result.data.projectRoot,
+      });
+      if (disposed || current !== generation) return;
+      if (!started.ok) {
+        publish({
+          connection: "unavailable",
+          message: `${started.error.code}: ${started.error.message}`,
+        });
+        return;
+      }
+      result = await core.getServiceStatus({ projectPath });
+      if (disposed || current !== generation) return;
+    }
     if (!result.ok) {
       publish({
         connection:
@@ -55,11 +81,11 @@ export function createTuiSession(
         connection:
           result.data.status === "stopped" ? "stopped" : "unavailable",
         runs: [],
-        workflows: [],
+        looms: [],
         instanceId: undefined,
         message:
           result.data.status === "stopped"
-            ? "Service stopped. Select Start Service."
+            ? "Service stopped. Select Inspect and reconnect to continue."
             : result.data.diagnostic.message,
       });
       return;
@@ -70,6 +96,9 @@ export function createTuiSession(
       connection: "running",
       instanceId: serviceInstanceId,
       message: "Connected to the project Service.",
+      ...(state.instanceId !== serviceInstanceId
+        ? { runs: [], looms: [] }
+        : {}),
     });
     const abort = new AbortController();
     observer = abort;
@@ -84,31 +113,40 @@ export function createTuiSession(
             connection: "disconnected",
             message: `${event.error.code}: ${event.error.message}`,
           });
-          break;
+          return;
         }
         const data = event.data;
         if (data.type === "project_snapshot")
           publish({
             connection: "running",
-            workflows: data.workflows,
-            runs: data.runs,
+            ready: true,
+            looms: data.looms,
+            runs: [
+              ...state.runs.filter(
+                (old) => !data.runs.some((run) => run.runId === old.runId),
+              ),
+              ...data.runs.map((run) => {
+                const old = state.runs.find((item) => item.runId === run.runId);
+                return old && old.revision > run.revision ? old : run;
+              }),
+            ],
           });
         else if (data.type === "run_snapshot") {
-          const old = state.runs.find((run) => run.runId === data.run.runId);
-          if (!old || data.run.revision > old.revision)
-            publish({
-              runs: [
-                ...state.runs.filter((run) => run.runId !== data.run.runId),
-                data.run,
-              ],
-            });
-        } else if (data.type === "service_closing")
+          observeRun(data.run);
+        } else if (data.type === "service_closing") {
           publish({
             connection: "disconnected",
             message:
-              "Service is closing. Refresh to inspect its current state.",
+              "Service is closing. Select Inspect and reconnect to inspect its state.",
           });
+          return;
+        }
       }
+      if (!disposed && current === generation && !abort.signal.aborted)
+        publish({
+          connection: "disconnected",
+          message: "Observation ended. Select Inspect and reconnect.",
+        });
     })().catch(() => {
       if (!disposed && current === generation)
         publish({
@@ -116,6 +154,14 @@ export function createTuiSession(
           message: "Observation ended. Refresh to inspect the Service.",
         });
     });
+  }
+  function observeRun(run: ServiceRunView) {
+    if (run.serviceInstanceId !== state.instanceId) return;
+    const old = state.runs.find((item) => item.runId === run.runId);
+    if (!old || run.revision > old.revision)
+      publish({
+        runs: [...state.runs.filter((item) => item.runId !== run.runId), run],
+      });
   }
   function report(result: CoreResult<unknown>) {
     publish({
@@ -127,15 +173,9 @@ export function createTuiSession(
   return {
     refresh,
     report,
-    changeProject(nextPath: string) {
-      projectPath = nextPath;
-      publish({
-        projectPath: nextPath,
-        runs: [],
-        workflows: [],
-        instanceId: undefined,
-      });
-      return refresh();
+    observeRun,
+    message(message: string) {
+      publish({ message });
     },
     get snapshot() {
       return state;

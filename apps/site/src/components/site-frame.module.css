@@ -4,8 +4,7 @@
   font:
     var(--site-weight-normal) var(--site-text-body) / var(--site-leading-body)
     var(--site-font-sans);
-  background: var(--site-color-background)
-    repeating-linear-gradient(135deg, #91978f12 0 1px, transparent 1px 4px);
+  background: var(--site-color-background);
 }
 .marketing > main {
   overflow: clip;

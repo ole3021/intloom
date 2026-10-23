@@ -5,12 +5,8 @@
   },
   "include": [
     "src/**/*.ts",
-    "codes/**/*.ts",
-    "initializers/**/*.ts",
-    "schemas/**/*.ts",
+    "stages/**/*.ts",
     "test/**/*.ts",
-    "build.ts",
-    "build/**/*.ts",
-    "tools/**/*.ts"
+    "e2e/checks/**/*.ts"
   ]
 }

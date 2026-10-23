@@ -1,1 +1,2 @@
-export * from "@intloom/kernel/service/entry";
+import { runProjectHostProcess } from "@intloom/kernel/host";
+await runProjectHostProcess();

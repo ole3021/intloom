@@ -17,15 +17,15 @@
   font: var(--site-type-label);
   letter-spacing: 0.07em;
   display: block;
-  margin-top: 28px;
+  margin-top: var(--site-spacing-07);
   color: var(--site-color-accent);
 }
 .section-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 35px;
-  margin: 10px 0 38px;
+  gap: var(--site-spacing-07);
+  margin: var(--site-spacing-03) 0 var(--site-spacing-08);
 }
 .section-heading h2 {
   font-size: var(--site-text-section);
@@ -48,10 +48,11 @@
 .stage-buttons button {
   flex: 1;
   min-width: 0;
-  padding: 25px 16px;
+  min-height: var(--site-spacing-09);
+  padding: var(--site-spacing-06) var(--site-spacing-05);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--site-spacing-05);
   background: none;
   border: 0;
   border-right: 1px solid var(--site-color-border);
@@ -76,6 +77,9 @@
 .stage-buttons button:hover:not([aria-selected="true"]) {
   background: #ffffff05;
 }
+.stage-buttons button:active:not([aria-selected="true"]) {
+  background: var(--site-color-surface-raised);
+}
 .stage-panel {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
@@ -86,7 +90,7 @@
   grid-template-rows: 1fr auto;
 }
 .stage-copy {
-  padding: 28px;
+  padding: var(--site-spacing-07);
   min-width: 0;
 }
 .stage-copy > .eyebrow {
@@ -97,7 +101,7 @@
 .stage-copy h3 {
   font-size: var(--site-text-title);
   letter-spacing: -0.05em;
-  margin: 25px 0 16px;
+  margin: var(--site-spacing-06) 0 var(--site-spacing-05);
   line-height: 1.12;
   font-weight: var(--site-weight-heading);
 }
@@ -109,7 +113,7 @@
 }
 .stage-code {
   grid-column: 1 / -1;
-  padding: 15px 20px;
+  padding: var(--site-spacing-05) var(--site-spacing-06);
   border-top: 1px solid var(--site-color-border);
   font: var(--site-type-code);
   text-align: left;
@@ -131,26 +135,26 @@
 }
 .stage-state {
   display: block;
-  margin-top: 18px;
+  margin-top: var(--site-spacing-06);
   color: #89997a;
   font: var(--site-type-note);
 }
 
 @media (max-width: 1000px) {
   .stage-buttons button {
-    padding: 17px 12px;
+    padding: var(--site-spacing-05);
 
     gap: 8px;
   }
   .stage-copy {
-    padding: 30px;
+    padding: var(--site-spacing-07);
   }
 }
 
 @media (max-width: 650px) {
   .section-heading {
     display: block;
-    margin-bottom: 30px;
+    margin-bottom: var(--site-spacing-07);
   }
   .section-heading > p {
     margin-top: 24px;
@@ -165,7 +169,7 @@
     grid-template-columns: 1fr 1fr;
   }
   .stage-buttons button {
-    padding: 18px 12px;
+    padding: var(--site-spacing-05) var(--site-spacing-04);
     border-bottom: 1px solid var(--site-color-border);
   }
   .stage-buttons button:nth-child(n + 3) {
@@ -175,10 +179,10 @@
     grid-template-columns: 1fr;
   }
   .stage-copy {
-    padding: 25px;
+    padding: var(--site-spacing-06);
   }
   .stage-code {
-    padding: 15px 12px;
+    padding: var(--site-spacing-05) var(--site-spacing-04);
   }
 }
 
@@ -194,9 +198,9 @@
   .stage-buttons button {
     border-right: 1px solid var(--site-color-border);
     border-bottom: 0;
-    padding: 20px 10px;
+    padding: var(--site-spacing-05) var(--site-spacing-03);
     flex-direction: column;
-    gap: 6px;
+    gap: var(--site-spacing-03);
   }
   .stage-buttons button:last-child {
     border-right: 0;
@@ -222,7 +226,7 @@
   }
   .stage-buttons button {
     justify-content: center;
-    padding: 18px 0;
+    padding: var(--site-spacing-05) 0;
     border-right: 1px solid var(--site-color-border);
   }
 }
@@ -230,27 +234,27 @@
 @media (max-width: 480px) {
   .section-heading {
     display: block;
-    margin: 0 0 28px;
+    margin: 0 0 var(--site-spacing-06);
   }
   .section-heading > .eyebrow {
     display: block;
 
-    margin-top: 20px;
+    margin-top: var(--site-spacing-06);
   }
   .stage-panel {
     grid-template-columns: 1fr;
   }
   .stage-copy {
-    padding: 23px 18px;
+    padding: var(--site-spacing-06) var(--site-spacing-05);
   }
   .stage-copy h3 {
-    margin-top: 20px;
+    margin-top: var(--site-spacing-06);
   }
   .stage-artifact {
     line-height: var(--site-leading-body);
   }
   .stage-code {
     line-height: var(--site-leading-body);
-    padding: 14px;
+    padding: var(--site-spacing-05);
   }
 }

@@ -6,12 +6,13 @@ import Database from "better-sqlite3";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as z from "zod";
-import type { StorageAccess, StorageHandle } from "../contracts.ts";
+import type { StorageAccess } from "@intloom/loom-sdk";
+import type { StorageHandle } from "../contracts.ts";
 import { storageError } from "../errors.ts";
 import { createLifecycle } from "../lifecycle.ts";
 import { prepareQuery, toPage } from "../query.ts";
 import { nameSchema, parseInput, parseOperations } from "../schemas.ts";
-import type { StorageQuery } from "../types.ts";
+import type { StorageQuery } from "@intloom/loom-sdk";
 import { migrateStorage } from "./migrate.ts";
 import { artifacts, projects, records } from "./schema.ts";
 import {
@@ -79,9 +80,9 @@ export async function openSqliteStorage(
         return toPage(rows.map(readRecord), query);
       });
     const access: StorageAccess = Object.freeze<StorageAccess>({
-      getArtifact: (flowName, stageName) =>
+      getArtifact: (loomName, stageName) =>
         lifecycle.run(() => {
-          parseInput(nameSchema, flowName);
+          parseInput(nameSchema, loomName);
           parseInput(nameSchema, stageName);
           const row = db
             .select()
@@ -89,7 +90,7 @@ export async function openSqliteStorage(
             .where(
               and(
                 eq(artifacts.projectId, projectId),
-                eq(artifacts.flowName, flowName),
+                eq(artifacts.loomName, loomName),
                 eq(artifacts.stageName, stageName),
               ),
             )
@@ -105,11 +106,11 @@ export async function openSqliteStorage(
             .get();
           return row ? readArtifact(row) : undefined;
         }),
-      getLatestRecord: (flowName, stageName) =>
+      getLatestRecord: (loomName, stageName) =>
         lifecycle.run(() => {
-          parseInput(nameSchema, flowName);
+          parseInput(nameSchema, loomName);
           parseInput(nameSchema, stageName);
-          return listRecords({ flowName, stageName, limit: 1 }).then(
+          return listRecords({ loomName, stageName, limit: 1 }).then(
             (page) => page.data[0],
           );
         }),
