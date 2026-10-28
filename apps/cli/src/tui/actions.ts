@@ -144,7 +144,11 @@ export function createRunActions(context: ActionContext) {
     }
     let loomInput: ReturnType<typeof parseLoomDraft>;
     try {
-      loomInput = parseLoomDraft(selected.inputs, text);
+      loomInput = parseLoomDraft(
+        selected.inputs,
+        text,
+        selected.contract?.input,
+      );
     } catch (error) {
       session.message(
         error instanceof Error ? error.message : "Invalid Loom inputs.",

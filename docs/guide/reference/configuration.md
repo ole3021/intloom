@@ -4,6 +4,9 @@ title: Configuration reference
 
 # Configuration reference
 
+See [Loom Package 0.10](./loom-package.md) for JSON input, formal output, model profiles, named interactions and new/check/inspect commands. Legacy calls and configuration remain supported.
+
+
 `intloom.yaml` uses a strict top-level Schema. Unknown fields are rejected.
 
 ## Project fields

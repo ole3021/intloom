@@ -3,6 +3,8 @@
   "tui",
   "mcp",
   "configuration",
+  "loom-package",
+  "loom-apps",
   "workflow-yaml",
   "sdk",
   "compiler",

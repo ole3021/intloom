@@ -59,6 +59,10 @@ export type LoomView =
       readonly loomName: string;
       readonly isAvailable: true;
       readonly inputs: readonly LoomInputKind[];
+      readonly contract?: {
+        readonly input: import("@intloom/loom-sdk").JsonSchema;
+        readonly output: import("@intloom/loom-sdk").JsonSchema;
+      };
       readonly readiness?: ExecutionReadiness;
     }
   | {

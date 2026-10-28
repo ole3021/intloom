@@ -1,4 +1,4 @@
-import type { LoomInput } from "@intloom/loom-sdk";
+import type { LoomInvocationInput as LoomInput } from "@intloom/loom-sdk";
 import type { ServiceRunView } from "@intloom/kernel/operations";
 import type { ProjectInput } from "../client/contracts.ts";
 export type { ProjectInput, ObserveOptions } from "../client/contracts.ts";

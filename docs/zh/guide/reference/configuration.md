@@ -4,6 +4,9 @@ title: 配置参考
 
 # 配置参考
 
+新版 Loom 的 JSON 输入、正式 output、models 三档配置、命名交互及 new/check/inspect 命令见 [Loom Package 0.10](./loom-package.md)。旧调用与配置仍兼容。
+
+
 `intloom.yaml` 使用严格顶层 Schema，未知字段会被拒绝。
 
 ## 项目字段

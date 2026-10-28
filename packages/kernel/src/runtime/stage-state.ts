@@ -1,3 +1,5 @@
+import * as z from "zod";
+import { loomInputSchema } from "@intloom/loom-sdk";
 import type { BlueprintStage } from "@intloom/loom-sdk";
 import type { JsonValue, ReadonlyJsonValue } from "@intloom/loom-sdk";
 import type { StateAccess } from "@intloom/loom-sdk";
@@ -36,6 +38,7 @@ export interface StageStateController {
 export function createStageState(
   run: RunState,
   onChange: () => void = () => {},
+  capability = false,
 ): StageStateController {
   let current: StageStateBinding | undefined;
   let ready = false;
@@ -113,7 +116,14 @@ export function createStageState(
         runId: run.id,
         loomName: run.loomName,
         stageName: stage.stageName,
-        input: structuredClone(run.input),
+        input: loomInputSchema.safeParse(run.input).data ?? {},
+        ...(capability
+          ? {
+              invocationInput: z
+                .json()
+                .parse(JSON.parse(JSON.stringify(run.input))),
+            }
+          : {}),
       });
       try {
         const seed = await stage.initializeState(context);

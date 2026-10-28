@@ -1,4 +1,4 @@
-import type { LoomInput } from "@intloom/loom-sdk";
+import type { LoomInvocationInput as LoomInput } from "@intloom/loom-sdk";
 import {
   freezeRunExecution,
   resolveRunExecution,

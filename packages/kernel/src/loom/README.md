@@ -1,6 +1,8 @@
 # Loom initialization
 
-The loom module uses ordinary functions and consumes Compiler-generated named ESM exports blueprint, codes, and agentSpecs. `@intloom/kernel/loom` exports initializeLooms, discoverLooms, loadLoom, and their result types. Host initializeProject invokes this pipeline after configuration validation; see [Host](../host/README.md).
+Protocols 2026-10-27 and 2026-10-27.1 packages expose definition/plan/bindings. The capability adapter validates and maps their plan into the existing Runtime; legacy 2026-10-15 packages continue through the original loader using blueprint/codes/agentSpecs. Both use exactly three named ESM exports. See [Loom Package 0.10](../../../../docs/guide/reference/loom-package.md).
+
+The loom module uses ordinary functions. `@intloom/kernel/loom` exports initializeLooms, discoverLooms, loadLoom, and their result types. Host initializeProject invokes this pipeline after configuration validation; see [Host](../host/README.md).
 
 Initialization loads only config.looms from .intloom/looms/, checking declared package names and versions. An omitted declaration list is empty; root business dependencies are not scanned. The CLI verifies/restores the installation before calling Kernel; Loader performs no installation or archive checks. Initialization proceeds sequentially by declaration. Each Loom loads, validates its resources, and registers independently, without reading model credentials. Failures become isAvailable:false results while other packages continue. Only complete successes contribute resources. There is no disposal record or unified release interface.
 
@@ -89,4 +91,4 @@ Loader tests prove model-independent discovery, resource validation, and registr
 
 ## Stage initialization
 
-Every BlueprintStage requires initializeState. Compiler delivers the function from state.initialize's relative TypeScript resource reference; Loader checks callability without invoking it or creating business State. ESM still has exactly three named exports, and initializers are outside CodeRegistry. The development protocol remains 2026-10-15; older artifacts missing this field must be rebuilt.
+Every internal BlueprintStage requires initializeState. For legacy protocol 2026-10-15, Compiler delivers the function from state.initialize's relative TypeScript resource reference; Loader checks callability without invoking it or creating business State. Older artifacts missing this field must be rebuilt. For protocol 2026-10-27, the adapter supplies the Stage initializer from the compiled capability contract; authors do not declare internal Stage State or routing outcomes.

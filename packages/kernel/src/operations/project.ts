@@ -17,6 +17,7 @@ import type { ServiceStatus } from "../host/contracts.ts";
 import type { RunSource } from "./entry.ts";
 import { getArtifact, listArtifacts } from "./artifacts.ts";
 import { errorView, failure } from "../errors.ts";
+import { createAppOperations, type AppOperations } from "./apps.ts";
 
 /** The host owns resources; protocol adapters borrow business operations without owning their lifecycle. */
 export interface ProjectOperations
@@ -31,6 +32,7 @@ export interface ProjectOperations
     >,
     AgentCallApi {
   readonly source: RunSource;
+  readonly apps: AppOperations;
   admit(
     kind: OperationReceipt["kind"],
     input: Record<string, unknown> & {
@@ -160,8 +162,9 @@ export function createOperations(
       assertOpen();
       return ports.status();
     },
-  } satisfies Omit<ProjectOperations, "admit" | "getOperation">;
-  return Object.freeze({
+  } satisfies Omit<ProjectOperations, "admit" | "getOperation" | "apps">;
+  const operations: ProjectOperations = Object.freeze({
+    apps: createAppOperations(ports, () => operations),
     ...actions,
     getOperation: (instance: string, id: string) =>
       ports.receipts.get(instance, id),
@@ -189,7 +192,7 @@ export function createOperations(
           if (kind === "run")
             return ports.startRun(
               String(input.loomName),
-              input.input as import("@intloom/loom-sdk").LoomInput,
+              input.input as import("@intloom/loom-sdk").LoomInvocationInput,
               source,
               operation,
             );
@@ -230,4 +233,5 @@ export function createOperations(
       };
     },
   } satisfies ProjectOperations);
+  return operations;
 }

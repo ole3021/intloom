@@ -1,5 +1,8 @@
 import * as z from "zod";
 import {
+  interactionRequestSchema,
+  interactionResponse,
+  parseSchemaValue,
   userAskQuestionsSchema,
   userAnswerQuestionsSchema,
   userAnswerConfirmationSchema,
@@ -20,7 +23,12 @@ export const confirmationSubmissionSchema = z.strictObject({
   ...context,
   ...userAnswerConfirmationSchema.shape,
 });
+export const interactionSubmissionSchema = z.strictObject({
+  ...context,
+  answer: z.json(),
+});
 export const answerTools = {
+  submit_interaction: interactionSubmissionSchema,
   submit_questions: questionSubmissionSchema,
   submit_confirmation: confirmationSubmissionSchema,
 };
@@ -34,6 +42,10 @@ export function validateAnswer(run: Run, kind: string, answer: unknown) {
   const action = run.pendingAction;
   if (!action || action.kind !== kind)
     throw new Error("Use the tool matching the current pending action kind.");
+  if (kind === "user_ask_interaction") {
+    const request = interactionRequestSchema.parse(action.request);
+    return parseSchemaValue(interactionResponse(request.definition), answer);
+  }
   if (kind === "user_ask_confirmation")
     return userAnswerConfirmationSchema.parse(answer);
   const questions = userAskQuestionsSchema.parse(action.request);

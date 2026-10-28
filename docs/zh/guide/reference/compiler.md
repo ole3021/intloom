@@ -4,6 +4,9 @@ title: Compiler 参考
 
 # Compiler 参考
 
+新版能力定义与开发入口见 [Loom Package 0.10](./loom-package.md)。以下 Stage/Step、package.json.loom 与固定输入槽说明保留为旧 Intent 的兼容参考。
+
+
 `intloom build [path]` 构建 Loom 源包；省略路径时使用当前目录。它调用 `@intloom/compiler` 的唯一公共操作 `compileLoom()`。Compiler 使用 SDK 契约，不依赖 Kernel，也不执行业务模块。
 
 ```ts

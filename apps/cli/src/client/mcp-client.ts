@@ -1,6 +1,7 @@
+import { appPresentationSchema } from "@intloom/loom-sdk/app-contracts";
 import { randomUUID } from "node:crypto";
 import { admissionSchema } from "@intloom/kernel/operations";
-import type { LoomInput } from "@intloom/loom-sdk";
+import type { LoomInvocationInput as LoomInput } from "@intloom/loom-sdk";
 import { packageVersion } from "../version.ts";
 import {
   Client,
@@ -152,7 +153,10 @@ export async function connectProjectClient(
       );
     return parsed.data;
   }
-  const oneRun = z.strictObject({ run: runViewSchema });
+  const oneRun = z.strictObject({
+    run: runViewSchema,
+    presentation: appPresentationSchema.nullable().optional(),
+  });
   const status = await call(
     "status",
     {},

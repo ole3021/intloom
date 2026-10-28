@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 
 interface TypeScriptBuildOptions {
   readonly root: string;
-  readonly config: string;
+  readonly config?: string;
   readonly entry: string;
   readonly output: string;
   readonly destination: string;
@@ -32,7 +32,7 @@ export async function compileTypeScript({
     generatedConfig,
     JSON.stringify(
       {
-        extends: config,
+        ...(config ? { extends: config } : {}),
         compilerOptions: {
           strict: true,
           strictFunctionTypes: true,
@@ -57,8 +57,27 @@ export async function compileTypeScript({
           sourceRoot: "",
           mapRoot: "",
           rewriteRelativeImportExtensions: true,
+          resolveJsonModule: true,
           incremental: false,
           composite: false,
+          ...(!config
+            ? {
+                module: "ESNext",
+                moduleResolution: "Bundler",
+                paths: {
+                  "@intloom/loom-sdk": [
+                    require
+                      .resolve("@intloom/loom-sdk")
+                      .replace(/\.js$/, ".d.ts"),
+                  ],
+                  "@intloom/loom-sdk/compiled": [
+                    require
+                      .resolve("@intloom/loom-sdk/compiled")
+                      .replace(/\.js$/, ".d.ts"),
+                  ],
+                },
+              }
+            : {}),
         },
         files: [entry],
         include: [],
@@ -126,7 +145,7 @@ export async function compileTypeScript({
               severity: "error",
               code: "TYPESCRIPT_FAILED",
               message: `TypeScript compilation failed\n${detail}`,
-              location: { file: config },
+              location: { file: config ?? entry },
             },
           ],
       cause,

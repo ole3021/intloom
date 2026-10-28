@@ -15,7 +15,8 @@
       "!!**/loom.generated.ts",
       "!!**/node_modules",
       "!!**/example",
-      "!!packages/intent/e2e/cases/*/workspace"
+      "!!packages/intent/e2e/cases/*/workspace",
+      "!!examples/meeting-room-demo/looms/*/apps"
     ]
   },
   "formatter": {

@@ -1,5 +1,5 @@
 import type { MutationResult } from "./mutation.ts";
-import type { LoomInput } from "@intloom/loom-sdk";
+import type { LoomInvocationInput as LoomInput } from "@intloom/loom-sdk";
 import type { ExecutableAgent } from "../execution/execution.ts";
 import type { RunExecution } from "./execution-policy.ts";
 import type { Execution } from "../execution/contracts.ts";
@@ -14,6 +14,8 @@ import type { RunCheckpointStore } from "./recovery/contracts.ts";
 
 /** Execution resources supplied after project initialization, without business access bound to a specific Run. */
 export interface RuntimeOptions {
+  readonly context?: import("@intloom/loom-sdk").HostContext;
+  readonly prepareAgent?: (id: string) => Promise<ExecutableAgent>;
   readonly mirror?: {
     assertOpen(): void;
     capture(

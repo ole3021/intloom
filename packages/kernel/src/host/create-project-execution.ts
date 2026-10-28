@@ -125,6 +125,8 @@ export async function initializeProject(
         );
     }
   const runtime = createRuntime({
+    ...(project.config.context ? { context: project.config.context } : {}),
+    prepareAgent: preparation.prepareAgent,
     ...(coordinator ? { mirror: coordinator } : {}),
     project: coordinator ? coordinator.gate.project(access) : access,
     ...(runtimeDirectory

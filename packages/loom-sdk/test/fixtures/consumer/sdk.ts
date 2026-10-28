@@ -113,8 +113,8 @@ function checkAccess(
   code.storage.commit([]);
   // @ts-expect-error Agent Storage is read-only.
   agent.storage.commit([]);
-  // @ts-expect-error Only Code owns human interactions.
-  agent.interaction;
+  // @ts-expect-error Agent interaction access permits only declared named requests.
+  agent.interaction?.confirm("Confirm?");
   // @ts-expect-error Code access requires its cancellation signal.
   const incomplete: CodeExecutionAccess<JsonValue> = {
     state: code.state,
@@ -155,7 +155,7 @@ function checkRecovery(recovery: import("@intloom/loom-sdk").CodeRecovery) {
     recovery.answer[0];
     // @ts-expect-error Recovered values are read-only.
     recovery.answer.isConfirmed = true;
-  } else {
+  } else if (recovery.kind === "user_ask_questions") {
     recovery.request[0]?.question satisfies string | undefined;
     recovery.answer[0]?.questionId satisfies string | undefined;
     // @ts-expect-error Nested recovery arrays cannot be mutated.
@@ -174,3 +174,61 @@ void invalidAgentSchema;
 // @ts-expect-error Code has one capability argument and no arbitrary input.
 const legacyCode: ExecutableCode = (_input, _access) => ({ outcome: "done" });
 void legacyCode;
+
+import {
+  defineCode,
+  parseSchemaValue,
+  type LoomCode,
+  type AcceptanceCheck,
+  type InteractionValidator,
+  type AgentContinuation,
+} from "@intloom/loom-sdk";
+import { loomDefinitionSchema } from "@intloom/loom-sdk/definition";
+import {
+  compiledLoomProtocolVersion,
+  type CompiledLoom,
+} from "@intloom/loom-sdk/compiled";
+const normalize = defineCode<{ text: string }, { text: string }>(
+  async (input, context) => {
+    input.text satisfies string;
+    context.run.id satisfies string;
+    context.run.host.userId satisfies string;
+    context.interaction.latest("approve")?.actor.source satisfies
+      | "human"
+      | "test_simulator"
+      | undefined;
+    // @ts-expect-error Host identity is read-only author context.
+    context.run.host.userId = "replacement";
+    const answer = await context.interaction.request("approve", {
+      text: input.text,
+    });
+    answer satisfies JsonValue;
+    return { text: input.text.trim() };
+  },
+);
+normalize satisfies LoomCode<{ text: string }, { text: string }>;
+// @ts-expect-error Business output must match the author contract.
+const invalidCapabilityCode: LoomCode<string, number> = (input) => input;
+void invalidCapabilityCode;
+const check: AcceptanceCheck = () => ({ passed: true });
+void [
+  check,
+  parseSchemaValue,
+  loomDefinitionSchema,
+  compiledLoomProtocolVersion,
+];
+declare const capability: CompiledLoom;
+capability.definition.name satisfies string;
+normalize.recover = (_saved, input) => ({ text: input.text.trim() });
+normalize satisfies import("@intloom/loom-sdk/compiled").CodeBinding;
+const validateChoice: InteractionValidator = (answer) => ({
+  passed: typeof answer === "string",
+});
+// @ts-expect-error Answer admission requires a synchronous validator.
+const asyncValidator: InteractionValidator = async () => ({ passed: true });
+const resumeAgent: AgentContinuation = (saved, _input, context) => ({
+  runId: context.run.id,
+  interactionId: saved.request.interactionId,
+  answer: structuredClone(saved.answer) as JsonValue,
+});
+void [validateChoice, asyncValidator, resumeAgent];

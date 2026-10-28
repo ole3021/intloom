@@ -73,7 +73,7 @@ export function createMcpEndpoint(host: ProjectHost) {
           res.writeHead(503).end();
           return;
         }
-        const server = serverFor(path);
+        const server = await serverFor(path);
         const transport = new NodeStreamableHTTPServerTransport({
           sessionIdGenerator: randomUUID,
         });

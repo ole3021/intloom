@@ -2,7 +2,13 @@
 
 Build Loom source packages into distributable ESM, TypeScript declarations, source maps and Skill assets. Compiler uses the contracts in `@intloom/loom-sdk`; it never executes business modules, creates Agents or depends on Kernel.
 
-## Build a Loom
+## Loom Package 0.10
+
+New packages start from `loom.yaml` and emit exactly `definition`, `plan`, `bindings`. Minimal Code/Agent packages need no source package.json or tsconfig. Use `intloom new <directory> --template code|agent`, `intloom check [path]`, `intloom inspect [path]`, and `intloom build [path]`. Programmatic APIs also expose `scaffoldLoom`, `checkLoom` and `inspectLoom`. Check performs the same static build validation without replacing dist; inspection does not import business modules. See [the current contract](../../docs/guide/reference/loom-package.md).
+
+The compiler retains the old frontend for Intent and shares its staging, TypeScript, artifact verification and publishing pipeline. Apps are prebuilt resources: Compiler validates self-contained HTML, resolves bindings, records the entry/hash and copies bytes unchanged. It never invokes a frontend build. See [Loom Apps](../../docs/guide/reference/loom-apps.md).
+
+## Legacy build compatibility
 
 With IntLoom installed, run `intloom build [path]`. Omit the path to build the current directory. The source package contains `package.json.loom`, `tsconfig.build.json`, and referenced Stage YAML, Code, Schema, Tool, Agent and Skill files. Keep each Stage's resources together; references are relative to the declaring file.
 
@@ -32,3 +38,5 @@ Compilation follows the entry's module dependencies, ignoring inherited TypeScri
 A package lock serializes builds. Generated source stays in `.intloom-build-*`; validation completes before replacing `dist`. Failed validation preserves the old output. A cleanup failure may occur after replacement. An interrupted `.intloom-build.lock` records its owner: verify the process has exited and inspect temporary `previous-dist` backups before removing the lock. Locks are never automatically stolen.
 
 See [Create a Loom](../../docs/guide/development/create.md), [Compiler reference](../../docs/guide/reference/compiler.md), [build and distribute](../../docs/guide/development/build.md), [source responsibilities](./src/README.md) and [tests](./test/README.md).
+
+The capability format also links interaction validators and explicit Agent continuations. Package-local JSON imports are copied and checked as executable dependencies; `check` validates them without evaluating author modules. Protocol `2026-10-27.2` retains the three-export structure. The meeting-room Demo exercises these contracts and independent artifact consumption.

@@ -98,6 +98,9 @@ export function createDelegatedSessions(
       agentId: resource.agentId,
       cursor: { ...context.cursor },
       instructions: resource.spec.instructions,
+      ...(context.input !== undefined
+        ? { input: structuredClone(context.input) }
+        : {}),
       skills: resource.spec.skills.map((skill) => ({
         name: skill.name,
         description: skill.description,

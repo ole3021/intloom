@@ -10,6 +10,7 @@ import type { LoadedLoom, LoomPackage } from "./types.ts";
 import type { ExecutableCode } from "@intloom/loom-sdk";
 import type { AgentTool } from "@intloom/loom-sdk";
 import { validateLoom } from "./validate-loom.ts";
+import { capabilityProtocolVersions } from "@intloom/loom-sdk/compiled";
 
 const loadedPaths = new Map<string, readonly string[]>();
 async function importLoom(
@@ -117,7 +118,11 @@ async function bindLoomLogger(loom: LoadedLoom): Promise<LoadedLoom> {
 
 export async function loadLoom(source: LoomPackage): Promise<LoadedLoom> {
   try {
-    if (source.protocolVersion !== loomProtocolVersion)
+    if (
+      ![loomProtocolVersion, ...capabilityProtocolVersions].includes(
+        source.protocolVersion,
+      )
+    )
       fail(
         "UNSUPPORTED_LOOM_PROTOCOL",
         `Unsupported Loom protocol: ${source.protocolVersion}`,

@@ -10,6 +10,7 @@ import { toolSchema } from "../schema.ts";
 
 const taskSchema = z.object({
   instructions: z.string(),
+  input: z.json().optional(),
   outputSchema: z.json(),
   skills: z.array(
     z.object({
@@ -98,7 +99,7 @@ export async function executeWorker(input: {
     const output = await runAgent({
       id: `loom-agent-${callId}`,
       model: input.models.worker ?? input.models.user,
-      instructions: `${claim.task.instructions}\n\nHost Skills:\n${JSON.stringify(claim.task.skills)}\nApply these already-loaded Skills. Use ${assetToolName} to read their declared assets. Use only host Tools for business operations. You cannot answer or confirm user actions. Return the exact host outcome through the client completion Tool.\nOutput Schema:\n${JSON.stringify(claim.task.outputSchema)}`,
+      instructions: `${claim.task.instructions}\n\nBusiness input: ${JSON.stringify(claim.task.input ?? null)}\n\nHost Skills:\n${JSON.stringify(claim.task.skills)}\nApply these already-loaded Skills. Use ${assetToolName} to read their declared assets. Use only host Tools for business operations. You cannot answer or confirm user actions. Return the exact declared output through the client completion Tool.\nOutput Schema:\n${JSON.stringify(claim.task.outputSchema)}`,
       prompt: "Execute the assigned Loom Agent task.",
       tools,
       outputSchema: claim.task.outputSchema as PublicSchema,

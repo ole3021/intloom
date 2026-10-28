@@ -68,7 +68,7 @@ test("initializes from owned context and saves defaults with one Schema parse", 
   assert.equal(parses, 1);
   assert.deepEqual(access.value, {
     id: run.id,
-    intent: run.input.prompt,
+    intent: (run.input as import("@intloom/loom-sdk").LoomInput).prompt,
     count: 1,
     items: [],
   });
@@ -164,17 +164,26 @@ test("isolates Runs and replaces the current Stage rather than caching earlier S
   const b = await second.states.enter(second.stage);
   await a.update({ id: first.run.id, intent: "edited" });
   assert.equal(schema.parse(b.value).id, second.run.id);
-  assert.equal(schema.parse(b.value).intent, second.run.input.prompt);
+  assert.equal(
+    schema.parse(b.value).intent,
+    (second.run.input as import("@intloom/loom-sdk").LoomInput).prompt,
+  );
   first.run.cursor.stageName = "second";
   const next = await first.states.enter({
     ...first.stage,
     stageName: "second",
   });
-  assert.equal(schema.parse(next.value).intent, first.run.input.prompt);
+  assert.equal(
+    schema.parse(next.value).intent,
+    (first.run.input as import("@intloom/loom-sdk").LoomInput).prompt,
+  );
   assert.throws(() => a.value, { code: "STAGE_STATE_INACTIVE" });
   first.run.cursor.stageName = "first";
   const reentered = await first.states.enter(first.stage);
-  assert.equal(schema.parse(reentered.value).intent, first.run.input.prompt);
+  assert.equal(
+    schema.parse(reentered.value).intent,
+    (first.run.input as import("@intloom/loom-sdk").LoomInput).prompt,
+  );
 });
 
 test("retains failure data for Runtime inspection while denying terminal business access", async () => {
@@ -209,7 +218,10 @@ test("rejects obsolete asynchronous validation without writing into a new Stage"
   const rejected = assert.rejects(pending, { code: "STAGE_STATE_INACTIVE" });
   release.resolve();
   await rejected;
-  assert.equal(schema.parse(next.value).intent, run.input.prompt);
+  assert.equal(
+    schema.parse(next.value).intent,
+    (run.input as import("@intloom/loom-sdk").LoomInput).prompt,
+  );
 });
 
 test("serializes competing creates and preserves later operations after a rejected write", async () => {

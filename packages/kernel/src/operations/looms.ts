@@ -22,6 +22,14 @@ export async function listLooms(
         loomName: loom.loomName,
         isAvailable: true,
         inputs: [...blueprint.inputs],
+        ...(blueprint.capability
+          ? {
+              contract: structuredClone({
+                input: blueprint.capability.definition.input,
+                output: blueprint.capability.definition.output,
+              }),
+            }
+          : {}),
         readiness: execution.executionReadiness(blueprint, source),
       };
     }

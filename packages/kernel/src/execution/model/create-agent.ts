@@ -4,21 +4,21 @@ import { noopLogger } from "@mastra/core/logger";
 import { Mastra } from "@mastra/core/mastra";
 import type { Tool } from "@mastra/core/tools";
 import { fail, loomError } from "../../loom/errors.ts";
-import type { AgentSpec } from "@intloom/loom-sdk";
+import type { RunnableAgentSpec } from "../../loom/types.ts";
 import type { CreateAgentOptions, InitializedAgent } from "./types.ts";
-import { resolveModelConfig, createModelOptions } from "./agent-model.ts";
+import { resolveAgentModel, createModelOptions } from "./agent-model.ts";
 import { createAgentSkills } from "./agent-skills.ts";
 import { serviceTool } from "./agent-tools.ts";
 
 /** Assembles the actual Agent without calling the model; the execution layer binds access for each Run. */
 export async function createAgent(
-  spec: AgentSpec,
+  spec: RunnableAgentSpec,
   options: CreateAgentOptions,
 ): Promise<InitializedAgent> {
   const label = `${options.source.packageName}/${options.agentId}`;
   try {
-    const { config, apiKey } = resolveModelConfig(
-      spec.llm,
+    const { config, apiKey } = resolveAgentModel(
+      spec,
       options.config,
       label,
       options.credentials,
@@ -70,6 +70,7 @@ export async function createAgent(
       agentId: options.agentId,
       executable: {
         agent,
+        capability: "modelProfile" in spec,
         outputSchema: spec.outputSchema,
         ...(config.baseURL && new URL(config.baseURL).hostname === "opencode.ai"
           ? { zen: true }

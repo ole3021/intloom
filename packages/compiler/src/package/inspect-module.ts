@@ -4,7 +4,7 @@ import { fail } from "../errors.ts";
 export function inspectModule(content: string, file: string) {
   let program: ReturnType<typeof parse>;
   try {
-    program = parse(content, { ecmaVersion: 2023, sourceType: "module" });
+    program = parse(content, { ecmaVersion: 2025, sourceType: "module" });
   } catch (cause) {
     fail("INVALID_OUTPUT", "Invalid emitted ESM", { file }, cause);
   }

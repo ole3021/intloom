@@ -312,7 +312,7 @@ for (const backend of ["file", "sqlite"]) {
         JSON.parse(doctor.stdout).data.checks.find(
           (item: { name: string }) => item.name === "execution",
         ).status,
-        "attention",
+        "not_checked",
       );
       const prefix = join(project, "global");
       await run(

@@ -44,6 +44,7 @@ export const agentTaskSchema = z.strictObject({
       outputSchema: z.json(),
     }),
   ),
+  input: z.json().optional(),
   outputSchema: z.json(),
 });
 export const agentCallViewSchema = z.strictObject({

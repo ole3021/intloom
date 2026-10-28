@@ -4,6 +4,9 @@ title: CMD 命令参考
 
 # CMD 命令参考
 
+新版 Loom 的 JSON 输入、正式 output、models 三档配置、命名交互及 new/check/inspect 命令见 [Loom Package 0.10](./loom-package.md)。旧调用与配置仍兼容。
+
+
 使用 `intloom COMMAND --help` 查看位置参数和已安装版本帮助。
 
 ## 全局参数

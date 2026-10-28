@@ -281,7 +281,7 @@ export async function readMirrorDirectory(directory: string) {
   }
   const checkpoint = decodeCheckpoint(raw["checkpoint.json"]);
   if (
-    checkpoint.version !== 3 ||
+    ![3, 4].includes(checkpoint.version) ||
     checkpoint.schemaVersion !== 3 ||
     !checkpoint.control ||
     checkpoint.run.id !== manifest.runId ||

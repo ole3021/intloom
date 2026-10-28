@@ -79,3 +79,30 @@ test("only the root .env is read, with no ancestor, variant or symlink fallback"
     "startup",
   );
 });
+
+test("capability profiles require explicit host mapping and never fall back to legacy model purposes", async () => {
+  const { resolveAgentModel } = await import("./agent-model.ts");
+  const { agentSpec } = await import("../../../test/agent-fixture.ts");
+  const { llm: _, ...metadata } = agentSpec();
+  const spec = { ...metadata, modelProfile: "deep" as const };
+  const config = testConfig();
+  assert.throws(
+    () => resolveAgentModel(spec, config, "test", () => "credential"),
+    { code: "INVALID_REQUEST", message: /models.deep/ },
+  );
+  const selected = { ...config.llms.default, model: "deep-test" };
+  assert.equal(
+    resolveAgentModel(
+      spec,
+      { models: { deep: selected } },
+      "test",
+      () => "credential",
+    ).config.model,
+    "deep-test",
+  );
+  assert.throws(
+    () =>
+      resolveAgentModel(spec, { models: { deep: selected } }, "test", () => ""),
+    { code: "INVALID_REQUEST" },
+  );
+});

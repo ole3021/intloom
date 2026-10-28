@@ -30,6 +30,7 @@ export function registerAgentTools(
       {
         description,
         inputSchema: schema,
+        _meta: { ui: { visibility: ["model"] } },
         annotations: {
           readOnlyHint: readOnly,
           destructiveHint: false,

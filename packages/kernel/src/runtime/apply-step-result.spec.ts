@@ -50,7 +50,10 @@ describe("applyStepResult", () => {
     );
     assert.equal(run.status, "running");
     assert.equal(run.id, "RUN-1");
-    assert.equal(run.input.prompt, "original text");
+    assert.equal(
+      (run.input as import("@intloom/loom-sdk").LoomInput).prompt,
+      "original text",
+    );
     assert.equal(run.createdAt, createdAt);
     assert.deepEqual(run.updatedAt, now);
     assert.equal(initializations(), 0);

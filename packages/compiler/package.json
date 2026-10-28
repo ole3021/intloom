@@ -22,12 +22,13 @@
     "test:package": "node --test \"test/package/*.intg.ts\""
   },
   "dependencies": {
+    "@intloom/loom-sdk": "workspace:*",
     "@intloom/utils": "workspace:*",
-    "yaml": "^2.8.1",
-    "zod": "^4.6.5",
-    "typescript": "7.0.2",
     "acorn": "^8.15.0",
-    "@intloom/loom-sdk": "workspace:*"
+    "parse5": "7.3.0",
+    "typescript": "7.0.2",
+    "yaml": "^2.8.1",
+    "zod": "^4.6.5"
   },
   "license": "Apache-2.0",
   "repository": {

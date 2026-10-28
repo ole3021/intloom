@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { LoomError } from "@intloom/utils";
-import type { LoomInput, ReadonlyJsonValue } from "@intloom/loom-sdk";
+import type {
+  LoomInvocationInput as LoomInput,
+  ReadonlyJsonValue,
+} from "@intloom/loom-sdk";
 import type { ProjectExecution } from "../src/host/project-contracts.ts";
 import type { RunSource } from "../src/runtime/execution-policy.ts";
 import { createOperationsPorts } from "../src/host/operations.ts";

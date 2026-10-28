@@ -1,4 +1,6 @@
 import * as z from "zod";
+import type { InteractionRequest } from "./capability.ts";
+import type { JsonValue } from "./json.ts";
 
 const questionOptionSchema = z.strictObject({
   id: z.string().min(1),
@@ -52,6 +54,21 @@ export type UserAnswerConfirmation = z.infer<
 
 /** Runtime binds the current Run and cursor and records waiting; answers are delivered only to the corresponding original call. */
 export interface InteractionAccess {
+  receipt?(
+    id: string,
+  ):
+    | import("./json.ts").ReadonlyValue<
+        import("./capability.ts").InteractionReceipt
+      >
+    | undefined;
+  latest?(
+    id: string,
+  ):
+    | import("./json.ts").ReadonlyValue<
+        import("./capability.ts").InteractionReceipt
+      >
+    | undefined;
+  request?(request: InteractionRequest): Promise<JsonValue>;
   askQuestions(
     questions: Readonly<UserAskQuestions>,
   ): Promise<Readonly<UserAnswerQuestions>>;

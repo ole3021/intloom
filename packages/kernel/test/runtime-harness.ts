@@ -1,7 +1,10 @@
 import { toRunView } from "../src/runtime/to-run-view.ts";
 import { unwrapMutation } from "../src/runtime/mutation.ts";
 import { resolveRunExecution } from "../src/runtime/execution-policy.ts";
-import type { Blueprint, LoomInput } from "@intloom/loom-sdk";
+import type {
+  Blueprint,
+  LoomInvocationInput as LoomInput,
+} from "@intloom/loom-sdk";
 import type { OperationRef } from "../src/runtime/contracts.ts";
 import type {
   RunExecution,

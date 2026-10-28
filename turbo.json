@@ -73,6 +73,10 @@
       "dependsOn": ["pack", "^pack", "@intloom/cli#pack"],
       "outputs": [],
       "cache": false
+    },
+    "@intloom/meeting-room-demo#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["looms/*/dist/**", "looms/*/apps/**", "host/dist/**"]
     }
   },
   "globalPassThroughEnv": [

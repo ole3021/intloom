@@ -11,6 +11,7 @@ import {
 import { McpDriver, type Driver } from "../drivers/mcp.ts";
 import type { Evidence } from "../evidence.ts";
 import {
+  interactionSubmissionSchema,
   questionSubmissionSchema,
   confirmationSubmissionSchema,
   validateAnswer,
@@ -166,6 +167,7 @@ export class UserRound {
       );
     }
     await c.evidence.event("human_answer", {
+      actor: "test_simulator",
       ...input,
       question: run.pendingAction,
       cursor: run.cursor,
@@ -244,6 +246,12 @@ export class UserRound {
         "Wait locally for this Run's next human action or terminal result. Handles MCP workers independently.",
         z.strictObject({}),
         () => this.observe(),
+      ),
+      submit_interaction: tool(
+        "submit_interaction",
+        "Simulate the current named interaction using authorized test knowledge; include knowledgeRefs and decision. This is test simulation, not human approval.",
+        interactionSubmissionSchema,
+        (input) => this.answer(input, "user_ask_interaction"),
       ),
       submit_questions: tool(
         "submit_questions",

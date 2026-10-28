@@ -1,4 +1,4 @@
-import type { LoomInput } from "@intloom/loom-sdk";
+import type { LoomInvocationInput as LoomInput } from "@intloom/loom-sdk";
 import type { ListPage, StoredArtifact, StoredRecord } from "@intloom/loom-sdk";
 import type { ReadonlyJsonValue } from "@intloom/loom-sdk";
 import type { RunView } from "../runtime/run-view.ts";

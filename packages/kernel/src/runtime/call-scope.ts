@@ -45,10 +45,22 @@ export class RuntimeCall extends AbortController implements CallScope {
       !this.entry.state.pendingAgentCall
     )
       throw ERRORS.create("CAPABILITY_DENIED");
-    if (kind === "interaction" && this.uses)
+    if (
+      kind === "interaction" &&
+      this.uses &&
+      !(
+        this.entry.blueprint.capability &&
+        this.entry.state.pendingAgentCall &&
+        this.uses === 1
+      )
+    )
       throw ERRORS.create("CALL_UNSETTLED");
     if (
-      (kind === "interaction" || kind === "storage_commit") &&
+      (kind === "storage_commit" ||
+        (kind === "interaction" &&
+          !(
+            this.entry.blueprint.capability && this.entry.state.pendingAgentCall
+          ))) &&
       this.entry.state.status !== "running"
     )
       throw ERRORS.create("CAPABILITY_DENIED");

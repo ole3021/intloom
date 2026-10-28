@@ -1,12 +1,19 @@
 import assert from "node:assert/strict";
-import { realpath } from "node:fs/promises";
+import { realpath, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
   defineAgentTool,
+  LoomFailure,
   loomMetadataSchema,
   loomProtocolVersion,
 } from "@intloom/loom-sdk";
 import * as z from "zod";
+import { loomDefinitionSchema } from "@intloom/loom-sdk/definition";
+import { appMethods, choiceAnswer } from "@intloom/loom-sdk/app-contracts";
+import {
+  capabilityProtocolVersions,
+  compiledLoomProtocolVersion,
+} from "@intloom/loom-sdk/compiled";
 
 const entry = new URL(
   "./node_modules/@intloom/loom-sdk/dist/index.js",
@@ -55,3 +62,31 @@ assert.equal(tool.outputSchema.parse(await tool.execute(input, access)), 42);
 
 const utilsPackage: string = "@intloom/utils";
 await assert.rejects(import(utilsPackage), { code: "ERR_MODULE_NOT_FOUND" });
+const authorSchema = JSON.parse(
+  await readFile(
+    new URL(import.meta.resolve("@intloom/loom-sdk/loom.schema.json")),
+    "utf8",
+  ),
+);
+assert.ok(authorSchema.properties.agents);
+assert.ok(authorSchema.properties.apps);
+assert.equal(appMethods.answer, "intloom_app_answer");
+assert.deepEqual(choiceAnswer("/roomId", "room_b"), { roomId: "room_b" });
+assert.equal(compiledLoomProtocolVersion, "2026-10-27.2");
+assert.ok(capabilityProtocolVersions.includes("2026-10-27"));
+const safeFailure = new LoomFailure(
+  "BOOKING_OUTCOME_UNKNOWN",
+  "Inspect request",
+);
+assert.ok(LoomFailure.is(safeFailure));
+assert.equal(LoomFailure.is(new Error("private details")), false);
+assert.equal(
+  loomDefinitionSchema.parse({
+    name: "installed-capability",
+    version: "1.0.0",
+    input: { type: "string" },
+    output: { type: "string" },
+    execute: { code: "./code/run.ts#run" },
+  }).schemaVersion,
+  "1",
+);

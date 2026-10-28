@@ -32,3 +32,48 @@ export async function buildLoom(
     };
   }
 }
+
+async function development<T>(
+  operation: () => Promise<T>,
+  mutates = false,
+): Promise<CoreResult<T>> {
+  const meta = { requestId: randomUUID() };
+  try {
+    return { ok: true, data: await operation(), meta };
+  } catch (error) {
+    const safe = errorView(error);
+    return {
+      ok: false,
+      error: safe,
+      outcome:
+        mutates && !["INVALID_LOOM", "INVALID_BUILD_CONFIG"].includes(safe.code)
+          ? "unknown"
+          : "not_applied",
+      meta,
+    };
+  }
+}
+export function checkLoom(input: BuildInput) {
+  return development(async () =>
+    (await import("@intloom/compiler")).checkLoom({
+      packageRoot: input.packagePath,
+    }),
+  );
+}
+export function inspectLoom(input: BuildInput) {
+  return development(async () =>
+    (await import("@intloom/compiler")).inspectLoom(input.packagePath),
+  );
+}
+export function scaffoldLoom(
+  input: BuildInput & { template: "code" | "agent" },
+) {
+  return development(
+    async () =>
+      (await import("@intloom/compiler")).scaffoldLoom(
+        input.packagePath,
+        input.template,
+      ),
+    true,
+  );
+}

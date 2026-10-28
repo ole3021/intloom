@@ -1,9 +1,18 @@
 import { fail } from "./errors.ts";
 import { loomModuleSchema } from "@intloom/loom-sdk";
 import type { LoadedLoom, LoomPackage } from "./types.ts";
+import { capabilityProtocolVersions } from "@intloom/loom-sdk/compiled";
+import { loadCapabilityModule } from "./capability.ts";
 
 /** Validates structure and references without IO, function calls, or sample execution of business Schemas. */
 export function validateLoom(source: LoomPackage, module: unknown): LoadedLoom {
+  if (capabilityProtocolVersions.includes(source.protocolVersion)) {
+    try {
+      return loadCapabilityModule(source, module);
+    } catch (cause) {
+      fail("INVALID_LOOM", `Invalid capability: ${source.packageName}`, cause);
+    }
+  }
   const result = loomModuleSchema.safeParse(module);
   if (!result.success)
     fail(

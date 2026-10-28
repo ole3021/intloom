@@ -4,6 +4,9 @@ title: CMD command reference
 
 # CMD command reference
 
+See [Loom Package 0.10](./loom-package.md) for JSON input, formal output, model profiles, named interactions and new/check/inspect commands. Legacy calls and configuration remain supported.
+
+
 Use `intloom COMMAND --help` for positional arguments and installed-version help.
 
 ## Global flags

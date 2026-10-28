@@ -4,6 +4,9 @@ title: Loom 定义参考
 
 # Loom 定义参考
 
+新版能力定义与开发入口见 [Loom Package 0.10](./loom-package.md)。以下 Stage/Step、package.json.loom 与固定输入槽说明保留为旧 Intent 的兼容参考。
+
+
 Loom 的顶层定义放在 `package.json.loom`，Stage 定义放在各自 YAML 文件中。不存在单独的 `loom.yaml`。定义中的未知字段、重复键和保留名称会被拒绝。
 
 ```json

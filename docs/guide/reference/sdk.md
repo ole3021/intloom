@@ -4,6 +4,9 @@ title: Loom SDK reference
 
 # Loom SDK reference
 
+For new authoring and development commands, see [Loom Package 0.10](./loom-package.md). The Stage/Step, package.json.loom and fixed-input contracts below remain as the legacy Intent compatibility reference.
+
+
 Import public contracts from `@intloom/loom-sdk`. No subpath or private Kernel dependency is needed.
 
 ## Definitions and execution

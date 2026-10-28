@@ -174,3 +174,27 @@ test("commands find the nearest marker, while explicit --project requires that e
     join(root, "services"),
   );
 });
+
+test("developer commands create, inspect and check a source package without starting a Service", async (t) => {
+  const cwd = await temporaryDirectory(t);
+  const created = await invoke(
+    ["new", "sample", "--template", "code", "--json"],
+    cwd,
+  );
+  assert.equal(created.code, 0, created.stdout);
+  const inspected = await invoke(["inspect", "sample", "--json"], cwd);
+  assert.equal(inspected.code, 0, inspected.stdout);
+  assert.equal(JSON.parse(inspected.stdout).data.definition.name, "sample");
+  const checked = await invoke(["check", "sample", "--json"], cwd);
+  assert.equal(checked.code, 0, checked.stdout);
+  assert.equal((await readdir(join(cwd, "sample"))).includes("dist"), false);
+  const duplicate = await invoke(["new", "sample", "--json"], cwd);
+  assert.equal(duplicate.code, 1);
+  await writeFile(join(cwd, "intloom.yaml"), "useMcpAgent: false\n");
+  const input = await invoke(
+    ["run", "sample", "--input", "{}", "--prompt", "conflict", "--json"],
+    cwd,
+  );
+  assert.equal(input.code, 1);
+  assert.match(JSON.parse(input.stdout).error.message, /cannot combine/);
+});

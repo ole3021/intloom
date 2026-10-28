@@ -42,18 +42,18 @@ export async function doctorProject(
       const service = source !== "agent_ide" || !config.useMcpAgent;
       checks.push({
         name: "execution",
-        status: service && !config.llms ? "attention" : "not_checked",
+        status: "not_checked",
         message:
-          service && !config.llms
-            ? "This entry requires llms.default before creating a Run."
+          service && !config.llms && !config.models
+            ? "No service models are configured. Pure Code can run; Agent readiness depends on its declared model profiles or legacy purposes."
             : service
               ? "Model configuration is present; required roles and credentials are checked by the host before Run creation. Remote model behavior is not verified."
               : "This entry selects the client Agent executor. The running host reports Loom readiness; client task support requires separate acceptance.",
         nextStep:
           diagnosis.status !== "offline"
             ? "Resolve the service and lock diagnosis above before starting the project."
-            : service && !config.llms
-              ? "Configure llms.default and provide its referenced environment credential, then run intloom start."
+            : service && !config.llms && !config.models
+              ? "Run intloom start and inspect Loom readiness; configure required models or legacy llms and their credentials."
               : `Run intloom start, then intloom doctor --execution ${source} to inspect loaded Looms.`,
       });
     }

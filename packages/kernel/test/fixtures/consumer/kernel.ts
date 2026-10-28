@@ -52,8 +52,8 @@ declare const tool: AgentExecutionAccess<JsonValue>;
 code.storage.commit([]);
 // @ts-expect-error Agent Tools cannot commit formal data.
 tool.storage.commit([]);
-// @ts-expect-error Agent Tools cannot ask human questions.
-tool.interaction;
+// @ts-expect-error Agent Tools expose only declared named interactions.
+tool.interaction?.askQuestions([]);
 // @ts-expect-error SDK types have one owner.
 import type { CodeExecutionAccess as RemovedAccess } from "@intloom/kernel";
 declare const removed: RemovedAccess;

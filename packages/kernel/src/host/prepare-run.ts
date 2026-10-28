@@ -1,4 +1,4 @@
-import type { LoomInput } from "@intloom/loom-sdk";
+import type { LoomInvocationInput as LoomInput } from "@intloom/loom-sdk";
 import type { ProjectExecution } from "./project-contracts.ts";
 import type { RunSource } from "../runtime/execution-policy.ts";
 import type { OperationRef } from "../runtime/contracts.ts";

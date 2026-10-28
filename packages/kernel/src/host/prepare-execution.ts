@@ -28,10 +28,12 @@ export function createExecutionPreparation(
   }
   return {
     agents: service.agents,
+    prepareAgent: service.prepareAgent,
     status() {
       return {
         useMcpAgent: config.useMcpAgent,
-        serviceConfigured: config.llms !== undefined,
+        serviceConfigured:
+          config.llms !== undefined || config.models !== undefined,
         preparedServiceAgents: Object.keys(service.agents).length,
       };
     },

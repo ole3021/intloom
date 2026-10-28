@@ -10,8 +10,10 @@ import type { StorageAccess, StorageReadAccess } from "./storage.ts";
 import type { InteractionAccess } from "./interaction.ts";
 import type { StateAccess } from "./state.ts";
 import type { ProjectAccess } from "./project.ts";
+import { interactionRequestSchema } from "./capability.ts";
 
 export interface CodeExecutionAccess<State> {
+  readonly run?: import("./capability.ts").LoomRunContext;
   readonly project?: ProjectAccess;
   readonly state: StateAccess<State>;
   readonly storage: StorageAccess;
@@ -21,6 +23,8 @@ export interface CodeExecutionAccess<State> {
 }
 
 export interface AgentExecutionAccess<State> {
+  readonly run?: import("./capability.ts").LoomRunContext;
+  readonly interaction?: Pick<InteractionAccess, "request">;
   readonly project?: ProjectAccess;
   readonly state: StateAccess<State>;
   readonly storage: StorageReadAccess;
@@ -33,6 +37,12 @@ export type StepResult = Readonly<z.infer<typeof stepResultSchema>>;
 
 /** A persisted interaction and its accepted answer, delivered to an explicit recovery entry. */
 export const codeRecoverySchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    actionId: z.string().min(1),
+    kind: z.literal("user_ask_interaction"),
+    request: interactionRequestSchema,
+    answer: z.json(),
+  }),
   z.strictObject({
     actionId: z.string().min(1),
     kind: z.literal("user_ask_questions"),

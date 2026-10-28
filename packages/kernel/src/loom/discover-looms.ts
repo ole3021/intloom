@@ -6,6 +6,7 @@ import { LoomError } from "@intloom/utils";
 import type { LoomDependency } from "../host/config/schemas/loom-config.ts";
 import * as z from "zod";
 import { fail, loomError } from "./errors.ts";
+import { capabilityProtocolVersions } from "@intloom/loom-sdk/compiled";
 import {
   loomMetadataSchema,
   loomProtocolVersion,
@@ -87,7 +88,11 @@ export async function discoverLooms(
             "INVALID_LOOM_PACKAGE",
             `Installed Loom does not match its declaration: ${name}`,
           );
-        if (manifest.loom.version !== loomProtocolVersion) {
+        if (
+          ![loomProtocolVersion, ...capabilityProtocolVersions].includes(
+            manifest.loom.version,
+          )
+        ) {
           fail(
             "UNSUPPORTED_LOOM_PROTOCOL",
             `Unsupported Loom protocol for ${name}: ${manifest.loom.version}`,

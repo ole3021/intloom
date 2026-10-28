@@ -1,4 +1,6 @@
 export type { JsonValue, ReadonlyJsonValue, ReadonlyValue } from "./json.ts";
+export * from "./capability.ts";
+export * from "./schema.ts";
 export {
   loomInputKindSchema,
   loomInputsSchema,

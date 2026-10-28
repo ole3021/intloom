@@ -5,6 +5,8 @@ export interface CompileOptions {
   readonly logger?: Logger;
   readonly packageRoot: string;
   readonly tsconfigFile?: string;
+  /** Internal verification mode also used by checkLoom; never replaces dist. */
+  readonly checkOnly?: boolean;
 }
 
 export interface CompileResult {

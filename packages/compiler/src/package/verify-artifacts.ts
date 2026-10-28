@@ -15,6 +15,30 @@ export async function verifyArtifacts(
   output: string,
   loom: LinkedLoom,
 ): Promise<void> {
+  return verifyPackageArtifacts(
+    root,
+    output,
+    [
+      ...Object.values(loom.model.codes).map((code) => code.module),
+      ...Object.values(loom.model.stages).flatMap((stage) => [
+        stage.stateSchema,
+        stage.initializeState,
+      ]),
+      ...Object.values(loom.model.agents).flatMap((agent) => [
+        agent.outputSchema,
+        ...agent.tools,
+      ]),
+    ],
+    ["blueprint", "codes", "agentSpecs"],
+  );
+}
+
+export async function verifyPackageArtifacts(
+  root: string,
+  output: string,
+  modules: readonly ModuleReference[],
+  exports: readonly string[],
+): Promise<void> {
   const packageJson = JSON.parse(
     await readFile(resolve(output, "package.json"), "utf8"),
   ) as {
@@ -77,17 +101,6 @@ export async function verifyArtifacts(
     inspected.set(file, info);
     return info;
   }
-  const modules: ModuleReference[] = [
-    ...Object.values(loom.model.codes).map((code) => code.module),
-    ...Object.values(loom.model.stages).flatMap((stage) => [
-      stage.stateSchema,
-      stage.initializeState,
-    ]),
-    ...Object.values(loom.model.agents).flatMap((agent) => [
-      agent.outputSchema,
-      ...agent.tools,
-    ]),
-  ];
   for (const module of modules) {
     const emitted = resolve(
       output,
@@ -109,6 +122,8 @@ export async function verifyArtifacts(
   }
 
   for (const file of await listOutputFiles(output)) {
+    // Browser resources are opaque, already built assets, not Node execution bindings.
+    if (relative(output, file).split(sep)[0] === "apps") continue;
     if (
       /\.(?:spec|intg)\./.test(file) ||
       relative(output, file).split(sep).includes("test")
@@ -123,7 +138,7 @@ export async function verifyArtifacts(
     if (!/\.(?:js|mjs)$/.test(file)) continue;
     const info = await moduleInfo(file);
     if (file === resolve(output, `${entryName}.js`)) {
-      for (const name of ["blueprint", "codes", "agentSpecs"])
+      for (const name of exports)
         if (!info.exports.has(name))
           fail("INVALID_OUTPUT", `Missing named export: ${name}`, { file });
     }
@@ -134,6 +149,23 @@ export async function verifyArtifacts(
         fail("INVALID_OUTPUT", `Import escapes output: ${binding.source}`, {
           file,
         });
+      if (target.endsWith(".json")) {
+        if (binding.imported !== "default")
+          fail("INVALID_OUTPUT", "JSON modules only provide a default export", {
+            file,
+          });
+        try {
+          JSON.parse(await readFile(target, "utf8"));
+        } catch (cause) {
+          fail(
+            "INVALID_OUTPUT",
+            "Missing or invalid JSON module",
+            { file: target },
+            cause,
+          );
+        }
+        continue;
+      }
       const origins = await resolveExportOrigins(
         target,
         binding.imported,

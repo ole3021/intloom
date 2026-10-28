@@ -4,6 +4,9 @@ title: ProjectClient 参考
 
 # ProjectClient 参考
 
+新版 Loom 的 JSON 输入、正式 output、models 三档配置、命名交互及 new/check/inspect 命令见 [Loom Package 0.10](./loom-package.md)。旧调用与配置仍兼容。
+
+
 `@intloom/cli` 导出可信本地 Node.js 客户端，连接运行中的 Service，不管理 Run 的生命周期。
 
 ```ts

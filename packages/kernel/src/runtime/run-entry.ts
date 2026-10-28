@@ -57,9 +57,13 @@ export function createRunEntry(
     waitDurationMs: 0,
     blueprint,
     state,
-    stageState: createStageState(state, () => {
-      if (entry.recovery) saveCheckpoint(entry, entry.recovery.phase);
-    }),
+    stageState: createStageState(
+      state,
+      () => {
+        if (entry.recovery) saveCheckpoint(entry, entry.recovery.phase);
+      },
+      !!blueprint.capability,
+    ),
     observers: new Set(),
   };
   return entry;

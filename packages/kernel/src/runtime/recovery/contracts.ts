@@ -1,5 +1,9 @@
 import { runResultSchema } from "../schemas/run-result.ts";
-import { loomInputSchema, stepResultSchema } from "@intloom/loom-sdk";
+import {
+  hostContextSchema,
+  interactionReceiptSchema,
+  stepResultSchema,
+} from "@intloom/loom-sdk";
 import * as z from "zod";
 import { controlSchema } from "../../mirror/contracts.ts";
 import { pendingUserActionSchema } from "../schemas/pending-user-action.ts";
@@ -15,7 +19,7 @@ const savedStageSchema = z.strictObject({
 });
 export type SavedStage = z.infer<typeof savedStageSchema>;
 export const checkpointSnapshotSchema = z.strictObject({
-  version: z.literal(3),
+  version: z.union([z.literal(3), z.literal(4)]),
   observationBaseline: z.json().optional(),
   schemaVersion: z.literal(3).optional(),
   control: controlSchema.optional(),
@@ -51,7 +55,10 @@ export const checkpointSnapshotSchema = z.strictObject({
       .optional(),
     id: z.string().min(1),
     loomName: z.string().min(1),
-    input: loomInputSchema,
+    input: z.json(),
+    output: z.json().optional(),
+    hostContext: hostContextSchema.optional(),
+    interactionReceipts: z.array(interactionReceiptSchema).optional(),
     execution: z.strictObject({
       source: z.enum(["cli", "studio", "agent_ide"]),
       agentExecutor: z.enum(["service", "mcp_client"]),

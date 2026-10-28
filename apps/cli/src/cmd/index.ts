@@ -52,6 +52,9 @@ export async function runCmd(
     subCommands: {
       e2e: e2e.e2e,
       build: build.build,
+      new: build.new,
+      check: build.check,
+      inspect: build.inspect,
       mirror: mirror.mirror,
       resume: runs.resume,
       init: init.init,

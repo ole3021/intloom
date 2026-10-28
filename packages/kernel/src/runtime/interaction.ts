@@ -1,3 +1,9 @@
+import { isDeepStrictEqual } from "node:util";
+import {
+  interactionRequestSchema,
+  interactionResponse,
+  parseSchemaValue,
+} from "@intloom/loom-sdk";
 import { generateId } from "@intloom/utils";
 import * as z from "zod";
 import type { PendingUserAction, PendingUserActionKind } from "./run-view.ts";
@@ -20,6 +26,59 @@ export function createInteraction(
   call: object,
 ): InteractionAccess {
   return Object.freeze({
+    receipt(id) {
+      assertCallOwnership(entry, call);
+      const receipt = entry.state.interactionReceipts?.find(
+        (item) => item.id === id,
+      );
+      return receipt && structuredClone(receipt);
+    },
+    latest(id) {
+      assertCallOwnership(entry, call);
+      const receipt = entry.state.interactionReceipts?.findLast(
+        (item) => item.request.interactionId === id,
+      );
+      return receipt && structuredClone(receipt);
+    },
+    request(input) {
+      const request = parseRequest(() => {
+        const value = interactionRequestSchema.parse(input);
+        const capability = entry.blueprint.capability;
+        const definition =
+          capability?.definition.interactions[value.interactionId];
+        if (!definition || !isDeepStrictEqual(definition, value.definition))
+          throw ERRORS.create("CAPABILITY_DENIED");
+        const step = capability.plan.steps.find(
+          (step) => step.id === entry.state.cursor.stepName,
+        );
+        if (
+          step?.kind === "agent" &&
+          !capability.definition.agents[step.agent]?.interactions.includes(
+            value.interactionId,
+          )
+        )
+          throw ERRORS.create("CAPABILITY_DENIED");
+        return {
+          ...value,
+          context: parseSchemaValue(definition.context, value.context),
+        };
+      });
+      return ask(
+        entry,
+        call,
+        "user_ask_interaction",
+        request,
+        (action, answer) => {
+          const current = interactionRequestSchema.parse(action.request);
+          const parsed = parseSchemaValue(
+            interactionResponse(current.definition),
+            answer,
+          );
+          validateInteractionAnswer(entry, current, parsed);
+          return parsed;
+        },
+      );
+    },
     askQuestions(questions) {
       const request = parseRequest(() => {
         const parsed = userAskQuestionsSchema.parse(questions);
@@ -87,11 +146,43 @@ function validateQuestionsAnswer(
   return answers;
 }
 
-/** Restores only the interaction delivery; it never calls the original Code. */
+/** Checks the answer against the canonical definition and the saved request context before consumption. */
+export function validateInteractionAnswer(
+  entry: RunEntry,
+  request: import("@intloom/loom-sdk").InteractionRequest,
+  answer: ReadonlyJsonValue,
+) {
+  const canonical =
+    entry.blueprint.capability?.definition.interactions[request.interactionId];
+  if (!canonical || !isDeepStrictEqual(canonical, request.definition))
+    throw ERRORS.create("RUN_STATE_INVALID");
+  if (canonical.validate) {
+    const validator =
+      entry.blueprint.capability?.validators?.[canonical.validate];
+    if (!validator) throw ERRORS.create("RUN_STATE_INVALID");
+    const result = z
+      .strictObject({ passed: z.boolean(), message: z.string().optional() })
+      .parse(
+        validator(structuredClone(answer), structuredClone(request.context)),
+      );
+    if (!result.passed)
+      throw new Error(
+        result.message ?? "The answer is not valid for this request",
+      );
+  }
+}
+
+/** Restores only interaction delivery; it never calls the original Code. */
 export function restoreInteraction(entry: RunEntry, deliver: () => void): void {
   entry.reply = {
     prepare(action, answer) {
       validateSavedAnswer(action, answer);
+      if (action.kind === "user_ask_interaction")
+        validateInteractionAnswer(
+          entry,
+          interactionRequestSchema.parse(action.request),
+          answer,
+        );
       return deliver;
     },
     reject() {},
@@ -100,6 +191,11 @@ export function restoreInteraction(entry: RunEntry, deliver: () => void): void {
 }
 
 export function validateSavedAction(action: PendingUserAction): void {
+  if (action.kind === "user_ask_interaction") {
+    const request = interactionRequestSchema.parse(action.request);
+    parseSchemaValue(request.definition.context, request.context);
+    return;
+  }
   if (action.kind === "user_ask_confirmation") {
     userAskConfirmationSchema.parse(action.request);
     return;
@@ -117,7 +213,10 @@ export function validateSavedAnswer(
   validateSavedAction(action);
   if (action.kind === "user_ask_questions")
     validateQuestionsAnswer(action, answer);
-  else userAnswerConfirmationSchema.parse(answer);
+  else if (action.kind === "user_ask_interaction") {
+    const request = interactionRequestSchema.parse(action.request);
+    parseSchemaValue(interactionResponse(request.definition), answer);
+  } else userAnswerConfirmationSchema.parse(answer);
 }
 
 function ask<T>(
@@ -129,7 +228,12 @@ function ask<T>(
 ): Promise<T> {
   assertCallOwnership(entry, call);
   if (
-    entry.state.status !== "running" ||
+    (entry.state.status !== "running" &&
+      !(
+        kind === "user_ask_interaction" &&
+        entry.state.status === "waiting" &&
+        entry.state.pendingAgentCall
+      )) ||
     entry.state.pendingAction ||
     entry.reply
   ) {
@@ -147,17 +251,32 @@ function ask<T>(
     request: z.json().parse(serialized),
     createdAt: new Date().toISOString(),
   };
+  const suspendedAgent = entry.state.pendingAgentCall;
+  if (suspendedAgent && entry.waitStartedAt !== undefined)
+    entry.waitDurationMs += Math.round(performance.now() - entry.waitStartedAt);
   const answer = new Promise<T>((resolve, reject) => {
     entry.reply = {
       prepare(currentAction, input) {
         const parsed = parseAnswer(currentAction, input);
-        return () => resolve(parsed);
+        return () => {
+          if (suspendedAgent) {
+            assertCallOwnership(entry, call);
+            delete entry.recoveredAnswer;
+            entry.state.pendingAgentCall = suspendedAgent;
+            entry.state.status = "waiting";
+            entry.waitStartedAt = performance.now();
+            saveCheckpoint(entry, "waiting");
+            notifyRunObservers(entry);
+          }
+          resolve(parsed);
+        };
       },
       reject,
     };
   });
   // Handle rejections from unawaited interaction on failure or stop; the original Promise still rejects.
   void answer.catch(() => {});
+  delete entry.state.pendingAgentCall;
   entry.state.pendingAction = action;
   entry.state.status = "waiting";
   entry.state.updatedAt = new Date(action.createdAt);

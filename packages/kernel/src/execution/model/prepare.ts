@@ -4,7 +4,7 @@ import { referencedAgentIds } from "../../loom/agent-ids.ts";
 import type { ModelConfiguration } from "./configuration.ts";
 import type { ExecutableAgent } from "../execution.ts";
 import { ERRORS } from "../../errors.ts";
-import { resolveModelConfig } from "./agent-model.ts";
+import { resolveAgentModel } from "./agent-model.ts";
 import type { createAgent } from "./create-agent.ts";
 import { createCredentialResolver } from "./credentials.ts";
 
@@ -29,53 +29,78 @@ export function createServicePreparation(
     return resource;
   }
   function check(blueprint: Blueprint) {
-    if (!config.llms)
+    // Keep the old source protocol's admission policy until its consumers migrate.
+    if (!blueprint.capability && !config.llms)
       throw ERRORS.create("INVALID_REQUEST", {
-        message:
-          "Service execution requires llms.default in intloom.yaml. Configure the model and referenced credentials, then restart the service.",
+        message: "Service execution requires llms.default in intloom.yaml.",
       });
-    for (const id of referencedAgentIds(blueprint)) {
+    for (const id of eagerAgentIds(blueprint)) {
       const resource = resourceFor(id);
-      resolveModelConfig(
-        resource.spec.llm,
+      resolveAgentModel(
+        resource.spec,
         config,
         `${resource.source.packageName}/${id}`,
         credentials,
       );
     }
   }
+  function eagerAgentIds(blueprint: Blueprint) {
+    if (!blueprint.capability) return referencedAgentIds(blueprint);
+    const conditional = new Set(
+      blueprint.capability.plan.steps
+        .filter((step) => step.kind === "agent" && step.when)
+        .map((step) => step.id),
+    );
+    return [
+      ...new Set(
+        Object.values(blueprint.stages).flatMap((stage) =>
+          Object.values(stage.steps).flatMap((step) =>
+            step.execution.kind === "agent" && !conditional.has(step.stepName)
+              ? [step.execution.agentId]
+              : [],
+          ),
+        ),
+      ),
+    ];
+  }
+  function prepareAgent(id: string): Promise<ExecutableAgent> {
+    let promise = preparing.get(id);
+    if (!promise) {
+      const resource = resourceFor(id);
+      resolveAgentModel(
+        resource.spec,
+        config,
+        `${resource.source.packageName}/${id}`,
+        credentials,
+      );
+      promise = assemble(resource.spec, {
+        agentId: id,
+        source: resource.source,
+        config,
+        credentials,
+      })
+        .then((result) => {
+          agents[id] = result.executable;
+          return result.executable;
+        })
+        .catch((cause) => {
+          preparing.delete(id);
+          throw ERRORS.wrap("KERNEL_UNAVAILABLE", cause, {
+            message: `Cannot prepare service Agent ${id}.`,
+            retryable: false,
+          });
+        });
+      preparing.set(id, promise);
+    }
+    return promise;
+  }
   return {
     agents,
     check,
+    prepareAgent,
     async prepare(blueprint: Blueprint) {
       check(blueprint);
-      const ids = referencedAgentIds(blueprint);
-
-      const initialized = await Promise.all(
-        ids.map((id) => {
-          let promise = preparing.get(id);
-          if (!promise) {
-            const resource = resourceFor(id);
-            promise = assemble(resource.spec, {
-              agentId: id,
-              source: resource.source,
-              config,
-              credentials,
-            })
-              .then((result) => result.executable)
-              .catch((cause) => {
-                preparing.delete(id);
-                throw ERRORS.wrap("KERNEL_UNAVAILABLE", cause, {
-                  message: `Cannot prepare service Agent ${id}.`,
-                  retryable: false,
-                });
-              });
-            preparing.set(id, promise);
-          }
-          return promise.then((agent) => [id, agent] as const);
-        }),
-      );
-      for (const [id, agent] of initialized) agents[id] = agent;
+      await Promise.all(eagerAgentIds(blueprint).map(prepareAgent));
     },
   };
 }

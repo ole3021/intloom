@@ -2,6 +2,8 @@ import type { CodeId, AgentId } from "./protocol.ts";
 import type { ZodType } from "zod";
 import type { JsonValue } from "./json.ts";
 import type { LoomInput, LoomInputKind } from "./inputs.ts";
+import type { CompiledDefinition, ExecutionPlan } from "./compiled.ts";
+import type { ReadonlyJsonValue } from "./json.ts";
 
 /** Initialization arguments supplied by the current Run, including its identity and detached input. */
 export interface StageStateContext {
@@ -9,6 +11,8 @@ export interface StageStateContext {
   readonly loomName: string;
   readonly stageName: string;
   readonly input: LoomInput;
+  /** Full capability input. Legacy initializers continue receiving the fixed input projection. */
+  readonly invocationInput?: ReadonlyJsonValue;
 }
 
 /** Constructs Schema input; shipped with the Blueprint and called only when entering a Stage. */
@@ -24,6 +28,7 @@ export type BlueprintStepExecution =
   | {
       readonly kind: "agent";
       readonly agentId: AgentId;
+      readonly recoveryCodeId?: CodeId;
     };
 
 export interface BlueprintStep {
@@ -60,6 +65,13 @@ export type BlueprintStageNext =
   | { readonly kind: "loom_end" };
 
 export interface Blueprint {
+  readonly capability?: {
+    readonly definition: CompiledDefinition;
+    readonly plan: ExecutionPlan;
+    readonly validators?: Readonly<
+      Record<string, import("./capability.ts").InteractionValidator>
+    >;
+  };
   readonly inputs: readonly LoomInputKind[];
   /** Serializes project-writing Looms against every other active Run in this host. */
   readonly exclusive?: boolean | undefined;

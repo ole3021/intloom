@@ -1,9 +1,11 @@
+import { capabilityStateSchema } from "../loom/capability.ts";
 import { runFacts } from "./run-facts.ts";
 import { captureBoundary, scopeEnded, validateResult } from "./boundaries.ts";
 import { sampleRunObservation } from "./run-observation.ts";
 import { setImmediate } from "node:timers/promises";
 import { withLogger } from "@intloom/utils";
 import type { BlueprintStage } from "@intloom/loom-sdk";
+import { LoomFailure } from "@intloom/loom-sdk";
 import { applyStepResult } from "./apply-step-result.ts";
 import { ERRORS } from "../errors.ts";
 import { executeStep } from "./execute-step.ts";
@@ -144,6 +146,13 @@ async function runLoop(
     const call = beginCall(entry);
     const log = entry.logger.child({
       ...entry.state.cursor,
+      ...(entry.blueprint.capability
+        ? {
+            definitionSource: entry.blueprint.capability.plan.steps.find(
+              (step) => step.id === entry.state.cursor.stepName,
+            )?.source,
+          }
+        : {}),
       executionId: ++entry.executionCount,
     });
     entry.activeLog = log;
@@ -199,6 +208,12 @@ async function runLoop(
         executed,
         result,
       );
+      if (transition.kind === "complete" && entry.blueprint.capability) {
+        const delivery = capabilityStateSchema.parse(entry.stageState.value);
+        if (!delivery.delivered || delivery.candidate === undefined)
+          throw ERRORS.create("RUN_STATE_INVALID");
+        entry.state.output = structuredClone(delivery.candidate);
+      }
       if (control && transition.kind === "complete")
         control.scope.completed = true;
       delete entry.savedResult;
@@ -300,5 +315,13 @@ function runtimeError(
     | "STEP_EXECUTION_FAILED"
     | "RUN_INITIALIZATION_FAILED" = "STEP_EXECUTION_FAILED",
 ) {
-  return ERRORS.is(cause) ? cause : ERRORS.wrap(code, cause);
+  return ERRORS.is(cause)
+    ? cause
+    : ERRORS.wrap(
+        code,
+        cause,
+        LoomFailure.is(cause)
+          ? { message: `${cause.code}: ${cause.message}` }
+          : {},
+      );
 }

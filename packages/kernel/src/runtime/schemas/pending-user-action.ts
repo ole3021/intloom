@@ -7,7 +7,11 @@ export const pendingUserActionSchema = z.strictObject({
   id: z.string().min(1),
   loomName: z.string().min(1),
   cursor: cursorSchema,
-  kind: z.enum(["user_ask_questions", "user_ask_confirmation"]),
+  kind: z.enum([
+    "user_ask_questions",
+    "user_ask_confirmation",
+    "user_ask_interaction",
+  ]),
   request: z.json(),
   createdAt: z.iso.datetime(),
 }) satisfies z.ZodType<PendingUserAction>;

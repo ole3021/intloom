@@ -4,7 +4,10 @@ title: Loom definition reference
 
 # Loom definition reference
 
-The top-level definition lives in `package.json.loom`; each Stage has its own YAML document. There is no separate `loom.yaml`. Unknown definition fields, duplicate keys and reserved names are rejected.
+For new authoring and development commands, see [Loom Package 0.10](./loom-package.md). The Stage/Step, package.json.loom and fixed-input contracts below remain as the legacy Intent compatibility reference.
+
+
+The top-level definition lives in `package.json.loom`; each Stage has its own YAML document. This legacy format does not use `loom.yaml`. Unknown definition fields, duplicate keys and reserved names are rejected.
 
 ```json
 {

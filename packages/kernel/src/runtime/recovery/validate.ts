@@ -40,11 +40,27 @@ export async function validateRecovery(
     throw ERRORS.create("RECOVERY_INCOMPATIBLE", {
       message: `Cannot restore Run ${saved.run.id}: its exact Loom resources are unavailable. Recovery files were retained.`,
     });
-  const { lastError, pendingAction, pendingAgentCall, ...data } = saved.run;
+  if (!!blueprint.capability !== (saved.version === 4))
+    throw ERRORS.create("RECOVERY_INCOMPATIBLE", {
+      message: "Checkpoint version does not match the Loom protocol.",
+    });
+  const {
+    lastError,
+    pendingAction,
+    pendingAgentCall,
+    output,
+    hostContext,
+    interactionReceipts,
+    ...data
+  } = saved.run;
+  if (output !== undefined)
+    throw new Error("Nonterminal checkpoint contains a delivery.");
   if (lastError)
     throw new Error("Nonterminal checkpoint contains a terminal error.");
   const state: RunState = {
     ...data,
+    ...(hostContext ? { hostContext } : {}),
+    ...(interactionReceipts ? { interactionReceipts } : {}),
     input: validateLoomInput(blueprint, data.input),
     ...(saved.control ? { control: jsonCopy(saved.control) } : {}),
     execution: freezeRunExecution(data.execution),
@@ -131,9 +147,13 @@ export async function validateRecovery(
     if (saved.validatedRoute) entry.savedRoute = saved.validatedRoute;
     validateResult(entry);
   }
+  const recoveryId =
+    current.step.execution.kind === "code"
+      ? current.step.execution.codeId
+      : current.step.execution.recoveryCodeId;
   const recoverableInteraction =
-    current.step.execution.kind === "code" &&
-    typeof options.codes[current.step.execution.codeId]?.recover === "function";
+    recoveryId !== undefined &&
+    typeof options.codes[recoveryId]?.recover === "function";
   const uncertain =
     saved.phase === "executing" ||
     !!state.pendingAgentCall ||

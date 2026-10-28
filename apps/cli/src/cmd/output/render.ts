@@ -97,6 +97,9 @@ export function formatRun(run: ServiceRunView) {
   const metric = run.metrics;
   return [
     renderRun(run),
+    ...(run.status === "completed" && run.output !== undefined
+      ? [section("Output", formatDetails(run.output))]
+      : []),
     `Instance: ${run.serviceInstanceId} · revision ${run.revision} · settled ${run.settled ?? false}`,
     ...(metric
       ? [

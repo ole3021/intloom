@@ -55,7 +55,7 @@ export async function verifyCliSetup(options: {
   assert.equal(
     offline.checks.find((item: { name: string }) => item.name === "execution")
       .status,
-    "attention",
+    "not_checked",
   );
   await request(["loom", "remove", loomPackage]);
   assert.deepEqual((await request(["loom", "list"])).looms, []);

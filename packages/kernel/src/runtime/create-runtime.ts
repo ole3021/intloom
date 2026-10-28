@@ -1,7 +1,7 @@
 import { isRunSettled } from "./run-facts.ts";
 import { mutate, mutateAsync } from "./mutation.ts";
 import { validateLoomInput } from "./loom-input.ts";
-import type { LoomInput } from "@intloom/loom-sdk";
+import type { LoomInvocationInput as LoomInput } from "@intloom/loom-sdk";
 import type { RunView } from "./run-view.ts";
 import { isDeepStrictEqual } from "node:util";
 import { randomUUID } from "node:crypto";
@@ -88,7 +88,19 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       createRun(blueprint, parsedInput, execution),
       options.logger ?? silentLogger,
     );
+    if (blueprint.capability) {
+      entry.state.hostContext = structuredClone(
+        options.context ?? {
+          userId: "local",
+          timeZone: "UTC",
+          answerSource: "human",
+          services: {},
+        },
+      );
+      entry.state.interactionReceipts = [];
+    }
     if (startedBy) entry.state.startedBy = { ...startedBy };
+    if (loomIdentity) entry.state.loomIdentity = loomIdentity;
     if (options.mirror)
       entry.state.control = {
         traceId: randomUUID(),
@@ -123,10 +135,21 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       restored = true;
       for (const saved of options.recovery?.store.read() ?? []) {
         if (saved.phase !== "terminal") continue;
-        const { id, input: _input, ...run } = saved.run;
+        const {
+          id,
+          input: _input,
+          hostContext: _hostContext,
+          ...run
+        } = saved.run;
         history.set(
           id,
-          structuredClone({ ...run, runId: id, historical: true }) as RunView,
+          structuredClone({
+            ...run,
+            runId: id,
+            historical: true,
+            loomIdentity: saved.loomIdentity,
+            settled: true,
+          }) as RunView,
         );
       }
       const entries = await restoreRuns(options);

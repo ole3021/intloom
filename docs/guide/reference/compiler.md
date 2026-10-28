@@ -4,7 +4,10 @@ title: Compiler reference
 
 # Compiler reference
 
-`intloom build [path]` builds a Loom source package; the default path is the current directory. It calls the single public operation of `@intloom/compiler`, `compileLoom()`. Compiler uses SDK contracts without depending on Kernel or executing business modules.
+For new authoring and development commands, see [Loom Package 0.10](./loom-package.md). The Stage/Step, package.json.loom and fixed-input contracts below remain as the legacy Intent compatibility reference.
+
+
+`intloom build [path]` builds a Loom source package; the default path is the current directory. It calls `compileLoom()` from `@intloom/compiler`. Compiler uses SDK contracts without depending on Kernel or executing business modules.
 
 ```ts
 import { compileLoom } from "@intloom/compiler";

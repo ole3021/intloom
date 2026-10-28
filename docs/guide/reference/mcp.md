@@ -4,6 +4,9 @@ title: MCP tools and Agent task protocol
 
 # MCP tools and Agent task protocol
 
+See [Loom Package 0.10](./loom-package.md) for JSON input, formal output, model profiles, named interactions and new/check/inspect commands. Legacy calls and configuration remain supported.
+
+
 External Service endpoints are `/mcp` and `/mcp/codex` on authenticated loopback. The installed stdio proxy handles discovery and credentials. Internal CLI/Studio entries select different source policies; do not use external endpoints as a substitute.
 
 ## Loom and result Tools
@@ -12,7 +15,7 @@ External Service endpoints are `/mcp` and `/mcp/codex` on authenticated loopback
 | --- | --- | --- |
 | `run` | `loomName, input, operationId, serviceInstanceId` | `receipt, run?` |
 | `list_looms` | Empty object | `looms` |
-| `get_run` | `runId` | `run` |
+| `get_run` | `runId` | `run`, optional `presentation` |
 | `list_runs` | Optional `loomName` | `runs` |
 | `answer_ask` | `runId, actionId, answer, operationId, serviceInstanceId` | `receipt, run?` |
 | `interact` | `runId, actionId, operationId, serviceInstanceId` | Native interaction or action/Run |
@@ -74,3 +77,5 @@ Read `status` first and use its `service.instanceId`. `run`, `answer_ask`, `canc
 Receipts have status `pending`, `accepted`, `rejected`, or `indeterminate`, and remain queryable for the Service instance lifetime. `accepted` confirms admission only; an attached Run is an independent current view. `rejected` means not applied. `indeterminate` means effects are uncertain and must not trigger a new submission.
 
 Pause takes effect after the current Step completes and saves its result. Resume routes that saved result without repeating Code. After restart, an old receipt lookup returns `instance_changed`, never permission to replay. `find_run` locates the original Run by its persisted originating identity. `list_runs` includes retained terminal history marked `historical: true`; historical Runs are read-only.
+
+See [Loom Apps](./loom-apps.md) for optional App tools, private view grants, standard fallback and non-Agent browser hosting.

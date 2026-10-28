@@ -1,4 +1,3 @@
-import { loomInputSchema } from "@intloom/loom-sdk";
 import { resumeRunSchema } from "./mirrors.ts";
 export { resumeRunSchema };
 import * as z from "zod";
@@ -142,7 +141,7 @@ export type ProjectEvent = z.infer<typeof projectEventSchema>;
 export const runRequestSchema = z.strictObject({
   operationId: z.uuid(),
   loomName: z.string().refine((value) => value.trim().length > 0),
-  input: loomInputSchema,
+  input: z.json(),
 });
 export const answerRequestSchema = z.strictObject({
   operationId: z.uuid(),

@@ -4,6 +4,9 @@ title: Loom SDK 参考
 
 # Loom SDK 参考
 
+新版能力定义与开发入口见 [Loom Package 0.10](./loom-package.md)。以下 Stage/Step、package.json.loom 与固定输入槽说明保留为旧 Intent 的兼容参考。
+
+
 从 `@intloom/loom-sdk` 导入公开契约，无需子路径或私有 Kernel 依赖。
 
 ## 定义与执行

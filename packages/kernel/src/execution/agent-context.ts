@@ -24,7 +24,10 @@ export function getAgentExecutionAccess(context: {
           "listRecords",
         ]) &&
         !("commit" in storage) &&
-        !("interaction" in value) &&
+        (!("interaction" in value) ||
+          (hasMethods(value.interaction, ["request"]) &&
+            !("confirm" in value.interaction) &&
+            !("askQuestions" in value.interaction))) &&
         signal instanceof AbortSignal &&
         (!("project" in value) ||
           hasMethods(project, ["snapshot", "read", "write", "remove", "run"]))

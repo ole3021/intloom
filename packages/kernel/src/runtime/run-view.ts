@@ -12,7 +12,8 @@ export type RunStatus =
 
 export type PendingUserActionKind =
   | "user_ask_questions"
-  | "user_ask_confirmation";
+  | "user_ask_confirmation"
+  | "user_ask_interaction";
 
 /** Public shape of RunState's single pending action; business requests do not duplicate the cursor. */
 export interface PendingUserAction {
@@ -34,6 +35,7 @@ export interface RunErrorView {
 
 /** A RunState snapshot, not an independent state record; timestamps are converted to ISO strings. */
 export interface RunView {
+  readonly loomIdentity?: string;
   readonly pauseRequested?: boolean;
   readonly historical?: boolean;
   readonly startedBy?: import("./contracts.ts").OperationRef;
@@ -53,6 +55,8 @@ export interface RunView {
   /** The current cursor for running/waiting, or the last reached cursor for completed/failed. */
   readonly cursor: Readonly<Cursor>;
   readonly status: RunStatus;
+  readonly output?: ReadonlyJsonValue;
+  readonly interactionReceipts?: readonly import("@intloom/loom-sdk").InteractionReceipt[];
   readonly pendingAction?: PendingUserAction;
   readonly pendingAgentCall?: PendingAgentCall;
 

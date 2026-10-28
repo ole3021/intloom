@@ -1,3 +1,7 @@
+import {
+  interactionRequestSchema,
+  interactionReceiptSchema,
+} from "@intloom/loom-sdk";
 import type { ReadonlyJsonValue } from "@intloom/loom-sdk";
 import { getLogger } from "@intloom/utils";
 import type { RunView } from "./run-view.ts";
@@ -61,6 +65,26 @@ export function submitAnswer(
     acceptedAt: new Date().toISOString(),
     ...(operation ? { operation } : {}),
   };
+  if (action.kind === "user_ask_interaction") {
+    const host = entry.state.hostContext;
+    entry.state.interactionReceipts ??= [];
+    entry.state.interactionReceipts.push(
+      interactionReceiptSchema.parse({
+        id: action.id,
+        runId: entry.state.id,
+        request: interactionRequestSchema.parse(
+          structuredClone(action.request),
+        ),
+        answer: structuredClone(answer),
+        acceptedAt:
+          entry.recoveredAnswer.acceptedAt ?? new Date().toISOString(),
+        actor: {
+          userId: host?.userId ?? "local",
+          source: host?.answerSource ?? "human",
+        },
+      }),
+    );
+  }
   delete entry.state.pendingAction;
   delete entry.reply;
   entry.state.status = "running";

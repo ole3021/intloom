@@ -22,7 +22,7 @@ export function checkpointData(
   const stage = entry.exitedStage ?? entry.stageState.checkpoint();
   return checkpointSnapshotSchema.parse(
     jsonCopy({
-      version: 3,
+      version: entry.blueprint.capability ? 4 : 3,
       schemaVersion: 3,
       loomIdentity: entry.recovery?.loomIdentity ?? "untracked",
       ...(entry.recovery?.sourceLoomIdentity
@@ -39,6 +39,13 @@ export function checkpointData(
         loomName: state.loomName,
         execution: state.execution,
         input: state.input,
+        ...(state.hostContext ? { hostContext: state.hostContext } : {}),
+        ...(state.interactionReceipts
+          ? { interactionReceipts: state.interactionReceipts }
+          : {}),
+        ...(state.status === "completed" && state.output !== undefined
+          ? { output: state.output }
+          : {}),
         cursor: { ...state.cursor },
         status: state.status,
         ...(state.pendingAction ? { pendingAction: state.pendingAction } : {}),

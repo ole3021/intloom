@@ -1,6 +1,9 @@
 import { createSignal, Show, onCleanup } from "solid-js";
 import { useKeyboard } from "@opentui/solid";
 import {
+  interactionRequestSchema,
+  interactionResponse,
+  parseSchemaValue,
   userAskQuestionsSchema,
   userAskConfirmationSchema,
   type ReadonlyJsonValue,
@@ -18,16 +21,21 @@ export function AnswerForm(props: {
   commands: (query: string) => void;
 }) {
   const action = props.action;
+  const named =
+    action.kind === "user_ask_interaction"
+      ? interactionRequestSchema.parse(action.request)
+      : undefined;
+  const [error, setError] = createSignal("");
   const confirmation = action.kind === "user_ask_confirmation";
-  const questions = confirmation
-    ? []
-    : userAskQuestionsSchema.parse(action.request);
+  const questions =
+    confirmation || named ? [] : userAskQuestionsSchema.parse(action.request);
   const [draft, setDraft] = createSignal(props.draft);
   const accent = useTransitionAccent(
     () => `${action.id}/${draft().index}/${draft().decision}`,
   );
   const question = () => questions[draft().index];
-  const finished = () => !confirmation && draft().index >= questions.length;
+  const finished = () =>
+    !confirmation && !named && draft().index >= questions.length;
   function update(patch: Partial<AnswerDraft>) {
     const next = { ...draft(), ...patch };
     setDraft(next);
@@ -41,6 +49,19 @@ export function AnswerForm(props: {
   }
   function send() {
     if (!props.focused) return;
+    if (named) {
+      try {
+        const answer = parseSchemaValue(
+          interactionResponse(named.definition),
+          JSON.parse(draft().feedback),
+        );
+        setError("");
+        props.submit(answer, action.id);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Invalid response");
+      }
+      return;
+    }
     if (confirmation && draft().decision !== undefined)
       props.submit(
         {
@@ -81,6 +102,33 @@ export function AnswerForm(props: {
       borderColor={accent()}
       paddingX={1}
     >
+      <Show when={named}>
+        <text>{named?.definition.title}</text>
+        <scrollbox height={5}>
+          <text>
+            {JSON.stringify(
+              {
+                context: named?.context,
+                response: named ? interactionResponse(named.definition) : null,
+              },
+              null,
+              2,
+            )}
+          </text>
+        </scrollbox>
+        <Composer
+          commands={props.commands}
+          value={draft().feedback}
+          focused={props.focused}
+          height={3}
+          placeholder="Answer as JSON · Enter submits"
+          change={(feedback) => update({ feedback })}
+          submit={send}
+        />
+        <Show when={error()}>
+          <text fg="red">{error()}</text>
+        </Show>
+      </Show>
       <Show when={confirmation}>
         <scrollbox height={3} scrollX={false}>
           <text flexShrink={0}>
@@ -118,7 +166,7 @@ export function AnswerForm(props: {
           />
         </Show>
       </Show>
-      <Show when={!confirmation && !finished()}>
+      <Show when={!named && !confirmation && !finished()}>
         <text
           flexShrink={0}
         >{`${draft().index + 1}/${questions.length}: ${question()?.question}`}</text>

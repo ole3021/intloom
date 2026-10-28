@@ -31,3 +31,4 @@ backup/
 
 # Local-only first npm publication entry
 /scripts/bootstrap-release.local.ts
+/examples

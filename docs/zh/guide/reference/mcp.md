@@ -4,6 +4,9 @@ title: MCP Tools 与 Agent 任务协议
 
 # MCP Tools 与 Agent 任务协议
 
+新版 Loom 的 JSON 输入、正式 output、models 三档配置、命名交互及 new/check/inspect 命令见 [Loom Package 0.10](./loom-package.md)。旧调用与配置仍兼容。
+
+
 外部 Service 端点为经认证的 loopback `/mcp` 和 `/mcp/codex`。安装后的 stdio 代理处理发现与凭据。内部 CLI/Studio 入口选择不同来源策略，不用外部端点替代。
 
 ## Loom 与结果 Tools
@@ -12,7 +15,7 @@ title: MCP Tools 与 Agent 任务协议
 | --- | --- | --- |
 | `run` | `loomName, input, operationId, serviceInstanceId` | `receipt, run?` |
 | `list_looms` | 空对象 | `looms` |
-| `get_run` | `runId` | `run` |
+| `get_run` | `runId` | `run`, optional `presentation` |
 | `list_runs` | 可选 `loomName` | `runs` |
 | `answer_ask` | `runId, actionId, answer, operationId, serviceInstanceId` | `receipt, run?` |
 | `interact` | `runId, actionId, operationId, serviceInstanceId` | 原生交互或操作/Run |
@@ -74,3 +77,5 @@ Artifact/Record 不存在时详情返回 `null`。列表包含 Artifact 元数�
 回执状态为 `pending`、`accepted`、`rejected`、`indeterminate`，保留到当前 Service 实例结束。`accepted` 只说明操作已受理，随附 Run 是独立的当前视图。`rejected` 表示未应用；`indeterminate` 表示副作用不能确定，不能按“失败”重新提交。
 
 暂停请求在当前 Step 完成后生效，并保存结果；resume 使用已保存结果继续路由，不重复 Code。重启后旧操作回执查询返回 `instance_changed`，不能据此重放。`find_run` 可按持久化的发起身份查找原 Run，`list_runs` 包含保留的终态历史，标记 `historical: true`。历史只读。
+
+可选 App 工具、私有视图授权、标准交互降级及普通浏览器接入见 [Loom Apps](./loom-apps.md)。

@@ -7,6 +7,7 @@ import {
   agentFailureSchema,
 } from "../../operations/agent-contracts.ts";
 import { randomUUID } from "node:crypto";
+import { appReadSchema } from "@intloom/loom-sdk/app-contracts";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import * as z from "zod";
 import type { RunSource } from "../../runtime/execution-policy.ts";
@@ -305,6 +306,55 @@ export function createServiceApi(getHost: () => ProjectHost) {
         const path = match[2] ?? "/";
         const app = createOperations(host.operations, source);
         const method = req.method;
+        if (path === "/apps/presentation" && method === "GET") {
+          write(
+            res,
+            await app.apps.presentation(
+              z.string().min(1).parse(url.searchParams.get("runId")),
+            ),
+            meta,
+          );
+          return true;
+        }
+        if (path === "/apps/open" && method === "POST") {
+          const input = z
+            .strictObject({
+              runId: z.string().min(1),
+              appId: z.string().min(1),
+            })
+            .parse(body);
+          write(res, await app.apps.open(input.runId, input.appId), meta);
+          return true;
+        }
+        if (path === "/apps/resource" && method === "GET") {
+          const resource = (await app.apps.resources()).find(
+            (item) => item.uri === url.searchParams.get("uri"),
+          );
+          if (!resource)
+            throw failure("APP_RESOURCE_UNAVAILABLE", "Unknown App resource");
+          write(
+            res,
+            {
+              html: await resource.readHtml(),
+              mimeType: resource.descriptor.mimeType,
+            },
+            meta,
+          );
+          return true;
+        }
+        if (
+          method === "POST" &&
+          ["/apps/read", "/apps/answer", "/apps/operation"].includes(path)
+        ) {
+          const data =
+            path === "/apps/read"
+              ? await app.apps.read(appReadSchema.parse(body).viewToken)
+              : path === "/apps/answer"
+                ? await app.apps.answer(body)
+                : await app.apps.operation(body);
+          write(res, data, meta);
+          return true;
+        }
         if (method === "GET" && path === "/events") {
           await observe(res, source, meta);
           return true;

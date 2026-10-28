@@ -17,6 +17,23 @@ function bindings(
   const executionId = entry.executionCount;
   return {
     scope: call,
+    ...(entry.blueprint.capability
+      ? {
+          run: {
+            id: entry.state.id,
+            startedAt: entry.state.createdAt.toISOString(),
+            host: structuredClone(
+              entry.state.hostContext ?? {
+                userId: "local",
+                timeZone: "UTC",
+                answerSource: "human",
+                services: {},
+              },
+            ),
+          },
+        }
+      : {}),
+    agentInteractions: !!entry.blueprint.capability,
     bindState: (check) => entry.stageState.bind(check, true),
     storage,
     project,

@@ -1,7 +1,7 @@
 import { waitForRun } from "./wait.ts";
 import type { CoreResult } from "@intloom/kernel/operations";
 import { readLogs, watchLogs } from "./logs.ts";
-import { buildLoom } from "./build.ts";
+import { buildLoom, checkLoom, inspectLoom, scaffoldLoom } from "./build.ts";
 import { createProjectOperations } from "./project/operations.ts";
 import { createServiceOperations } from "./service.ts";
 import { createRunsOperations } from "./runs.ts";
@@ -18,6 +18,9 @@ import type {
 export function createCliCore() {
   const core = {
     buildLoom,
+    checkLoom,
+    inspectLoom,
+    scaffoldLoom,
     readLogs,
     watchLogs,
     ...createProjectOperations(),

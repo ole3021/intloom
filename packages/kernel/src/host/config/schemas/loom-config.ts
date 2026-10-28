@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { hostContextSchema } from "@intloom/loom-sdk";
 
 import { llmConfigSchema } from "../../../execution/model/configuration.ts";
 
@@ -20,6 +21,7 @@ export const loomDependenciesSchema = z
 export type LoomDependency = z.infer<typeof loomDependencySchema>;
 
 export const loomConfigSchema = z.strictObject({
+  context: hostContextSchema.optional(),
   looms: loomDependenciesSchema.optional(),
   mirror: z
     .strictObject({
@@ -34,7 +36,14 @@ export const loomConfigSchema = z.strictObject({
     .optional(),
   localStorage: z.enum(["file", "sqlite"]).optional(),
   useMcpAgent: z.boolean().default(true),
-  // Service execution validates credentials before creating a Run.
+  // Conditional capability Agents resolve credentials only when their branch executes.
+  models: z
+    .strictObject({
+      light: llmConfigSchema.optional(),
+      standard: llmConfigSchema.optional(),
+      deep: llmConfigSchema.optional(),
+    })
+    .optional(),
   llms: z
     .strictObject({
       default: llmConfigSchema,

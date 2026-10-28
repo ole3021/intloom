@@ -9,6 +9,7 @@ import type { CredentialResolver } from "./credentials.ts";
 
 export interface ServiceAgent extends ExecutableAgent {
   readonly agent: Agent;
+  readonly capability?: boolean;
   readonly outputSchema: z.ZodType<JsonValue>;
   readonly zen?: boolean;
 }

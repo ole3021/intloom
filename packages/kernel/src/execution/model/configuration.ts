@@ -20,6 +20,14 @@ export const llmConfigSchema = z.strictObject({
 
 export type ModelConfig = z.infer<typeof llmConfigSchema>;
 export interface ModelConfiguration {
+  readonly models?:
+    | Partial<
+        Record<
+          import("@intloom/loom-sdk").ModelProfile,
+          ModelConfig | undefined
+        >
+      >
+    | undefined;
   readonly llms?:
     | ({ readonly default: ModelConfig } & Partial<
         Record<

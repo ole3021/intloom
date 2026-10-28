@@ -41,6 +41,27 @@ export function resolveModelConfig(
   return { config, apiKey };
 }
 
+export function resolveAgentModel(
+  spec: import("../../loom/types.ts").RunnableAgentSpec,
+  configuration: ModelConfiguration,
+  label: string,
+  credentials: CredentialResolver = createCredentialResolver(),
+) {
+  if (!("modelProfile" in spec))
+    return resolveModelConfig(spec.llm, configuration, label, credentials);
+  const config = configuration.models?.[spec.modelProfile];
+  if (!config)
+    throw ERRORS.create("INVALID_REQUEST", {
+      message: `${label}: Configure models.${spec.modelProfile} in intloom.yaml.`,
+    });
+  const apiKey = credentials(config.secret);
+  if (!apiKey?.trim() || apiKey.startsWith("encrypted:"))
+    throw ERRORS.create("INVALID_REQUEST", {
+      message: `${label}: Missing decrypted credential: ${config.secret}.`,
+    });
+  return { config, apiKey };
+}
+
 export function createModelOptions(
   config: NonNullable<ModelConfiguration["llms"]>["default"],
   apiKey: string,

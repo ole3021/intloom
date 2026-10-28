@@ -5,11 +5,24 @@ import { fail } from "../errors.ts";
 import { entryName } from "../emit/generate-entry.ts";
 import { resolvePackageDependencies } from "./package-dependencies.ts";
 
+export type DistributionSource = Pick<
+  SourcePackage,
+  | "name"
+  | "version"
+  | "type"
+  | "dependencies"
+  | "peerDependencies"
+  | "optionalDependencies"
+> &
+  Record<string, unknown> & {
+    readonly loom: { readonly type: "loom"; readonly version: string };
+  };
+
 /** Prepare the complete distribution in staging before replacing the previous dist. */
 export async function preparePackage(
   root: string,
   output: string,
-  source: SourcePackage,
+  source: DistributionSource,
 ): Promise<void> {
   const manifest: Record<string, unknown> = {};
   for (const key of [

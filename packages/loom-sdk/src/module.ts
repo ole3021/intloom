@@ -66,7 +66,7 @@ const stage = z.strictObject({
   steps: z.record(name, step),
   on: z.record(name, stageTarget),
 });
-const tool = z.custom<AgentTool>((value) =>
+export const agentToolSchema = z.custom<AgentTool>((value) =>
   Boolean(
     value &&
       typeof value === "object" &&
@@ -117,7 +117,7 @@ export const loomModuleSchema = z.strictObject({
           assets: z.array(z.string().min(1)),
         }),
       ),
-      tools: z.array(tool),
+      tools: z.array(agentToolSchema),
     }),
   ),
 }) satisfies z.ZodType<LoomModule>;

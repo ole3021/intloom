@@ -7,6 +7,8 @@ import { buildExportFiles } from "./build/build-export-files.ts";
 import { fail } from "./errors.ts";
 import { loadSources } from "./load/load-sources.ts";
 import type { CompileOptions, CompileResult } from "./types.ts";
+import { exists } from "./package/output-files.ts";
+import { compileCapability } from "./capability/compile-capability.ts";
 
 export async function compileLoom(
   options: CompileOptions,
@@ -28,6 +30,8 @@ export async function compileLoom(
       );
     }
     const result = await withBuildLock(root, async () => {
+      if (await exists(resolve(root, "loom.yaml")))
+        return compileCapability({ ...options, packageRoot: root });
       const sources = await loadSources({ ...options, packageRoot: root });
       log.debug("sources_loaded", { resourceCount: sources.resources.length });
       phase = "analyze";

@@ -1,5 +1,6 @@
+import { interactionReceiptSchema } from "@intloom/loom-sdk";
 import { runResultSchema } from "../runtime/run-facts.ts";
-import { loomInputsSchema } from "@intloom/loom-sdk";
+import { loomInputsSchema, jsonSchemaSchema } from "@intloom/loom-sdk";
 import {
   runMetricsSchema,
   runLimitsSchema,
@@ -28,6 +29,7 @@ const cursorSchema = z.strictObject({
   stepName: z.string().min(1),
 });
 export const runViewDataSchema = z.strictObject({
+  loomIdentity: z.string().optional(),
   historical: z.boolean().optional(),
   pauseRequested: z.boolean().optional(),
   startedBy: z
@@ -46,6 +48,7 @@ export const runViewDataSchema = z.strictObject({
   execution: executionSchema,
   loomName: z.string().min(1),
   cursor: cursorSchema,
+  output: z.json().optional(),
   status: z.enum(["running", "waiting", "paused", "completed", "failed"]),
   pendingAgentCall: z
     .strictObject({
@@ -55,12 +58,17 @@ export const runViewDataSchema = z.strictObject({
       createdAt: z.iso.datetime(),
     })
     .optional(),
+  interactionReceipts: z.array(interactionReceiptSchema).optional(),
   pendingAction: z
     .strictObject({
       id: z.string().min(1),
       loomName: z.string().min(1),
       cursor: cursorSchema,
-      kind: z.enum(["user_ask_questions", "user_ask_confirmation"]),
+      kind: z.enum([
+        "user_ask_questions",
+        "user_ask_confirmation",
+        "user_ask_interaction",
+      ]),
       request: z.json(),
       createdAt: z.iso.datetime(),
     })
@@ -86,10 +94,16 @@ export const runViewSchema = runViewDataSchema.transform((value): RunView => {
     results,
     settled,
     stopReason,
+    output,
+    interactionReceipts,
+    loomIdentity,
     ...required
   } = value;
   return {
     ...required,
+    ...(loomIdentity === undefined ? {} : { loomIdentity }),
+    ...(output === undefined ? {} : { output }),
+    ...(interactionReceipts === undefined ? {} : { interactionReceipts }),
     ...(pauseRequested === undefined ? {} : { pauseRequested }),
     ...(historical === undefined ? {} : { historical }),
     ...(startedBy === undefined ? {} : { startedBy }),
@@ -114,6 +128,9 @@ export const loomViewSchema: z.ZodType<LoomView> = z
       loomName: z.string(),
       isAvailable: z.literal(true),
       inputs: loomInputsSchema,
+      contract: z
+        .strictObject({ input: jsonSchemaSchema, output: jsonSchemaSchema })
+        .optional(),
       readiness: readinessSchema.optional(),
     }),
     z.strictObject({
@@ -126,7 +143,11 @@ export const loomViewSchema: z.ZodType<LoomView> = z
   ])
   .transform((value): LoomView => {
     if (value.isAvailable) {
-      const { readiness, ...required } = value;
+      const { readiness, contract, ...base } = value;
+      const required = {
+        ...base,
+        ...(contract === undefined ? {} : { contract }),
+      };
       if (!readiness) return required;
       const { error, ...policy } = readiness;
       return {

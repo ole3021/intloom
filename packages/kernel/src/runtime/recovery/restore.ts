@@ -37,6 +37,7 @@ export async function restoreRuns(
       phase: saved.phase,
     };
     if (interrupted) entry.recovery.suspended = true;
+    entry.state.loomIdentity = entry.recovery.loomIdentity;
     entries.push(entry);
   }
   return entries;

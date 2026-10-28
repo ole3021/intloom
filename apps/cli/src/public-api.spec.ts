@@ -34,6 +34,7 @@ test("the public runtime exports and Core operations retain their names", () => 
     "buildLoom",
     "callAgentTool",
     "cancelRun",
+    "checkLoom",
     "claimAgentCall",
     "completeAgentCall",
     "doctor",
@@ -47,6 +48,7 @@ test("the public runtime exports and Core operations retain their names", () => 
     "getRun",
     "getServiceStatus",
     "initProject",
+    "inspectLoom",
     "inspectMirror",
     "inspectProject",
     "listArtifacts",
@@ -65,6 +67,7 @@ test("the public runtime exports and Core operations retain their names", () => 
     "restoreMirror",
     "resumeRun",
     "run",
+    "scaffoldLoom",
     "startService",
     "stopService",
     "updateProjectConfig",
@@ -77,14 +80,14 @@ test("the public runtime exports and Core operations retain their names", () => 
     assert.equal(typeof value, "function");
 });
 
-test("all command help paths preserve the pre-refactor options and descriptions", async () => {
+test("all command help paths match the supported options and descriptions", async () => {
   const snapshots = JSON.parse(
     await readFile(
       new URL("../test/fixtures/help.json", import.meta.url),
       "utf8",
     ),
   ) as { args: string[]; output: string }[];
-  assert.equal(snapshots.length, 42);
+  assert.equal(snapshots.length, 45);
   const entry = process.argv[1];
   assert.ok(entry);
   for (const snapshot of snapshots) {

@@ -85,6 +85,8 @@ export function createRunsCommands(context: CmdContext) {
       "Run a Loom with the supplied inputs",
       {
         loomName: pos("Loom name"),
+        input: str("Loom input as JSON"),
+        "input-file": str("Loom input JSON file or -"),
         prompt: str("Description for the Loom"),
         "prompt-file": str("UTF-8 description file or -"),
         file: str("File path; repeat to provide multiple files"),
@@ -93,18 +95,38 @@ export function createRunsCommands(context: CmdContext) {
         ...admissionFlags,
       },
       async (a, p) => {
+        let jsonInput: import("@intloom/loom-sdk").JsonValue | undefined;
+        if (a.input !== undefined || a["input-file"] !== undefined) {
+          if (
+            a.prompt !== undefined ||
+            a["prompt-file"] !== undefined ||
+            Object.keys(pathInputs).length
+          )
+            invalid(
+              "JSON input cannot combine with legacy prompt/file/dir/url flags.",
+            );
+          try {
+            jsonInput = JSON.parse(await text(a, "input", "input-file"));
+          } catch {
+            invalid("Input must be complete valid JSON.");
+          }
+        }
         const bound = await binding(p, a);
         if (bound)
           print(
             await core.run({
               ...bound,
               loomName: value(a, "loomName", true),
-              input: {
-                ...(a.prompt !== undefined || a["prompt-file"] !== undefined
-                  ? { prompt: await text(a, "prompt", "prompt-file") }
-                  : {}),
-                ...pathInputs,
-              },
+              input:
+                jsonInput !== undefined
+                  ? jsonInput
+                  : {
+                      ...(a.prompt !== undefined ||
+                      a["prompt-file"] !== undefined
+                        ? { prompt: await text(a, "prompt", "prompt-file") }
+                        : {}),
+                      ...pathInputs,
+                    },
             }),
           );
       },

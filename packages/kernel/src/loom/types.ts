@@ -2,6 +2,8 @@ import type { LoomError } from "@intloom/utils";
 import type { LoomConfig } from "../host/config/schemas/loom-config.ts";
 import type { AgentId } from "@intloom/loom-sdk";
 import type { AgentSpec, LoomModule } from "@intloom/loom-sdk";
+import type { CapabilityAgentSpec } from "@intloom/loom-sdk/compiled";
+export type RunnableAgentSpec = AgentSpec | CapabilityAgentSpec;
 import type { LoomRegistries } from "./registries.ts";
 
 export interface LoomPackage {
@@ -17,7 +19,8 @@ export interface LoomPackage {
   readonly assetRoot: string;
 }
 
-export interface LoadedLoom extends LoomModule {
+export interface LoadedLoom extends Omit<LoomModule, "agentSpecs"> {
+  readonly agentSpecs: Readonly<Record<string, RunnableAgentSpec>>;
   readonly source: LoomPackage;
 }
 
@@ -30,7 +33,7 @@ export interface InitializeLoomsOptions {
 /** Validated resources, independent of model configuration and credentials. */
 export interface LoadedAgent {
   readonly agentId: AgentId;
-  readonly spec: AgentSpec;
+  readonly spec: RunnableAgentSpec;
   readonly source: LoomPackage;
 }
 

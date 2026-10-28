@@ -1,16 +1,23 @@
-import type { LoomInput, LoomInputKind } from "@intloom/loom-sdk";
-import { runRequestSchema } from "@intloom/kernel/operations";
+import {
+  loomInputSchema,
+  parseSchemaValue,
+  type JsonSchema,
+  type LoomInvocationInput,
+  type LoomInputKind,
+} from "@intloom/loom-sdk";
 
 /** The description-only case stays plain text; other fixed slots use an explicit JSON form. */
 export function parseLoomDraft(
   kinds: readonly LoomInputKind[],
   text: string,
-): LoomInput {
+  schema?: JsonSchema,
+): LoomInvocationInput {
+  if (schema !== undefined) return parseSchemaValue(schema, JSON.parse(text));
   const value =
     kinds.length === 1 && kinds[0] === "prompt"
       ? { prompt: text }
       : JSON.parse(text || "{}");
-  const input = runRequestSchema.shape.input.parse(value);
+  const input = loomInputSchema.parse(value);
   if (
     kinds.some((kind) => input[kind] === undefined) ||
     Object.keys(input).some((kind) => !kinds.includes(kind as LoomInputKind))
@@ -21,7 +28,12 @@ export function parseLoomDraft(
   return input;
 }
 
-export function loomInputHint(kinds: readonly LoomInputKind[]): string {
+export function loomInputHint(
+  kinds: readonly LoomInputKind[],
+  schema?: JsonSchema,
+): string {
+  if (schema !== undefined)
+    return `JSON input schema: ${JSON.stringify(schema)}`;
   if (kinds.length === 1 && kinds[0] === "prompt")
     return "Describe your request, or / for commands";
   const examples = {

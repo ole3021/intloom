@@ -33,11 +33,13 @@ export interface CapabilityUse {
 }
 
 export interface AccessBindings {
+  readonly run?: import("@intloom/loom-sdk").LoomRunContext;
   readonly scope: CallScope;
   readonly bindState: (assertCurrent: () => void) => StateAccess<JsonValue>;
   readonly storage: StorageAccess;
   readonly project?: ProjectAccess | undefined;
   readonly interaction?: InteractionAccess | undefined;
+  readonly agentInteractions?: boolean;
   /** Report committed effects before checking whether their result can still be delivered. */
   readonly committed?: (result: StorageCommitResult) => void;
 }

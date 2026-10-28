@@ -1,4 +1,7 @@
-import type { LoomInput, StorageReadAccess } from "@intloom/loom-sdk";
+import type {
+  LoomInvocationInput as LoomInput,
+  StorageReadAccess,
+} from "@intloom/loom-sdk";
 import type { OperationRef, Runtime } from "../runtime/contracts.ts";
 import type { MutationResult } from "../runtime/mutation.ts";
 import type { RunView } from "../runtime/run-view.ts";
@@ -10,8 +13,24 @@ import type { OperationReceipts } from "./receipts.ts";
 import type { RestoreMirrorInput } from "./mirrors.ts";
 import type { MirrorControl } from "../mirror/contracts.ts";
 
+import type {
+  CompiledApp,
+  CompiledDefinition,
+} from "@intloom/loom-sdk/compiled";
+
+export interface AppResource {
+  readonly appId: string;
+  readonly loomName: string;
+  readonly loomIdentity: string;
+  readonly uri: string;
+  readonly toolName: string;
+  readonly descriptor: CompiledApp;
+  readonly definition: CompiledDefinition;
+  readHtml(): Promise<string>;
+}
 /** Borrowed ports only: no resource disposal, registries, execution preparation or Runtime construction. */
 export interface OperationsPorts {
+  appResources?(): Promise<readonly AppResource[]>;
   readonly projectRoot: string;
   readonly receipts: OperationReceipts;
   readonly runtime: Pick<

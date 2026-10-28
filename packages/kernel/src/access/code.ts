@@ -18,6 +18,9 @@ function common(
   scope: CallScope,
 ): AgentExecutionAccess<JsonValue> {
   const { storage, project, bindState } = bindings;
+  const requestInteraction = bindings.agentInteractions
+    ? bindings.interaction?.request
+    : undefined;
   const read: StorageReadAccess = Object.freeze({
     getArtifact: (loom, stage) =>
       trackedUse(scope, "storage_read", () => storage.getArtifact(loom, stage)),
@@ -36,6 +39,14 @@ function common(
   } satisfies StorageReadAccess);
   return Object.freeze({
     signal: scope.signal,
+    ...(bindings.run
+      ? {
+          get run() {
+            scope.assertCurrent();
+            return structuredClone(bindings.run);
+          },
+        }
+      : {}),
     state: Object.freeze({
       get value() {
         return readUse(
@@ -58,6 +69,18 @@ function common(
         ),
     }),
     storage: read,
+    ...(requestInteraction
+      ? {
+          interaction: Object.freeze({
+            request: (
+              request: import("@intloom/loom-sdk").InteractionRequest,
+            ) =>
+              trackedUse(scope, "interaction", () =>
+                requestInteraction(request),
+              ),
+          }),
+        }
+      : {}),
     ...(project
       ? {
           project: Object.freeze({
@@ -95,6 +118,7 @@ export function bindCodeAccess(
   const access = common(bindings, bindings.scope);
   const interaction = bindings.interaction;
   if (!interaction) throw ERRORS.create("CAPABILITY_DENIED");
+  const requestInteraction = interaction.request;
   return Object.freeze({
     ...access,
     storage: Object.freeze({
@@ -107,6 +131,32 @@ export function bindCodeAccess(
         }),
     } satisfies CodeExecutionAccess<JsonValue>["storage"]),
     interaction: Object.freeze({
+      ...(interaction.receipt
+        ? {
+            receipt: (id: string) => {
+              bindings.scope.assertCurrent();
+              return interaction.receipt?.(id);
+            },
+          }
+        : {}),
+      ...(interaction.latest
+        ? {
+            latest: (id: string) => {
+              bindings.scope.assertCurrent();
+              return interaction.latest?.(id);
+            },
+          }
+        : {}),
+      ...(requestInteraction
+        ? {
+            request: (
+              request: import("@intloom/loom-sdk").InteractionRequest,
+            ) =>
+              trackedUse(bindings.scope, "interaction", () =>
+                requestInteraction(request),
+              ),
+          }
+        : {}),
       askQuestions: (questions) => {
         bindings.scope.assertCurrent();
         return trackedUse(bindings.scope, "interaction", () =>
@@ -138,7 +188,10 @@ export function bindAgentToolAccess(
     },
     beginUse(kind) {
       assertTool();
-      if (kind === "interaction" || kind === "storage_commit")
+      if (
+        (kind === "interaction" && !bindings.agentInteractions) ||
+        kind === "storage_commit"
+      )
         throw ERRORS.create("CAPABILITY_DENIED");
       const use = parent.beginUse(kind);
       return {
@@ -181,7 +234,10 @@ export function createToolAccess(parent: AgentExecutionAccess<JsonValue>) {
     },
     beginUse(kind) {
       assertCurrent();
-      if (kind === "storage_commit" || kind === "interaction")
+      if (
+        kind === "storage_commit" ||
+        (kind === "interaction" && !source.bindings.agentInteractions)
+      )
         throw ERRORS.create("CAPABILITY_DENIED");
       const use = scope.beginUse(kind);
       uses++;
@@ -242,8 +298,25 @@ export function guardAgentAccess(
     return result;
   }
   const project = access.project;
+  const requestInteraction = access.interaction?.request;
   const guarded = Object.freeze({
     signal: access.signal,
+    ...(access.run
+      ? {
+          get run() {
+            return read(() => access.run as NonNullable<typeof access.run>);
+          },
+        }
+      : {}),
+    ...(requestInteraction
+      ? {
+          interaction: Object.freeze({
+            request: (
+              request: import("@intloom/loom-sdk").InteractionRequest,
+            ) => invoke(() => requestInteraction(request)),
+          }),
+        }
+      : {}),
     ...(project
       ? {
           project: Object.freeze({

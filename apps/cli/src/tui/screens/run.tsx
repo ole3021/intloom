@@ -95,6 +95,14 @@ export function RunScreen(props: { controller: TuiController }) {
                             ? selected.inputs
                             : (["prompt"] as const);
                         })(),
+                        (() => {
+                          const selected = snapshot().looms.find(
+                            (item) => item.loomName === loom(),
+                          );
+                          return selected?.isAvailable
+                            ? selected.contract?.input
+                            : undefined;
+                        })(),
                       )}
                     />
                     <text

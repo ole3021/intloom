@@ -4,6 +4,9 @@ title: ProjectClient reference
 
 # ProjectClient reference
 
+See [Loom Package 0.10](./loom-package.md) for JSON input, formal output, model profiles, named interactions and new/check/inspect commands. Legacy calls and configuration remain supported.
+
+
 `@intloom/cli` exports a trusted local Node.js client. It connects to an already running Service and does not own Run lifetime.
 
 ```ts

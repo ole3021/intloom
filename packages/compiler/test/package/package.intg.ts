@@ -110,6 +110,27 @@ test("installs public Compiler/SDK archives and compiles a Loom without Kernel o
     await readFile(resolve(project, "dist/codes/sdk-contract.d.ts"), "utf8"),
     /@intloom\/loom-sdk/u,
   );
+  await writeFile(
+    resolve(project, "capability.mjs"),
+    `import assert from "node:assert/strict";
+import { scaffoldLoom, checkLoom, inspectLoom, compileLoom } from "@intloom/compiler";
+import { validateCompiledLoom } from "@intloom/loom-sdk/compiled";
+await scaffoldLoom("./new-capability");
+await checkLoom({ packageRoot: "./new-capability" });
+const inspected = await inspectLoom("./new-capability");
+assert.equal(inspected.definition.name, "new-capability");
+await compileLoom({ packageRoot: "./new-capability" });
+const { definition, plan, bindings } = await import("./new-capability/dist/loom.generated.js");
+validateCompiledLoom({ definition, plan, bindings });
+assert.equal(definition.input.type, "string");
+assert.equal(plan.steps.at(-1).kind, "deliver");
+assert.equal(Object.values(bindings.codes)[0]("  archive consumer  "), "archive consumer");
+`,
+  );
+  await run(process.execPath, [resolve(project, "capability.mjs")], {
+    cwd: project,
+    maxBuffer: 1024 * 1024,
+  });
 });
 
 test("resolves compiler declarations without source path mappings", async () => {

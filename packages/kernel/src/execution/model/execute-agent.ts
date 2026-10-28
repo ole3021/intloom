@@ -47,13 +47,24 @@ export async function executeServiceAgent(
   observer?: ServiceModelObserver,
 ): Promise<unknown> {
   access.signal.throwIfAborted();
-  if (input !== null)
+  if (!executable.capability && input !== null)
     throw ERRORS.create("STEP_EXECUTION_FAILED", {
       message:
         "Agent execution receives null input; business data belongs in Stage State.",
     });
   // The SDK receives only the input JSON Schema; executeAgent validates the original Zod Schema once after this call.
-  const schema = agentJsonSchema(executable.outputSchema) as PublicSchema;
+  const outputSchema = agentJsonSchema(executable.outputSchema);
+  // Function-call transports require an object even when a capability returns a scalar or null.
+  const schema = (
+    executable.capability
+      ? {
+          type: "object",
+          properties: { output: outputSchema },
+          required: ["output"],
+          additionalProperties: false,
+        }
+      : outputSchema
+  ) as PublicSchema;
   const controller = new AbortController();
   const signal = AbortSignal.any([access.signal, controller.signal]);
   let failure: { cause: unknown } | undefined;
@@ -118,7 +129,9 @@ export async function executeServiceAgent(
       },
     });
     const stream = await executable.agent.stream(
-      `${instruction}\nComplete by calling ${completionName} once with the declared outcome. This host completion Tool remains available after business Tools close; returning an outcome in Loom instructions means supplying its arguments. Do not infer success from a saved draft.`,
+      executable.capability
+        ? `Execute the declared capability using this input: ${JSON.stringify(input)}. Request necessary human decisions through assigned interaction Tools. Complete by calling ${completionName} with an object containing the declared business result in the output field.`
+        : `${instruction}\nComplete by calling ${completionName} once with the declared outcome. This host completion Tool remains available after business Tools close; returning an outcome in Loom instructions means supplying its arguments. Do not infer success from a saved draft.`,
       {
         requestContext: context,
         abortSignal: signal,
@@ -350,6 +363,15 @@ export async function executeServiceAgent(
       toolCalls: toolCall,
       ...(modelTiming ? { modelRequestId: requestId } : {}),
     });
+    if (executable.capability) {
+      if (
+        !output ||
+        typeof output !== "object" ||
+        !Object.hasOwn(output, "output")
+      )
+        throw ERRORS.create("AGENT_OUTPUT_INVALID");
+      return (output as { output: unknown }).output;
+    }
     return output;
   } catch (cause) {
     const stopped = access.signal.aborted;

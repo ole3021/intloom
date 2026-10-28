@@ -9,7 +9,8 @@
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "examples/meeting-room-demo"
   ],
   "scripts": {
     "dev": "turbo run dev",

@@ -141,4 +141,41 @@ test("installs SDK archives and checks runtime and declarations without reposito
   );
   for (const file of files)
     assert.equal(/^src\/|^test\/|\.(spec|intg)\./u.test(file), false);
+  // The optional browser entry is independently consumable after installing its peers.
+  await run(
+    "npm",
+    [
+      "install",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      ...Object.entries(manifest.peerDependencies).map(
+        ([name, version]) => `${name}@${version}`,
+      ),
+    ],
+    { cwd: consumer, timeout: 90_000, maxBuffer: 1024 * 1024 },
+  );
+  await writeFile(
+    resolve(consumer, "app.ts"),
+    `
+import { connectLoomApp, type AppSnapshot } from "@intloom/loom-sdk/app";
+export async function attach() {
+  const app = await connectLoomApp({name: "archive-consumer"});
+  app.subscribe((snapshot: AppSnapshot) => { void snapshot.view.mode; });
+  await app.dispose();
+}
+if (typeof connectLoomApp !== "function") throw new Error("Missing browser export");
+`,
+  );
+  config.files = ["app.ts"];
+  config.compilerOptions.lib = ["ES2024", "DOM", "DOM.Iterable"];
+  await writeFile(resolve(consumer, "tsconfig.json"), JSON.stringify(config));
+  await run(process.execPath, [
+    tsc,
+    "--project",
+    resolve(consumer, "tsconfig.json"),
+    "--pretty",
+    "false",
+  ]);
+  await run(process.execPath, [resolve(consumer, "app.ts")], { cwd: consumer });
 });

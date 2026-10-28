@@ -7,6 +7,7 @@ export interface PendingAgentCall {
   readonly createdAt: string;
 }
 export interface AgentTask {
+  readonly input?: ReadonlyJsonValue;
   readonly runId: string;
   readonly callId: string;
   readonly agentId: string;
@@ -85,6 +86,7 @@ export interface AgentWaitHandle {
   finish(): void;
 }
 export interface DelegatedContext {
+  readonly input?: ReadonlyJsonValue;
   readonly scope: import("../../access/contracts.ts").CallScope;
   readonly cursor: AgentTask["cursor"];
   readonly logger: import("@intloom/utils").Logger;

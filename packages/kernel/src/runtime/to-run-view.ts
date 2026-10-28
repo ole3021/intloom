@@ -9,6 +9,7 @@ export function toRunView(run: RunState): RunView {
   assertRunState(run);
   sampleRunObservation(run);
   return {
+    ...(run.loomIdentity ? { loomIdentity: run.loomIdentity } : {}),
     ...(run.pauseRequested ? { pauseRequested: true } : {}),
     results: structuredClone(runFacts(run).results),
     settled: isRunSettled(run),
@@ -26,11 +27,17 @@ export function toRunView(run: RunState): RunView {
         }
       : {}),
     ...(run.control ? { control: structuredClone(run.control) } : {}),
+    ...(run.interactionReceipts
+      ? { interactionReceipts: structuredClone(run.interactionReceipts) }
+      : {}),
     runId: run.id,
     loomName: run.loomName,
     execution: { ...run.execution },
     cursor: { ...run.cursor },
     status: run.status,
+    ...(run.status === "completed" && run.output !== undefined
+      ? { output: structuredClone(run.output) }
+      : {}),
     ...(run.pendingAgentCall === undefined
       ? {}
       : { pendingAgentCall: structuredClone(run.pendingAgentCall) }),

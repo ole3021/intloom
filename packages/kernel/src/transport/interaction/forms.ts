@@ -1,5 +1,12 @@
 import * as z from "zod";
 import {
+  interactionChoices,
+  choiceAnswer,
+} from "@intloom/loom-sdk/app-contracts";
+import {
+  interactionRequestSchema,
+  interactionResponse,
+  parseSchemaValue,
   userAskQuestionsSchema,
   userAskConfirmationSchema,
   userAnswerQuestionsSchema,
@@ -17,6 +24,118 @@ export interface ActionForm {
 
 /** MCP forms contain flat primitive fields; this layer converts arrays and option IDs without changing Kernel contracts. */
 export function actionForm(action: PendingUserAction): ActionForm {
+  if (action.kind === "user_ask_interaction") {
+    const request = interactionRequestSchema.parse(action.request);
+    const response = interactionResponse(request.definition);
+    const message = `${request.definition.title}\n${request.definition.description ?? ""}\nContext: ${JSON.stringify(request.context)}\nResponse schema: ${JSON.stringify(response)}`;
+    if (request.definition.kind === "confirm") {
+      const schema = z.strictObject({
+        confirmed: z.boolean().meta({ title: request.definition.title }),
+      });
+      return { message, schema, decode: (input) => schema.parse(input) };
+    }
+    if (
+      request.definition.kind === "select" &&
+      request.definition.presentation
+    ) {
+      try {
+        const mapping = request.definition.presentation.choices;
+        const choices = interactionChoices(request.context, mapping);
+        if (choices.length) {
+          const schema = z.strictObject({
+            choice: z.enum(choices.map((_, index) => `option_${index}`)).meta({
+              title: request.definition.title,
+              description: choices
+                .map((item, index) => `option_${index}: ${item.label}`)
+                .join("\n"),
+            }),
+          });
+          return {
+            message,
+            schema,
+            decode(input) {
+              const index = Number(schema.parse(input).choice.slice(7));
+              const item = choices[index];
+              if (!item) throw failure("INVALID_REQUEST", "Unknown choice");
+              return parseSchemaValue(
+                response,
+                choiceAnswer(mapping.responsePath, item.value),
+              );
+            },
+          };
+        }
+      } catch {
+        /* An unusable display projection falls back to the complete schema/context. */
+      }
+    }
+    if (
+      response &&
+      typeof response === "object" &&
+      response.type === "object" &&
+      response.properties &&
+      typeof response.properties === "object" &&
+      !Array.isArray(response.properties)
+    ) {
+      const fields: Record<string, z.ZodType> = {};
+      let flat = response.additionalProperties === false;
+      for (const [key, field] of Object.entries(response.properties)) {
+        if (
+          !field ||
+          typeof field !== "object" ||
+          Array.isArray(field) ||
+          !["string", "number", "integer", "boolean"].includes(
+            String(field.type),
+          )
+        ) {
+          flat = false;
+          break;
+        }
+        let schema: z.ZodType =
+          field.type === "boolean"
+            ? z.boolean()
+            : field.type === "string"
+              ? z.string()
+              : field.type === "integer"
+                ? z.number().int()
+                : z.number();
+        if (
+          Array.isArray(field.enum) &&
+          field.enum.every((value) => typeof value === "string")
+        )
+          schema = z.enum(field.enum as string[]);
+        if (
+          !Array.isArray(response.required) ||
+          !response.required.includes(key)
+        )
+          schema = schema.optional();
+        fields[key] = schema.meta({
+          title: typeof field.title === "string" ? field.title : key,
+          ...(typeof field.description === "string"
+            ? { description: field.description }
+            : {}),
+        });
+      }
+      if (flat)
+        return {
+          message,
+          schema: z.strictObject(fields),
+          decode: (input) => parseSchemaValue(response, input),
+        };
+    }
+    const schema = z.strictObject({
+      json: z.string().meta({
+        title: request.definition.title,
+        description:
+          "Enter a JSON value matching the declared response schema.",
+      }),
+    });
+    return {
+      message,
+      schema,
+      decode: (input) =>
+        parseSchemaValue(response, JSON.parse(schema.parse(input).json)),
+    };
+  }
   if (action.kind === "user_ask_confirmation") {
     const request = userAskConfirmationSchema.parse(action.request);
     const schema = z.strictObject({

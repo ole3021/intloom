@@ -21,7 +21,7 @@ test("offline doctor identifies missing setup without starting a service or clai
     );
     assert.equal(
       result.checks.find((item) => item.name === "execution")?.status,
-      source === "agent_ide" ? "not_checked" : "attention",
+      "not_checked",
     );
   }
   assert.deepEqual(await readdir(root, { recursive: true }), files);
