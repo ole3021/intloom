@@ -1,12 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true,
-    "paths": {
-      "@intloom/cli": ["./src/index.ts"]
-    },
-    "jsx": "preserve",
-    "jsxImportSource": "@opentui/solid"
+    "noEmit": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "build/**/*.ts", "src/**/*.tsx"]
+  "include": ["src/**/*.ts", "test/**/*.ts"]
 }

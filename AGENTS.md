@@ -40,6 +40,16 @@
 - Prefer direct, readable changes and existing local patterns. Keep comments
   focused on semantics that code and types cannot express.
 
+## Documentation boundaries
+
+- Keep discussions, proposals, plans, and progress records in the ignored
+  `.design-notes/` directory. Read its index when relevant to the current task.
+- Product READMEs and `docs/` describe package purposes, implemented behavior,
+  public contracts, and usage. Do not place working notes or plans there, or
+  link them to private discussion records.
+- Incorporate confirmed conclusions into the owning product documentation when
+  the corresponding behavior exists. Keep the discussion history separate.
+
 <!-- BEGIN:turborepo-agent-rules -->
 
 # This is NOT the Turborepo you know

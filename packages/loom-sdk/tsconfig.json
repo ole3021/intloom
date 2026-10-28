@@ -1,11 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true,
-    "paths": {
-      "@intloom/loom-sdk": ["./src/index.ts"]
-    },
-    "lib": ["ES2023", "ES2024.Promise", "DOM"]
+    "noEmit": true
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }

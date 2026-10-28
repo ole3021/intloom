@@ -2,11 +2,6 @@
   "$schema": "https://v2-11-7.turborepo.dev/schema.json",
   "globalDependencies": ["tsconfig.base.json", "LICENSE"],
   "tasks": {
-    "dev": {
-      "dependsOn": ["^build"],
-      "cache": false,
-      "persistent": true
-    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
@@ -14,81 +9,6 @@
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": []
-    },
-    "test": {
-      "dependsOn": ["^build"],
-      "outputs": [],
-      "cache": false
-    },
-    "intloom-site#build": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/**"],
-      "outputs": ["dist/**"],
-      "env": ["SITE_CHANNEL"]
-    },
-    "@intloom/utils#test": {
-      "dependsOn": [],
-      "outputs": [],
-      "cache": false
-    },
-    "test:intg": {
-      "dependsOn": ["build"],
-      "outputs": [],
-      "cache": false
-    },
-    "@intloom/cli#build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".publish/**", ".publish-intloom/**"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/publication.ts"]
-    },
-    "pack": {
-      "dependsOn": ["build"],
-      "cache": false,
-      "outputs": []
-    },
-    "intloom-site#test": {
-      "dependsOn": [],
-      "outputs": [],
-      "cache": false
-    },
-    "intloom-site#test:intg": {
-      "dependsOn": ["build"],
-      "cache": false,
-      "env": ["SITE_CHANNEL"]
-    },
-    "@intloom/cli#typecheck": {
-      "dependsOn": ["^build"],
-      "outputs": [],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/publication.ts"]
-    },
-    "@intloom/intent#typecheck": {
-      "dependsOn": ["^build", "build"],
-      "outputs": []
-    },
-    "test:package": {
-      "dependsOn": ["pack", "^pack"],
-      "outputs": [],
-      "cache": false
-    },
-    "@intloom/intent#test:package": {
-      "dependsOn": ["pack", "^pack", "@intloom/cli#pack"],
-      "outputs": [],
-      "cache": false
-    },
-    "@intloom/meeting-room-demo#build": {
-      "dependsOn": ["^build"],
-      "outputs": ["looms/*/dist/**", "looms/*/apps/**", "host/dist/**"]
     }
-  },
-  "globalPassThroughEnv": [
-    "GITHUB_ACTIONS",
-    "GITHUB_EVENT_NAME",
-    "GITHUB_SHA",
-    "GITHUB_REF",
-    "GITHUB_REPOSITORY",
-    "GITHUB_OUTPUT",
-    "RELEASE_REF",
-    "RELEASE_BASE",
-    "RELEASE_PACKAGES",
-    "RELEASE_PUBLISH_ENABLED"
-  ]
+  }
 }
