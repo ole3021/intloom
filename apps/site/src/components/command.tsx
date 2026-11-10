@@ -4,27 +4,41 @@ import { useEffect, useState } from "react";
 export function Command({
   command,
   compact = false,
+  caption,
 }: {
   command: string;
   compact?: boolean;
+  caption?: string;
 }) {
-  const [status, setStatus] = useState("");
+  const [feedback, setFeedback] = useState<{
+    command: string;
+    message: string;
+  }>();
+  const status = feedback?.command === command ? feedback.message : "";
   useEffect(() => {
-    if (!status) return;
-    const timeout = setTimeout(() => setStatus(""), 2000);
+    if (!feedback) return;
+    const timeout = setTimeout(() => setFeedback(undefined), 2000);
     return () => clearTimeout(timeout);
-  }, [status]);
+  }, [feedback]);
   return (
     <div className={styles["command-line"]} data-compact={compact}>
+      {caption && (
+        <div className={styles.caption}>
+          <span>{caption}</span>
+          <span role="status" data-feedback={Boolean(status)}>
+            {status || "Click to copy"}
+          </span>
+        </div>
+      )}
       <button
         type="button"
         aria-label={`Copy command: ${command}`}
         onClick={async () => {
           try {
             await navigator.clipboard.writeText(command);
-            setStatus("Copied");
+            setFeedback({ command, message: "Copied" });
           } catch {
-            setStatus("Select the command to copy");
+            setFeedback({ command, message: "Select the command to copy" });
           }
         }}
       >
@@ -38,9 +52,11 @@ export function Command({
           <Copy size={16} aria-hidden="true" />
         )}
       </button>
-      <span className={styles["command-feedback"]} role="status">
-        {status}
-      </span>
+      {!caption && (
+        <span className={styles["command-feedback"]} role="status">
+          {status}
+        </span>
+      )}
     </div>
   );
 }

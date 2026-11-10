@@ -1,0 +1,15 @@
+name: Agent report
+description: Deliver a note produced by a declared Loom tool.
+models:
+  writer: {strength: standard, capabilities: [tool_use, structured_output]}
+commands:
+  write:
+    entry: writer.ts
+    description: Ask the writer to deliver the supplied note.
+    input:
+      type: object
+      properties:
+        message: {type: string, minLength: 1}
+      required: [message]
+      additionalProperties: false
+    output: UTF-8 report.txt authored by the writer tool

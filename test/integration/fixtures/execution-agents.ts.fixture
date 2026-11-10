@@ -1,0 +1,20 @@
+import { defineAgent, defineCode, defineLoom, defineSkill, defineTool, resource, withDefault } from "@intloom/loom-sdk";
+import { z } from "zod";
+const counts: Record<string, number> = {};
+function counted<S extends z.ZodType>(name: string, schema: S): S {
+ const run=schema._zod.run; schema._zod.run=(...args)=>{counts[name]=(counts[name]??0)+1;return run(...args);};return schema;
+}
+const guide=resource({id:"guide",path:"guide.txt"});
+const skill=defineSkill({id:"arithmetic",description:"Small arithmetic",instructions:guide});
+const local=defineTool({id:"local",description:"Add one",inputSchema:counted("localInput",z.strictObject({value:withDefault(z.number(),3)})),outputSchema:counted("localOutput",z.number()),execute:({inputData})=>inputData.value+1});
+const bound=defineTool({id:"bound",description:"Host multiplier",binding:"multiply",inputSchema:counted("boundInput",z.strictObject({value:withDefault(z.number(),3)})),outputSchema:counted("boundOutput",z.number())});
+const text=defineAgent({id:"text",inputSchema:z.string(),outputSchema:counted("textOutput",z.string().min(1)),instructions:guide,prompt:async({inputData,context})=>`${inputData}: ${await context.resources.readText(guide)}`,model:{slot:"model"},outputMode:"text",skills:[skill]});
+const structured=defineAgent({id:"structured",inputSchema:z.string(),outputSchema:counted("structuredOutput",z.strictObject({value:z.number()})),instructions:"Return a value",prompt:({inputData})=>inputData,model:{slot:"model"},outputMode:"structured"});
+const toolAgent=defineAgent({id:"tool-agent",inputSchema:z.string(),outputSchema:counted("toolTextOutput",z.string()),instructions:"Use the declared tools",prompt:({inputData})=>inputData,model:{slot:"model"},outputMode:"text",tools:[local,bound],generation:{maxSteps:2}});
+const entry=defineCode({id:"call-agents",inputSchema:z.enum(["all","tool","text","structured"]),outputSchema:z.strictObject({text:z.string().optional(),structured:z.strictObject({value:z.number()}).optional(),tool:z.string().optional(),counts:z.record(z.string(),z.number())}),uses:{agents:[text,structured,toolAgent]},execute:async({inputData,context})=>{
+ const a=inputData==="all"||inputData==="text"?await context.agents.generate(text,"TEXT"):undefined;
+ const b=inputData==="all"||inputData==="structured"?await context.agents.generate(structured,"STRUCTURED"):undefined;
+ const c=inputData==="all"||inputData==="tool"?await context.agents.generate(toolAgent,"TOOLS"):undefined;
+ return {...(a===undefined?{}:{text:a}),...(b===undefined?{}:{structured:b}),...(c===undefined?{}:{tool:c}),counts:{...counts}};
+}});
+export default defineLoom({id:"agent-run",version:"1.0.0",description:"Agent boundary evidence",entry});

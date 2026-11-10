@@ -1,7 +1,7 @@
 /* biome-ignore-all lint/complexity/noImportantStyles: Motion preferences must override component animation declarations. */
 html {
   background: var(--site-color-background);
-  scroll-padding-top: 0;
+  scroll-padding-top: calc(var(--site-header-height) + 16px);
   -webkit-font-smoothing: antialiased;
 }
 body {

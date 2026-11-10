@@ -52,6 +52,30 @@
   --site-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   color-scheme: dark;
 }
+
+:root:has(.rspress-doc) {
+  --rp-nav-height: var(--site-header-height);
+  --rp-c-brand: var(--site-color-accent);
+  --rp-c-brand-light: var(--site-color-accent-light);
+  --rp-c-brand-lighter: color-mix(
+    in srgb,
+    var(--site-color-accent-light) 75%,
+    white
+  );
+  --rp-c-brand-dark: color-mix(in srgb, var(--site-color-accent) 85%, black);
+  --rp-c-brand-darker: color-mix(in srgb, var(--site-color-accent) 70%, black);
+  --rp-c-brand-tint: color-mix(
+    in srgb,
+    var(--site-color-accent) 14%,
+    transparent
+  );
+  --rp-c-bg: var(--site-color-background);
+  --rp-c-bg-soft: var(--site-color-surface);
+  --rp-c-bg-mute: var(--site-color-surface-raised);
+  --rp-c-divider-light: var(--site-color-border);
+  --rp-c-text-code: var(--site-color-text);
+}
+
 @media (min-width: 1700px) {
   :root {
     --site-rail-width: var(--site-spacing-08);

@@ -1,0 +1,20 @@
+import { defineCode, defineLoom, resource, withDefault } from "@intloom/loom-sdk";
+import { z } from "zod";
+const guide = resource({ id: "guide", path: "guide.txt" });
+let calls = 0; let normalizations = 0;
+const inputSchema = z.strictObject({ value: withDefault(z.number(), 7), mode: withDefault(z.enum(["ok", "cancel", "slow", "fail", "invalid"]), "ok") });
+const parse = inputSchema.safeParse.bind(inputSchema);
+inputSchema.safeParse = (...args) => { normalizations++; return parse(...args); };
+export default defineLoom({ id: "code-run", version: "1.0.0", description: "Code execution evidence", entry: defineCode({
+  id: "execute", inputSchema, outputSchema: z.strictObject({ value: z.number(), calls: z.number(), normalizations: z.number(), resource: z.string(), runId: z.string() }), uses: { resources: [guide] },
+  execute: async ({ inputData, context }) => {
+    calls++; context.logger.info("entered", { mode: inputData.mode });
+    if (inputData.mode === "fail") throw new Error("Request failed: token=SECRET_MUST_NOT_APPEAR /private/author/path");
+    if (inputData.mode === "cancel") await new Promise<void>((resolve) => { if (context.signal.aborted) setTimeout(resolve, 80); else context.signal.addEventListener("abort", () => setTimeout(resolve, 80), { once: true }); });
+    if (inputData.mode === "slow") await new Promise((resolve) => setTimeout(resolve, 450));
+    if (inputData.mode === "invalid") return undefined as never;
+    const resourceText = await context.resources.readText(guide);
+    context.logger.info("leaving");
+    return { value: inputData.value, calls, normalizations, resource: resourceText, runId: context.run.runId };
+  },
+}) });

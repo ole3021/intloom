@@ -1,0 +1,13 @@
+name: File report
+description: Produce a text report containing the supplied message.
+commands:
+  write:
+    description: Write the message to an immutable delivered report.
+    entry: report.ts
+    input:
+      type: object
+      properties:
+        message: {type: string, minLength: 1}
+      required: [message]
+      additionalProperties: false
+    output: UTF-8 report.txt

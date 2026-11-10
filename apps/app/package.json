@@ -1,0 +1,40 @@
+{
+  "name": "intloom-desktop",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run build && bun run desktop:prepare && electrobun dev",
+    "dev:web": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.electrobun.json && tsc --noEmit",
+    "test": "bun test test",
+    "desktop:build": "bun run build && bun run desktop:prepare && electrobun build --env=dev",
+    "desktop:release": "bun run build && bun run desktop:prepare && node scripts/build-installer.mjs",
+    "dev:mock": "INTLOOM_STUDIO_MODE=mock bun run dev",
+    "desktop:prepare": "node scripts/prepare-runtime.mjs"
+  },
+  "dependencies": {
+    "electrobun": "1.18.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.5.0",
+    "lucide-react": "^0.577.0",
+    "radix-ui": "^1.4.3",
+    "tw-animate-css": "^1.3.0",
+    "fflate": "^0.8.2",
+    "pptxgenjs": "4.0.1",
+    "@intloom/cli": "workspace:*"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.1",
+    "tailwindcss": "4.3.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "^19.2.0",
+    "vite": "8.3.5",
+    "yaml": "2.9.1",
+    "@intloom/loom-sdk": "workspace:*"
+  }
+}

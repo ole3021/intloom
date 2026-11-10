@@ -1,69 +1,38 @@
 # IntLoom
 
-English | [简体中文](./README_ZH.md)
+IntLoom lets you install a professional capability as a **Loom**, give it input and collect its result. A report writer, for example, can take a message and deliver a text file. Each run gets an ID so you can return to a question, check progress or retrieve the exact file that was delivered.
 
-A loom of action for human intent.
+[0.4.0 documentation](docs/README.md) · [Use a Loom](docs/use/cli.md) · [Build a Loom](docs/author/first-package.md) · [Develop with a coding agent](docs/ai/loom-authoring.md)
 
-IntLoom is a local workflow framework that brings Agents, code, and human decisions into one explicit process. It helps carry an intent through reasoning, execution, questions, and confirmation, while keeping the results that the Workflow commits.
+## Try a Loom
 
-## Why IntLoom
-
-Work that combines AI reasoning with real actions needs a clear process. IntLoom is built around three goals:
-
-- **Clear direction:** Workflows define the steps, checks, and decision points that guide the work.
-- **Human participation:** Questions and confirmations make room for clarification, review, and changes.
-- **Results that remain:** Committed outputs are saved separately from working drafts and can be inspected after execution.
-
-Use IntLoom when a task needs both flexible reasoning and explicit control over how work proceeds.
-
-## How it works
-
-A Workflow defines a process; a Run is one execution of that process for an intent. Agents reason and use business Tools, code performs operations and checks, and people answer questions and review decisions. Execution continues within the same Run.
-
-For software work, the [Intent Workflow](./packages/intent/README.md) organizes the process into Specification, Solution, Implementation, and Validation. Other Workflows can define their own stages and outputs.
-
-You can work through the CLI or a connected Agent IDE using MCP. Both use the same local project service. The CLI uses a project-configured model; the default MCP path uses the connected client's Agent execution environment. Saved results can be queried through either entry.
-
-## Getting started
-
-All IntLoom packages require Node.js 26.4.0+. Working on this repository requires Node.js 26.4.0+, Bun 1.4.0+, and npm. These instructions use a source checkout; see [Installation](./docs/guide/start/installation.md) for published-release prerequisites and complete setup.
-
-From the repository root, build the CLI and inspect its help:
+With the CLI installed and a built file-report archive in the current directory:
 
 ```sh
-bun install
-bun run build --filter=@intloom/cli --concurrency=1
-node apps/cli/dist/bin.js --help
+intloom install ./file-report-0.4.0.tgz
+intloom run file-report --input '{"message":"First delivery"}'
 ```
 
-For development, `bun run build:dev` builds the local CLI and installs `intloom-dev` into Bun's global bin directory. With that directory on PATH, run `intloom-dev` from any test project. See [CLI local development](./apps/cli/README.md#local-development) for rebuilding and Service lifecycle details.
+Use the returned file reference with `intloom artifact export <artifactId> --out ./report.txt`. [Get the sample archive and run your first Loom](docs/use/first-loom.md).
 
-Obtain a compatible compiled Workflow archive with resolvable runtime dependencies. Replace the archive path below with your own. The project directory must be new or empty; the CLI does not bundle a business Workflow.
+| If you want to… | Start here |
+| --- | --- |
+| Turn meeting text or a file into highlights and source-backed minutes | [Official meeting-notes example](examples/meeting-notes/README.md) |
+| Run a Loom from a terminal, answer questions or automate a command | [IntLoom CLI](apps/cli/README.md) |
+| Install and execute a Loom from the desktop run center | [IntLoom Studio](apps/app/README.md) |
+| Browse the Loom directory and bilingual guides | [Website](apps/site/README.md) · [中文指南](apps/site/pages/zh/docs/index.md) |
+| Write a Code, Agent or Workflow command and package it for others | [Loom SDK](packages/loom-sdk/README.md) · [Compiler](packages/compiler/README.md) |
+| Embed execution, interactions and artifact storage in a host | [Kernel](packages/kernel/README.md) |
 
-Still from the repository root:
+## Develop and verify
+
+Use Node 26.13.0 and Bun 1.4.4 for this checkout.
 
 ```sh
-node apps/cli/dist/bin.js init my-project --loom /absolute/path/to/loom.tgz
-node apps/cli/dist/bin.js --project my-project start
+bun install --frozen-lockfile
+bun run verify
 ```
 
-Starting the service does not execute a Workflow. Choose an execution path next:
+Use `bun run test` for daily regression, `bun run test:intg` for configured live tasks and `bun run test:e2e` to verify the npm archives in isolated installations.
 
-- [CLI](./docs/guide/start/cmd.md): configure the project's model and credentials, then use `run` to begin a Run.
-- [Agent IDE / MCP](./docs/guide/start/mcp.md): connect Codex or another capable MCP client. The default client Agent mode needs no project model configuration.
-
-Answer questions and confirmations to continue the same Run. Use `runs` to inspect execution, `attach` to continue from the terminal, and `artifacts` to inspect saved results. Process completion and the quality of its business results are separate things.
-
-## Project status
-
-IntLoom is in early development. Local Workflow execution, CLI/MCP access, file and SQLite storage, and bounded restart recovery are implemented. Studio remains planned.
-
-Model behavior and client support need validation in the intended environment. See [Versions and compatibility](./docs/guide/reference/compatibility.md) for supported behavior and verification boundaries.
-
-## Documentation
-
-- [About IntLoom](./docs/guide/introduction.md)
-- [Getting started](./docs/guide/start/installation.md)
-- [CLI command reference](./docs/guide/reference/cli.md)
-- [Create a Workflow](./docs/guide/development/create.md)
-- [AI-driven E2E testing](./apps/cli/src/e2e/README.md)
+See [development and verification](docs/maintainers/development.md) for the developer CLI, supported consumer runtimes and candidate packages. Read versioned changes for the [framework](releases/framework), [CLI](releases/cli), [Studio](releases/app) and [website](releases/site).

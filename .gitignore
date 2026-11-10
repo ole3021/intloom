@@ -2,32 +2,27 @@ node_modules/
 dist/
 .turbo/
 coverage/
-.intloom/
-.intloom-build-*/
-.intloom-build.lock
 *.tsbuildinfo
+.DS_Store
+
+# Local credentials, runtime state, and private design notes.
 .env
 .env.*
 !.env.example
-.DS_Store
-
-# Cloudflare local state and temporary artifacts
-.wrangler/
-.rspress/
-.dev.vars
-.dev.vars.*
-
-# dotenvx: commit only encrypted files; always ignore private keys
-!.env.encrypted
 .env.keys
 .env.keys.*
+.dev.vars
+.dev.vars.*
+.intloom/
+.intloom-build-*/
+.intloom-build.lock
+.design-notes/
 
-backup/
-
-# Prepared npm delivery and verified release archives
-/apps/cli/.publish/
-/apps/cli/.publish-intloom/
+# Local website and delivery artifacts.
+.examples/
+.wrangler/
+.rspress/
 .release/
-
-# Local-only first npm publication entry
-/scripts/bootstrap-release.local.ts
+.publish/
+.publish-intloom/
+backup/

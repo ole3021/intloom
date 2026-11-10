@@ -11,11 +11,9 @@
       "**",
       "!!**/dist",
       "!!**/.turbo",
-      "!!**/.intloom-build-*",
-      "!!**/loom.generated.ts",
       "!!**/node_modules",
-      "!!**/example",
-      "!!packages/intent/e2e/cases/*/workspace"
+      "!!**/coverage",
+      "!!.design-notes"
     ]
   },
   "formatter": {

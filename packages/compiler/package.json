@@ -1,34 +1,7 @@
 {
   "name": "@intloom/compiler",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist",
-    "LICENSE"
-  ],
-  "scripts": {
-    "dev": "node --test --watch \"src/**/*.spec.ts\"",
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json",
-    "test:intg": "node --test \"test/*.intg.ts\"",
-    "test": "node --test \"src/**/*.spec.ts\"",
-    "pack": "node ../../scripts/pack-package.ts .",
-    "test:package": "node --test \"test/package/*.intg.ts\""
-  },
-  "dependencies": {
-    "@intloom/utils": "workspace:*",
-    "yaml": "^2.8.1",
-    "zod": "^4.6.5",
-    "typescript": "7.0.2",
-    "acorn": "^8.15.0",
-    "@intloom/loom-sdk": "workspace:*"
-  },
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -39,11 +12,42 @@
   "bugs": {
     "url": "https://github.com/ole3021/intloom/issues"
   },
-  "engines": {
-    "node": ">=26.4.0"
-  },
   "publishConfig": {
     "access": "public"
   },
-  "description": "Build compiled IntLoom Loom packages"
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node -e \"require('node:fs').chmodSync('dist/bin.js', 0o755)\"",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "engines": {
+    "node": "^22.22.0 || ^24.0.0 || ^26.0.0"
+  },
+  "dependencies": {
+    "@intloom/loom-sdk": "workspace:*",
+    "typescript": "7.0.2",
+    "esbuild": "0.28.2",
+    "tar": "7.5.22",
+    "semver": "7.8.6",
+    "zod": "4.6.7",
+    "yaml": "2.9.1",
+    "@babel/parser": "7.29.9"
+  },
+  "devDependencies": {
+    "@babel/types": "7.29.8"
+  },
+  "bin": {
+    "intloom-build": "./dist/bin.js"
+  }
 }

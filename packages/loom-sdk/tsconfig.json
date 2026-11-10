@@ -1,10 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true,
-    "paths": {
-      "@intloom/loom-sdk": ["./src/index.ts"]
-    }
+    "lib": ["ES2022", "DOM"],
+    "noEmit": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "test/types/**/*.ts"]
 }

@@ -1,34 +1,26 @@
 # @intloom/compiler
 
-Build Loom source packages into distributable ESM, TypeScript declarations, source maps and Skill assets. Compiler uses the contracts in `@intloom/loom-sdk`; it never executes business modules, creates Agents or depends on Kernel.
+Use the Compiler when you distribute a Loom or integrate Loom packaging into a build tool. It reads the project's npm metadata and `loom.yaml`, bundles and inspects each declared command, copies declared resources and writes an installable npm archive. Ordinary runtime dependencies stay in the package manifest for npm to install.
 
-## Build a Loom
+## Build an author project
 
-With IntLoom installed, run `intloom build [path]`. Omit the path to build the current directory. The source package contains `package.json.loom`, `tsconfig.build.json`, and referenced Stage YAML, Code, Schema, Tool, Agent and Skill files. Keep each Stage's resources together; references are relative to the declaring file.
+In an author project containing a command manifest and TypeScript entries:
 
-For programmatic builds:
-
-```ts
-import { compileLoom } from "@intloom/compiler";
-
-const result = await compileLoom({ packageRoot: process.cwd() });
-console.log(result.outputPath, result.diagnostics);
+```sh
+npm install -D @intloom/compiler @intloom/loom-sdk zod@~4.6.7
+npm pkg set scripts.build=intloom-build
+npm run build
 ```
 
-Requires Node.js 26.4.0+. Repository development uses Bun. Compiler is a development dependency; SDK and packages referenced by shipped JavaScript or declarations belong in dependencies or peers.
+The default output is a `.tgz` in the project's `dist/` directory. Install the archive with `intloom install ./dist/<name>-<version>.tgz`. The [first package tutorial](../../docs/author/first-package.md) includes an example with a concrete archive name.
 
-| Option | Purpose |
-| --- | --- |
-| `packageRoot` | Required source package directory |
-| `tsconfigFile` | In-package configuration; defaults to `tsconfig.build.json` |
-| `logger` | Optional caller-owned Utils logger |
+## Integrate with a build tool
 
-`compileLoom` returns `Promise<CompileResult>` with source/output paths, package name/version, Loom name and warning diagnostics. Errors are `LoomError` values with located diagnostics in `cause.diagnostics`.
+```js
+import { buildPackage } from "@intloom/compiler";
 
-The generated `dist` is a complete package. Its manifest exports `loom.generated.js`, its declarations and `./package.json`; the source manifest's export map is not copied. Pack `dist`, not the authoring directory. The entry exports exactly `blueprint`, `codes` and `agentSpecs`.
+const archivePath = await buildPackage("./my-loom", "./artifacts");
+console.log(archivePath);
+```
 
-Compilation follows the entry's module dependencies, ignoring inherited TypeScript `include` and project references. It enforces SDK contract checks, validates routing and local re-export chains, checks JavaScript/declaration dependencies and copies referenced Skill directories. Unreachable Stages/Steps produce warnings; cycles are legal. Code/Agent IDs are stable for logical resource bindings. Identical inputs with the same compiler, dependencies and configuration produce repeatable output; stable IDs do not authorize recovery across changed executable content.
-
-A package lock serializes builds. Generated source stays in `.intloom-build-*`; validation completes before replacing `dist`. Failed validation preserves the old output. A cleanup failure may occur after replacement. An interrupted `.intloom-build.lock` records its owner: verify the process has exited and inspect temporary `previous-dist` backups before removing the lock. Locks are never automatically stolen.
-
-See [Create a Loom](../../docs/guide/development/create.md), [Compiler reference](../../docs/guide/reference/compiler.md), [build and distribute](../../docs/guide/development/build.md), [source responsibilities](./src/README.md) and [tests](./test/README.md).
+`buildPackage` resolves the project and output directories from the calling process. Build on a machine with the author project's dependencies installed. For existing TypeScript `defineLoom` projects, see the [compile, inspect and pack APIs](../../docs/reference/compiler.md).

@@ -2,6 +2,24 @@
   position: relative;
   min-width: 0;
 }
+.caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
+  font: var(--site-type-label);
+  font-size: 10px;
+  letter-spacing: 0.065em;
+  text-transform: uppercase;
+}
+.caption [role="status"] {
+  color: var(--site-color-muted);
+  text-align: right;
+}
+.caption [data-feedback="true"] {
+  color: var(--site-color-accent-light);
+}
 .command-line button {
   display: flex;
   align-items: center;

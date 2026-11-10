@@ -1,0 +1,30 @@
+name: Meeting notes
+description: Turn a transcript or rough notes into shareable highlights and source-backed minutes in the meeting's language.
+permissions: [read-input-files, write-run-files]
+models:
+  editor: {strength: standard, capabilities: [structured_output]}
+commands:
+  summarize:
+    description: Supply meeting text or one UTF-8 .txt or .md file.
+    entry: summarize.ts
+    input:
+      type: object
+      properties:
+        prompt: {type: string, minLength: 1}
+        files:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            type: object
+            properties:
+              kind: {type: string, const: input-file}
+              path: {type: string, minLength: 1}
+            required: [kind, path]
+            additionalProperties: false
+      minProperties: 1
+      maxProperties: 1
+      additionalProperties: false
+    output: UTF-8 meeting-notes.md with short bullet highlights and full minutes with source quotations.
+examples:
+  - prompt: "We agreed to pilot with 10% of accounts. The launch date is still open. Chen will share regression results by Thursday."

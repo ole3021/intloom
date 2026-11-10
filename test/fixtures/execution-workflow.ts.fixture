@@ -1,0 +1,34 @@
+import { defineCode, defineLoom, defineStep, defineTool, defineWorkflow, withDefault } from "@intloom/loom-sdk";
+import { z } from "zod";
+const counts: Record<string, number> = {};
+function counted<S extends z.ZodType>(name: string, schema: S): S {
+  const run = schema._zod.run;
+  schema._zod.run = (...args) => { counts[name] = (counts[name] ?? 0) + 1; return run(...args); };
+  return schema;
+}
+const internal = counted("internal", z.number());
+const seed = defineStep({ id: "seed", inputSchema: internal, outputSchema: internal, execute: ({ inputData }) => inputData + 1 });
+const foreign = defineStep({ id: "seed", inputSchema: internal, outputSchema: internal, execute: ({ inputData }) => inputData });
+const twice = defineCode({ id: "twice", inputSchema: internal, outputSchema: internal, execute: ({ inputData }) => inputData * 2 });
+const add = defineStep({ id: "add", inputSchema: internal, outputSchema: internal, execute: ({ inputData }) => inputData + 1 });
+const nested = defineWorkflow({ id: "nested", inputSchema: internal, outputSchema: internal }).then(add).then(defineStep(twice, { id: "nested-double" })).map(({ inputData, getInitData, getStepResult }) => {
+  if (getStepResult(seed) !== null || getStepResult(add) !== getInitData() + 1) throw new Error("nested scope");
+  return inputData;
+}).commit();
+const multiply = defineTool({ id: "multiply", description: "Multiply a number", binding: "multiply", inputSchema: internal, outputSchema: counted("boundOutput", z.number()) });
+const a = defineStep(twice, { id: "a" });
+const b = defineStep({ id: "b", inputSchema: internal, outputSchema: internal, execute: ({ inputData }) => inputData + 1 });
+const left = defineStep({ id: "left", inputSchema: internal, outputSchema: internal, execute: ({ inputData }) => inputData + 1 });
+const right = defineStep(twice, { id: "right" });
+const skip = defineStep({ id: "skip", inputSchema: internal, outputSchema: internal, execute: () => { throw new Error("unmatched branch ran"); } });
+const down = defineStep({ id: "down", inputSchema: internal, outputSchema: internal, execute: ({ inputData }) => inputData - 10 });
+const up = defineStep({ id: "up", inputSchema: internal, outputSchema: internal, execute: ({ inputData }) => inputData + 2 });
+const workflow = defineWorkflow({ id: "all-constructs", inputSchema: counted("input", withDefault(z.number(), 2)), outputSchema: z.strictObject({ value: z.number(), initial: z.number(), seed: z.number(), counts: z.record(z.string(), z.number()) }) })
+ .then(seed).parallel([a,b]).map(({ inputData }) => [inputData.a, inputData.b])
+ .foreach(defineStep(nested, { id: "each" }), { concurrency: 2 }).map(({ inputData }) => inputData.reduce((a,b)=>a+b,0))
+ .branch([[({inputData})=>inputData >= 20,left],[()=>true,right],[()=>false,skip]])
+ .map(({ inputData, getStepResult }) => { if (getStepResult(skip) !== null || getStepResult(foreign) !== null) throw new Error("scope"); return (inputData.left ?? 0) + (inputData.right ?? 0); })
+ .dowhile(down, ({ inputData }) => inputData > 50).dountil(up, ({ inputData }) => inputData >= 47)
+ .then(defineStep(multiply, { id: "bound" }))
+ .map(({ inputData, getInitData, getStepResult }) => ({ value: inputData, initial: getInitData(), seed: getStepResult(seed) ?? -1, counts: { ...counts } })).commit();
+export default defineLoom({ id: "workflow-run", version: "1.0.0", description: "Native Workflow execution evidence", entry: workflow });

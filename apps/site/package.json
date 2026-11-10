@@ -1,27 +1,22 @@
 {
   "name": "intloom-site",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "rspress dev",
     "build": "rspress build",
-    "typecheck": "tsc --noEmit",
-    "test": "node --test scripts/*.spec.ts",
-    "deploy:check": "wrangler deploy --dry-run",
-    "deploy:production": "wrangler deploy",
-    "deploy:preview": "wrangler versions upload",
-    "test:intg": "node --test test/*.intg.ts"
-  },
-  "devDependencies": {
-    "@rspress/core": "2.0.21",
-    "@types/react": "19.3.0",
-    "wrangler": "4.131.1"
+    "preview": "rspress preview",
+    "test": "node --test test/startup.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@carbon/icons-react": "11.90.0",
-    "motion": "14.0.0",
+    "@rspress/core": "2.0.21",
     "react": "19.3.0",
     "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0"
   }
 }
