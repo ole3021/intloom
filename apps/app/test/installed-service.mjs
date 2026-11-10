@@ -1,16 +1,9 @@
 import assert from "node:assert/strict";
-import {
-  readFile,
-  mkdir,
-  writeFile,
-  mkdtemp,
-  cp,
-  symlink,
-} from "node:fs/promises";
+import { readFile, mkdir, writeFile, mkdtemp, cp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { execFileSync } from "node:child_process";
 import { verifyInstallSources } from "./installed-packages.mjs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { buildPackage } from "../../../packages/compiler/dist/index.js";
@@ -22,21 +15,18 @@ const fixture = fileURLToPath(
 );
 process.env.npm_config_cache = join(work, "npm-cache");
 const archive = await buildPackage(fixture, work);
-const previous = join(work, "previous");
-await cp(fixture, previous, { recursive: true });
-await symlink(
-  fileURLToPath(new URL("../../../node_modules", import.meta.url)),
-  join(work, "node_modules"),
-  "junction",
-);
-const previousMeta = JSON.parse(
-  await readFile(join(previous, "package.json"), "utf8"),
-);
-await writeFile(
-  join(previous, "package.json"),
-  JSON.stringify({ ...previousMeta, version: "0.3.9" }),
-);
-const olderArchive = await buildPackage(previous, work);
+// Keep both author projects under the same installed workspace dependencies.
+const previous = await mkdtemp(join(dirname(fixture), "file-report-previous-"));
+let olderArchive;
+try {
+  await cp(fixture, previous, { recursive: true });
+  const manifest = join(previous, "package.json");
+  const metadata = JSON.parse(await readFile(manifest, "utf8"));
+  await writeFile(manifest, JSON.stringify({ ...metadata, version: "0.3.9" }));
+  olderArchive = await buildPackage(previous, work);
+} finally {
+  await rm(previous, { recursive: true, force: true });
+}
 const ordinary = join(work, "ordinary");
 await mkdir(ordinary);
 await writeFile(
