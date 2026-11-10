@@ -9,7 +9,7 @@ Studio is a desktop client for the local Intloom service. Its installer includes
 3. The detail page opens with the Run ID. On completion, select **打开文件** to open an editable copy of `report.txt` in the system application, or **导出到…** to save it elsewhere. Export preserves existing files at the destination.
 4. Open the same Run ID in the CLI or return to it after restarting Studio. Pending questions from child runs appear on the parent's detail page. **服务管理** previews unfinished runs before shutting down the shared service.
 
-For the official [meeting-notes example](../../examples/meeting-notes/README.md), install its archive and open `summarize`. Choose **粘贴文本** for a transcript or **本地文件 → 选择文件…** for a UTF-8 text or Markdown file. Switching tabs keeps both drafts, and starting the run submits the active source. On completion, export `meeting-notes.md`. If the Loom rejects unrelated material, the detail page shows `NOT_MEETING_CONTENT` and lets you start again with new input.
+For the official [meeting-notes example](../../examples/meeting-notes/README.md), enter `@intloom/meeting-notes` in the Loom library after its first npm release, then open `summarize`. Choose **粘贴文本** for a transcript or **本地文件 → 选择文件…** for a UTF-8 text or Markdown file. Switching tabs keeps both drafts, and starting the run submits the active source. On completion, export `meeting-notes.md`. If the Loom rejects unrelated material, the detail page shows `NOT_MEETING_CONTENT` and lets you start again with new input.
 
 A repository URL opens its latest stable GitHub Release. You can paste a specific Release page or its `.tgz` asset URL. If a release contains several built Loom packages, choose one in the preview. The author must provide a built npm archive. An npm version page selects that version. Studio verifies that the archive still matches the preview before npm installs it and prepares its declared child Looms.
 
@@ -19,7 +19,7 @@ A new installation starts with an empty library. Agent Looms use the service's g
 
 ## Install a published release
 
-Open [Studio releases on GitHub](https://github.com/ole3021/intloom/releases?q=app-v) and choose the `IntLoom-Studio-` installer for your system. macOS has separate DMGs for Apple silicon (`macos-arm64`) and Intel (`macos-x64`). Windows x64 uses a ZIP containing the installer, and Linux x64 uses a `.tar.gz` installer archive. Each installer has a matching `.sha256` file. The initial macOS release is distributed without Developer ID signing or Apple notarization. Gatekeeper may block it on first launch.
+Open [Studio releases on GitHub](https://github.com/ole3021/intloom/releases/latest) and choose the `IntLoom-Studio-` installer for your system. macOS has separate DMGs for Apple silicon (`macos-arm64`) and Intel (`macos-x64`). Windows x64 uses a ZIP containing the installer, and Linux x64 uses a `.tar.gz` installer archive. Each installer has a matching `.sha256` file. The initial macOS release is distributed without Developer ID signing or Apple notarization. Gatekeeper may block it on first launch.
 
 ## Update an installed Studio
 

@@ -17,7 +17,7 @@
     "build": "turbo run build",
     "build:dev": "node scripts/check-dev-toolchain.ts && turbo run @intloom/cli#build && node apps/cli/scripts/install-dev-cli.ts",
     "typecheck": "turbo run typecheck @intloom/cli#build && tsc -p tsconfig.test.json",
-    "check": "node scripts/check-dev-toolchain.ts && biome check . && bun run typecheck && node --test test/engineering/*.test.ts",
+    "check": "node scripts/check-dev-toolchain.ts && biome check . && bun run typecheck && node --test test/engineering/*.test.*",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "test": "turbo run @intloom/cli#build && bun run --workspaces --if-present test && node --test test/integration/*.test.ts",

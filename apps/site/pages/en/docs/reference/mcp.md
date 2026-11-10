@@ -1,6 +1,6 @@
 # MCP tools and resources
 
-The 0.4.0 HTTP endpoint exposes 20 fixed tools. Their exact argument schemas are available through `tools/list`. Tool names stay the same across packages. The installed manifest supplies each Loom's business input contract. [Client setup](../use/mcp)
+The HTTP endpoint exposes 20 fixed tools. Their exact argument schemas are available through `tools/list`. Tool names stay the same across packages. The installed manifest supplies each Loom's business input contract. [Client setup](../use/mcp)
 
 | Operation | Tools |
 | --- | --- |

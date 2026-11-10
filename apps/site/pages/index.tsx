@@ -17,9 +17,14 @@ import { OutcomeVisual } from "../src/components/feature-visuals/outcomes.tsx";
 import diagram from "../src/components/feature-visuals/visuals.module.css";
 import { IntentField } from "../src/components/intent-field/index.tsx";
 import { ClientPreview } from "../src/components/client-preview.tsx";
-import { docsUrl, repositoryUrl } from "../src/site.ts";
+import {
+  cliReleasesUrl,
+  readReleases,
+  type WebsiteReleases,
+} from "../src/releases.ts";
+import { docsUrl } from "../src/site.ts";
 import { useHead } from "@rspress/core/runtime";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SectionLabel } from "../src/components/section-label.tsx";
 import { Command } from "../src/components/command.tsx";
 import { ScrambledText } from "../src/components/motion/scrambled-text.tsx";
@@ -33,17 +38,11 @@ export const frontmatter = {
 };
 
 const installers = {
-  npm: "npm install -g intloom@0.4.0",
-  bun: "bun add -g intloom@0.4.0",
-  pnpm: "pnpm add -g intloom@0.4.0",
-  yarn: "yarn global add intloom@0.4.0",
+  npm: `npm install -g intloom`,
+  bun: `bun add -g intloom`,
+  pnpm: `pnpm add -g intloom`,
+  yarn: `yarn global add intloom`,
 } as const;
-
-const release = __INTLOOM_RELEASE__;
-const releasesUrl = `${repositoryUrl}/releases`;
-const notesUrl = release
-  ? `${releasesUrl}/tag/${encodeURIComponent(release.tag)}`
-  : releasesUrl;
 
 const features = [
   {
@@ -107,6 +106,16 @@ export default function Home() {
   useScrollAfterNav();
   useHead({ title: frontmatter.title });
   const [active, setActive] = useState(0);
+  const [releases, setReleases] = useState<WebsiteReleases>({});
+  useEffect(() => {
+    const controller = new AbortController();
+    readReleases(controller.signal)
+      .then(setReleases)
+      .catch(() => {
+        // The static release links also work when GitHub rate-limits the browser.
+      });
+    return () => controller.abort();
+  }, []);
   const [manager, setManager] = useState<keyof typeof installers>("npm");
   const feature = features[active] ?? features[0];
   return (
@@ -156,27 +165,18 @@ export default function Home() {
         <div className="instrument hero-foot">
           <a
             className="release-version"
-            href={
-              release
-                ? `${repositoryUrl}/tree/${encodeURIComponent(release.tag)}`
-                : repositoryUrl
-            }
-            title={
-              release
-                ? `Browse source for v${release.version} on GitHub`
-                : "IntLoom on GitHub"
-            }
+            href={releases.cli?.url ?? cliReleasesUrl}
           >
             <ScrambledText
               text={
-                release
-                  ? `Latest release / v${release.version}`
-                  : "IntLoom releases"
+                releases.cli
+                  ? `CLI release / v${releases.cli.version}`
+                  : "CLI releases on GitHub"
               }
             />
           </a>
-          <a href={notesUrl}>
-            <ScrambledText text={release ? "Release notes" : "View releases"} />
+          <a href={releases.cli?.url ?? cliReleasesUrl}>
+            <ScrambledText text="Release notes" />
             <ArrowUpRight size={16} aria-hidden="true" />
           </a>
         </div>
@@ -326,10 +326,7 @@ export default function Home() {
             </div>
             <div className="console-body">
               <h3>Install the CLI</h3>
-              <p>
-                Use a registry carrying version 0.4.0, or follow the local
-                candidate setup.
-              </p>
+              <p>Install the latest stable CLI from npm.</p>
               <fieldset className="installers">
                 <legend className="sr-only">Choose a package manager</legend>
                 {(Object.keys(installers) as (keyof typeof installers)[]).map(
@@ -363,8 +360,7 @@ export default function Home() {
               <Command compact command="intloom startup" />
               <div className="reserved">
                 <a href="/docs/start/run">
-                  <ScrambledText text="Run your first Loom and retrieve its file" />{" "}
-                  →
+                  <ScrambledText text="Install a Loom from npm" /> →
                 </a>
               </div>
             </div>
@@ -387,13 +383,13 @@ export default function Home() {
             </p>
           </div>
           <div className="placeholder">
-            <p>Develop a Loom with IntLoom 0.4.0</p>
+            <p>Develop a Loom with IntLoom</p>
             <a href="/docs/ai/loom-authoring">Get the coding agent guide →</a>
             <a href="/docs/start/build">Build a first package →</a>
           </div>
         </div>
       </section>
-      <ClientPreview />
+      <ClientPreview release={releases.studio} />
       <section className="closing">
         <h2>
           Stay in <em>the loom.</em>

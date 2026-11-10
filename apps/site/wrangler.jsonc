@@ -4,5 +4,11 @@
   "workers_dev": true,
   "preview_urls": true,
   "previews": {},
-  "assets": { "directory": "./dist", "not_found_handling": "404-page" }
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/releases", "/download/*"]
+  },
+  "main": "worker.mjs"
 }

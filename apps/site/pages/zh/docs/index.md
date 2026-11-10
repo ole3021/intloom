@@ -4,8 +4,8 @@
 
 | 你想完成的事 | 从这里开始 |
 | --- | --- |
-| 用别人做好的 Loom | [安装报告包，拿到第一份文件](./start/run)。这个小例子在本机运行，无需模型密钥。 |
+| 用别人做好的 Loom | [按 npm 包名安装 Loom](./start/run)。 |
 | 整理一次会议 | [使用官方 meeting-notes 示例包](./use/meeting-notes)，粘贴会议记录或提供本地文件，导出要点和完整纪要。 |
 | 把自己的方法做成包 | [制作问候包，换一个项目安装试用](./start/build)，再读[如何选择 Code、Agent 或 Workflow](./develop/choose-an-entry)。 |
-| 请编程 Agent 替你开发 | [把 0.4.0 作者指南交给它](./ai/loom-authoring)，同时给一条真实输入和你期望的结果。 |
+| 请编程 Agent 替你开发 | [把 作者指南交给它](./ai/loom-authoring)，同时给一条真实输入和你期望的结果。 |
 | 查某条命令 | [使用者 CLI](./use/runs) · [开发者 CLI](./develop/cli) · [命令参考](./reference/cli) |

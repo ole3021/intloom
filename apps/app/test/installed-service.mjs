@@ -15,6 +15,10 @@ const fixture = fileURLToPath(
 );
 process.env.npm_config_cache = join(work, "npm-cache");
 const archive = await buildPackage(fixture, work);
+const meetingNotes = await buildPackage(
+  fileURLToPath(new URL("../../../examples/meeting-notes/", import.meta.url)),
+  work,
+);
 // Keep both author projects under the same installed workspace dependencies.
 const previous = await mkdtemp(join(dirname(fixture), "file-report-previous-"));
 let olderArchive;
@@ -86,6 +90,7 @@ try {
     archive,
     olderArchive,
     ordinaryArchive,
+    meetingNotes,
     async (message) => {
       const { receipt } = await app.act({
         type: "launch",

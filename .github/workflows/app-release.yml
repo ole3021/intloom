@@ -2,7 +2,23 @@ name: App Release
 on:
   pull_request:
     branches: [main]
-    paths: ["apps/app/**", "apps/cli/**", "packages/kernel/**", "packages/compiler/**", ".node-version", "packages/loom-sdk/**", "package.json", "tsconfig.base.json", "bun.lock", ".github/workflows/app-release.yml", ".github/scripts/publish-github-release.mjs"]
+    paths:
+      - apps/app/**
+      - apps/cli/**
+      - packages/kernel/**
+      - packages/compiler/**
+      - packages/loom-sdk/**
+      - releases/app/**
+      - test/integration/fixtures/file-report/**
+      - examples/meeting-notes/**
+      - .node-version
+      - package.json
+      - tsconfig.base.json
+      - turbo.json
+      - bun.lock
+      - .github/workflows/app-release.yml
+      - .github/scripts/publish-github-release.mjs
+      - .github/scripts/verify-release-assets.mjs
   workflow_run:
     workflows: [Framework CI]
     types: [completed]
@@ -10,8 +26,8 @@ on:
 permissions: {contents: read, actions: read}
 concurrency:
   group: app-${{ github.event.pull_request.number || 'release' }}
-  queue: max
-  cancel-in-progress: false
+  queue: ${{ github.event_name == 'pull_request' && 'single' || 'max' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   select:
     name: Check app release criteria
@@ -30,7 +46,7 @@ jobs:
   installers:
     name: Build and test installer (${{ matrix.os }})
     needs: select
-    if: always() && (github.event_name == 'pull_request' || needs.select.outputs.enabled == 'true')
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' || needs.select.outputs.enabled == 'true') }}
     strategy:
       fail-fast: false
       matrix:

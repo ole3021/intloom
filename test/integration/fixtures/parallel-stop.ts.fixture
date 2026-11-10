@@ -1,0 +1,50 @@
+import { defineLoom, defineStep, defineWorkflow } from "@intloom/loom-sdk";
+import { z } from "zod";
+
+const input = z.object({
+  mode: z.enum(["fail", "cancel"]),
+  signals: z.string(),
+});
+
+const slow = defineStep({
+  id: "slow",
+  inputSchema: input,
+  outputSchema: z.boolean(),
+  execute: async ({ inputData, context }) => {
+    context.logger.info("slow-start");
+    await fetch(inputData.signals + "/finish");
+    context.logger.info("slow-end");
+    return true;
+  },
+});
+
+const control = defineStep({
+  id: "control",
+  inputSchema: input,
+  outputSchema: z.boolean(),
+  execute: async ({ inputData, context }) => {
+    context.logger.info("control-start");
+    if (inputData.mode === "fail") {
+      await fetch(inputData.signals + "/fail");
+      throw Error("expected");
+    }
+    if (!context.signal.aborted) {
+      await new Promise<void>((resolve) => {
+        context.signal.addEventListener("abort", () => resolve(), { once: true });
+      });
+    }
+    await fetch(inputData.signals + "/finish");
+    context.logger.info("control-end");
+    return true;
+  },
+});
+
+export default defineLoom({
+  id: "parallel-stop",
+  version: "1.0.0",
+  description: "settlement",
+  entry: defineWorkflow({ id: "flow", inputSchema: input, outputSchema: z.boolean() })
+    .parallel([slow, control])
+    .map(() => { throw Error("must not continue"); })
+    .commit(),
+});

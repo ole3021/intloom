@@ -1,10 +1,10 @@
-# IntLoom 0.4.0 guides
+# IntLoom guides
 
 A Loom packages a job someone knows how to do. A presentation Loom might take a brief and source material and deliver editable slides. Install a Loom, give it your own input, and use the run ID to return to its questions or retrieve the delivered file.
 
 | I want to… | Start here | Then try |
 | --- | --- | --- |
-| Use a Loom someone shared | [Get your first file](use/first-loom.md) | [Everyday CLI](use/cli.md) · [Manage installations](use/manage-looms.md) · [Answer questions and review files](use/questions-and-review.md) · [Troubleshoot](use/troubleshooting.md) |
+| Use a Loom someone shared | [Install a Loom from npm](use/first-loom.md) | [Everyday CLI](use/cli.md) · [Manage installations](use/manage-looms.md) · [Answer questions and review files](use/questions-and-review.md) · [Troubleshoot](use/troubleshooting.md) |
 | Produce minutes from my meeting | [Install and use meeting-notes](../examples/meeting-notes/README.md) | [Inspect a sample delivery](../examples/meeting-notes/samples/action.minutes.md) |
 | Develop a Loom in TypeScript | [Build and share a first package](author/first-package.md) | [Choose the entry](author/choose-an-entry.md) · [Author CLI](author/cli.md) · [Package structure](author/package-structure.md) |
 | Develop with a coding agent | [Give the agent this Markdown guide](ai/loom-authoring.md) | Supply an example input, the expected delivery and a way to check it. |

@@ -1,8 +1,7 @@
 [
   {
-    "name": "meeting-notes",
+    "name": "@intloom/meeting-notes",
     "title": "Meeting notes",
-    "version": "1.0.0",
     "kind": "Code + Agent",
     "distribution": "Official example",
     "summary": "Turn rough meeting notes into a short brief and full minutes with source quotations.",
@@ -12,19 +11,19 @@
     },
     "inputNote": "Paste the meeting text or supply one UTF-8 .txt or .md file.",
     "output": "Export meeting-notes.md for shareable bullets followed by full minutes in the meeting’s language.",
-    "requirements": "IntLoom CLI 0.4.0 and a configured model with structured output.",
-    "archive": "/downloads/0.4.0/meeting-notes-1.0.0.tgz",
+    "requirements": "IntLoom CLI and a configured model with structured output.",
     "guide": "/docs/use/meeting-notes"
   },
   {
     "name": "order-total",
     "title": "Order total",
-    "version": "1.0.0",
     "kind": "Code",
     "distribution": "Bundled example",
     "summary": "Sum a list of integer prices and apply an optional quantity.",
     "tags": ["Calculation", "Deterministic"],
-    "input": { "prices": [19, 23] },
+    "input": {
+      "prices": [19, 23]
+    },
     "inputNote": "Provide nonnegative integer prices. Quantity defaults to one.",
     "output": "Returns 42 for the input shown. Set quantity to 2 to receive 84.",
     "requirements": "No model or credentials required."
@@ -32,12 +31,14 @@
   {
     "name": "reviewed-report",
     "title": "Reviewed report",
-    "version": "1.0.0",
     "kind": "Workflow",
     "distribution": "Bundled example",
     "summary": "Write a Markdown report and wait for an explicit review decision.",
     "tags": ["Review", "Artifacts", "Human in the loop"],
-    "input": { "title": "Delivery", "body": "Ready for review." },
+    "input": {
+      "title": "Delivery",
+      "body": "Ready for review."
+    },
     "inputNote": "Supply a title and body. Read the saved draft before responding to its review request.",
     "output": "Saves report.md and records whether that version passed review. The first run command returns a waiting state.",
     "requirements": "No model or credentials required. A review response is needed to finish."

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
-import { repositoryUrl } from "../site.ts";
+import {
+  studioReleasesUrl,
+  studioTargets,
+  type WebsiteReleases,
+} from "../releases.ts";
 import { SectionLabel } from "./section-label.tsx";
 import { useMotionControl } from "../motion/motion-provider.tsx";
 import styles from "./client-preview.module.css";
@@ -76,7 +80,11 @@ function DevelopmentProgress() {
   );
 }
 
-export function ClientPreview() {
+export function ClientPreview({
+  release,
+}: {
+  release: WebsiteReleases["studio"];
+}) {
   return (
     <section id="client" className="module">
       <SectionLabel number="05">DESKTOP</SectionLabel>
@@ -89,9 +97,18 @@ export function ClientPreview() {
             Install Looms, follow runs and export deliveries on macOS, Windows
             or Linux.
           </p>
-          <a href={`${repositoryUrl}/releases?q=app-v`}>
-            Studio downloads on GitHub
+          <a href={studioReleasesUrl}>
+            {release
+              ? `Studio v${release.version} on GitHub`
+              : "Latest Studio release on GitHub"}
           </a>
+          <ul className={styles.downloads}>
+            {studioTargets.map(({ label, id }) => (
+              <li key={id}>
+                <a href={`/download/studio/${id}`}>{label}</a>
+              </li>
+            ))}
+          </ul>
         </div>
         <figure
           className={styles.preview}

@@ -1,6 +1,6 @@
-# Develop an npm Loom with a coding agent · IntLoom 0.4.0
+# Develop an npm Loom with a coding agent
 
-Use this guide to implement a versioned capability for another user to install. Check `intloom --version` first. The commands below target CLI, SDK and Compiler 0.4.0. The host needs npm and a compatible Node (`^22.22.0 || ^24.0.0 || ^26.0.0`). Install `intloom@0.4.0` from a registry that serves it or use a prepared local candidate.
+Install the CLI with `npm install --global intloom` and check `intloom --version`. Use the generated project manifest to keep the SDK and Compiler compatible.
 
 ## Translate the task into a contract
 
@@ -11,30 +11,20 @@ Record the intended user, one concrete input, one command, the promised output, 
 | Deterministic calculation, transformation, validation or file generation | Default-export `defineCode`. A deterministic operation needed by an Agent can be a `defineTool`. |
 | The next action depends on material or intermediate results | Default-export `defineAgent`. Give it a goal, tools, schemas, completion condition, model slot and step budget. It can use `askUser` with a `tool_use` slot for ordinary clarifications. |
 | A required order, explicit stage review or specified child invocation | Default-export a committed `defineWorkflow`. Model the required steps, input/output mapping and waits. Steps can invoke Agents. |
-| Another independently installed capability already does part of the job | Declare `looms: {file-report: "^0.4.0"}` in the parent manifest. In a Workflow, `loomCommandStep("report", "file-report", "write")` calls the child command and records a child Run. |
+| Another independently installed capability already does part of the job | Declare `looms: {my-report: "*"}` in the parent manifest. In a Workflow, `loomCommandStep("report", "my-report", "write")` calls the child command and records a child Run. |
 
 The host binds a model and chooses a Harness (Mastra or OpenCode). The package declares its model slots and strengths, capabilities, tools and optional resources. Use host configuration for credentials. The Kernel checks package-wide model requirements. Return a real tool receipt or file reference when the contract promises one. A standalone Code entry can return a scalar business value.
 
 ## Complete minimal package
 
-Create these three files in a new `file-report` directory. They form a complete build input. Alternatively, `intloom dev init ./hello --id hello` generates a working greeting package to adapt. Use the generated npm build script for a package with `loom.yaml`. A project exporting `defineLoom` and using `intloom dev build` follows the compiled-artifact format.
+Create these three files in a new `my-report` directory. They form a complete build input. Alternatively, `intloom dev init ./hello --id hello` generates a working greeting package to adapt. Use the generated npm build script for a package with `loom.yaml`. A project exporting `defineLoom` and using `intloom dev build` follows the compiled-artifact format.
 
-**package.json** owns npm identity, runtime dependencies and build tooling.
+**package.json** owns the package identity and tool dependencies. Generate it in the author directory:
 
-```json
-{
-  "name": "file-report",
-  "version": "0.4.0",
-  "type": "module",
-  "scripts": {
-    "build": "intloom-build"
-  },
-  "devDependencies": {
-    "@intloom/compiler": "0.4.0",
-    "@intloom/loom-sdk": "0.4.0",
-    "zod": "4.6.7"
-  }
-}
+```sh
+npm init -y
+npm pkg set name=my-report type=module scripts.build=intloom-build
+npm install --save-dev --save-exact @intloom/compiler @intloom/loom-sdk zod@4
 ```
 
 **loom.yaml** declares the public command and expected delivery. Multiple commands require an explicit `defaultCommand`. The input is a JSON Schema object; the output here is a description for callers.
@@ -92,9 +82,9 @@ npm run build
 mkdir ../report-recipient
 cd ../report-recipient
 npm init -y
-intloom install ../file-report/dist/file-report-0.4.0.tgz --project .
-intloom run file-report --plain
-intloom run file-report write --input '{"message":"First delivery"}' --plain
+intloom install ../my-report/dist/my-report-*.tgz --project .
+intloom run my-report --plain
+intloom run my-report write --input '{"message":"First delivery"}' --plain
 ```
 
 The first invocation lists the commands. The second returns JSON. Read `data.id` for the Run and `data.output.id` for the artifact, substitute those actual values below, and compare the exported bytes:
@@ -161,7 +151,7 @@ export default defineAgent({
 
 Inspect the tool receipt and the actual exported text. Judge the summary against the names, dates and facts in the input. Test a missing model binding separately from a bad result. The `resultTool` supplies the structured file reference here. For an Agent that asks the model itself to return structured data, also require `structured_output`.
 
-**Workflow forwarding a child delivery.** Give the parent its own npm name (for example `report-parent`) and a public `forward` command that takes the same message input, points at `flow.ts` and promises the child's report. Add `looms: {file-report: "^0.4.0"}` to the parent manifest. Install the Code child first if it is only available as a local archive. The parent entry is:
+**Workflow forwarding a child delivery.** Give the parent its own npm name (for example `report-parent`) and a public `forward` command that takes the same message input, points at `flow.ts` and promises the child's report. Add `looms: {my-report: "*"}` to the parent manifest. Install the Code child first if it is only available as a local archive. The parent entry is:
 
 ```ts
 import { ArtifactRefSchema, defineWorkflow, loomCommandStep } from "@intloom/loom-sdk";
@@ -171,7 +161,7 @@ export default defineWorkflow({
   id: "flow",
   inputSchema: z.object({ message: z.string() }),
   outputSchema: ArtifactRefSchema,
-}).then(loomCommandStep("report", "file-report", "write")).commit();
+}).then(loomCommandStep("report", "my-report", "write")).commit();
 ```
 
 Build each package. In the recipient project run the parent's `forward` command, use the returned artifact reference to export the file, and query the child run ID on that reference to verify its parent and selected version.
