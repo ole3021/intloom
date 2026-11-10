@@ -118,8 +118,8 @@ export default defineConfig({
                 ],
                 [
                   "client",
-                  "IntLoom Client",
-                  "Development preview of the local workspace.",
+                  "IntLoom Studio",
+                  "Download Studio for macOS, Windows and Linux from GitHub Releases.",
                 ],
               ]
             : looms.map((loom) => [

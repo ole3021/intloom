@@ -118,6 +118,12 @@ test("bun run build produces working preview pages and downloads", async () => {
       const html = await response.text();
       const h1 = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/)?.[1];
       assert.ok(h1?.includes(heading), `Missing page heading at ${path}`);
+      if (path === "/")
+        assert.ok(
+          html.includes(
+            'href="https://github.com/ole3021/intloom/releases?q=app-v"',
+          ),
+        );
     }
     for (const [name, source] of downloads) {
       const response = await get(origin, `/downloads/0.4.0/${name}`, "*/*");

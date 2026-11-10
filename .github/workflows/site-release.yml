@@ -63,7 +63,7 @@ jobs:
         with: {name: site-dist, path: apps/site/dist, run-id: "${{ github.event.workflow_run.id }}", github-token: "${{ github.token }}"}
       - name: Install pinned deployment tool outside the downloaded website
         working-directory: ${{ runner.temp }}
-        run: npm install --prefix cf-tool --no-audit --no-fund wrangler@4.131.1
+        run: npm install --prefix cf-tool --no-audit --no-fund wrangler@4.159.0
       - id: deploy
         env:
           GH_TOKEN: ${{ github.token }}
@@ -80,29 +80,21 @@ jobs:
           if [[ "$CHANNEL" == preview ]]; then
             current=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq 'select(.state == "open") | .head.sha')
             [[ "$current" == "$SHA" ]] || exit 0
-            # A new preview Worker needs an initial deployment before version aliases are available.
-            api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/intloom-site-preview/settings"
-            status=$(curl -sS -o "$RUNNER_TEMP/worker-status.json" -w '%{http_code}' -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api")
-            if [[ "$status" == 404 ]]; then
-              mkdir -p "$RUNNER_TEMP/preview-bootstrap"
-              echo 'Intloom PR previews' > "$RUNNER_TEMP/preview-bootstrap/index.html"
-              "$tool" deploy --config apps/site/wrangler.jsonc --name intloom-site-preview --assets "$RUNNER_TEMP/preview-bootstrap"
-            else
-              [[ "$status" == 200 ]]
-            fi
-            "$tool" versions upload --config apps/site/wrangler.jsonc --name intloom-site-preview --preview-alias "pr-$PR"
+            GITHUB_SHA="$SHA" PULL_REQUEST_NUMBER="$PR" PULL_REQUEST_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/$PR" \
+              "$tool" preview --config apps/site/wrangler.jsonc --name "pr-$PR" --tag "${SHA:0:12}" --message "PR #$PR"
+            url=$(jq -ser 'map(select(.type == "preview")) | last.preview_urls[0] | select(type == "string")' "$WRANGLER_OUTPUT_FILE_PATH")
+            deployment=$(jq -ser 'map(select(.type == "preview")) | last.deployment_id' "$WRANGLER_OUTPUT_FILE_PATH")
           else
             current=$(gh api "repos/$GITHUB_REPOSITORY/contents/apps/site/package.json?ref=main" --jq .content | base64 -d | jq -r .version)
             [[ "$current" == "$VERSION" ]] || exit 0
             "$tool" deploy --config apps/site/wrangler.jsonc
+            url=$(jq -ser 'map(select(.type == "deploy")) | last.targets[0]' "$WRANGLER_OUTPUT_FILE_PATH")
+            deployment=$(jq -ser 'map(select(.type == "deploy")) | last.version_id' "$WRANGLER_OUTPUT_FILE_PATH")
           fi
-          release=$(jq -sce 'map(select(.type=="deploy" or .type=="version-upload")) | last' "$WRANGLER_OUTPUT_FILE_PATH")
-          url=$(jq -er 'if .type=="version-upload" then .preview_alias_url else .targets[0] end' <<< "$release")
-          cloud_version=$(jq -er .version_id <<< "$release")
           [[ "$url" == https://* ]]
           for path in / /docs/ /zh/docs/ /looms; do curl -fsSL --retry 4 --retry-all-errors -o /dev/null "${url%/}$path"; done
           echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "Site $CHANNEL $VERSION · $SHA · Worker version $cloud_version · $url" >> "$GITHUB_STEP_SUMMARY"
+          echo "Site $CHANNEL $VERSION · $SHA · $deployment · $url" >> "$GITHUB_STEP_SUMMARY"
           if [[ "$CHANNEL" == preview ]]; then
             gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=success -f context='Site preview' -f target_url="$url"
           fi

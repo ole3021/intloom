@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { repositoryUrl } from "../site.ts";
 import { SectionLabel } from "./section-label.tsx";
 import { useMotionControl } from "../motion/motion-provider.tsx";
 import styles from "./client-preview.module.css";
@@ -78,24 +79,26 @@ function DevelopmentProgress() {
 export function ClientPreview() {
   return (
     <section id="client" className="module">
-      <SectionLabel number="05">INTLOOM CLIENT</SectionLabel>
+      <SectionLabel number="05">DESKTOP</SectionLabel>
       <div className="split">
         <div className={styles.introduction}>
-          <span className={styles.badge}>IN DEVELOPMENT</span>
           <h2>
-            IntLoom <em>Client.</em>
+            IntLoom <em>Studio.</em>
           </h2>
           <p>
-            A preview of the workspace for browsing Looms, following a run, and
-            inspecting its results.
+            Install Looms, follow runs and export deliveries on macOS, Windows
+            or Linux.
           </p>
+          <a href={`${repositoryUrl}/releases?q=app-v`}>
+            Studio downloads on GitHub
+          </a>
         </div>
         <figure
           className={styles.preview}
-          aria-label="IntLoom Client development preview"
+          aria-label="IntLoom Studio workflow illustration"
         >
           <div className={styles["preview-title"]}>
-            <span>INTLOOM / CLIENT</span>
+            <span>INTLOOM / STUDIO</span>
             <span className={styles["preview-beta"]}>PREVIEW</span>
           </div>
           <div className={styles.workspace}>
@@ -114,12 +117,12 @@ export function ClientPreview() {
             </div>
             <div className={styles.activity}>
               <div className={styles["activity-label"]}>
-                <span>DEVELOPMENT IN PROGRESS</span>
+                <span>RUN PROGRESS</span>
                 <span aria-hidden="true">···</span>
               </div>
               <DevelopmentProgress />
               <span className={styles["preview-note"]}>
-                Taking shape, one iteration at a time.
+                Review the delivery before accepting it.
               </span>
             </div>
           </div>

@@ -53,7 +53,8 @@ jobs:
       - run: bun run --cwd apps/app typecheck
       - run: bun run --cwd apps/app test
       - name: Import Developer ID certificate into an ephemeral keychain
-        if: runner.os == 'macOS' && github.event_name == 'workflow_run'
+        id: signing
+        if: runner.os == 'macOS' && github.event_name == 'workflow_run' && vars.INTLOOM_SIGN_MAC == '1'
         env:
           CERT: ${{ secrets.MAC_CERTIFICATE_P12_BASE64 }}
           PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
@@ -69,7 +70,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$pass" "$keychain" >/dev/null
           security list-keychains -d user -s "$keychain"
       - name: Build signed and notarized macOS installer
-        if: runner.os == 'macOS' && github.event_name == 'workflow_run'
+        if: steps.signing.outcome == 'success'
         env:
           INTLOOM_SIGN_MAC: "1"
           ELECTROBUN_DEVELOPER_ID: ${{ secrets.ELECTROBUN_DEVELOPER_ID }}
@@ -77,12 +78,14 @@ jobs:
           ELECTROBUN_APPLEIDPASS: ${{ secrets.ELECTROBUN_APPLEIDPASS }}
           ELECTROBUN_TEAMID: ${{ secrets.ELECTROBUN_TEAMID }}
         run: bun run --cwd apps/app desktop:release
-      - if: runner.os != 'macOS' || github.event_name == 'pull_request'
+      - name: Build installer
+        if: steps.signing.outcome == 'skipped'
+        env: {INTLOOM_SIGN_MAC: "0"}
         run: bun run --cwd apps/app desktop:release
       - name: Test delivered installer and native webview
         shell: bash
         env:
-          INTLOOM_SIGN_MAC: ${{ runner.os == 'macOS' && github.event_name == 'workflow_run' && '1' || '0' }}
+          INTLOOM_SIGN_MAC: ${{ steps.signing.outcome == 'success' && '1' || '0' }}
         run: |
           if [[ "$RUNNER_OS" == Linux ]]; then
             xvfb-run -a node apps/app/test/verify-installer.mjs apps/app/artifacts release-assets

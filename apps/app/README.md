@@ -19,7 +19,7 @@ A new installation starts with an empty library. Agent Looms use the service's g
 
 ## Install a published release
 
-Once the first stable Studio version is published, open the repository's [Latest release](https://github.com/ole3021/intloom/releases/latest) and choose the `IntLoom-Studio-` installer for your system. macOS has separate DMGs for Apple silicon (`macos-arm64`) and Intel (`macos-x64`). Windows x64 uses a ZIP containing the installer, and Linux x64 uses a `.tar.gz` installer archive. Each installer has a matching `.sha256` file.
+Open [Studio releases on GitHub](https://github.com/ole3021/intloom/releases?q=app-v) and choose the `IntLoom-Studio-` installer for your system. macOS has separate DMGs for Apple silicon (`macos-arm64`) and Intel (`macos-x64`). Windows x64 uses a ZIP containing the installer, and Linux x64 uses a `.tar.gz` installer archive. Each installer has a matching `.sha256` file. The initial macOS release is distributed without Developer ID signing or Apple notarization. Gatekeeper may block it on first launch.
 
 ## Update an installed Studio
 
