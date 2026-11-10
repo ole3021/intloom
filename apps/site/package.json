@@ -1,6 +1,22 @@
 {
   "name": "intloom-site",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "dev": "rspress dev",
+    "build": "rspress build",
+    "preview": "rspress preview",
+    "test": "node --test test/startup.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@carbon/icons-react": "11.90.0",
+    "@rspress/core": "2.0.21",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0"
+  }
 }

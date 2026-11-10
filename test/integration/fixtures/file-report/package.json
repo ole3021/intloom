@@ -1,0 +1,13 @@
+{
+  "name": "file-report",
+  "version": "0.4.0",
+  "type": "module",
+  "scripts": {
+    "build": "intloom-build"
+  },
+  "devDependencies": {
+    "@intloom/compiler": "0.4.0",
+    "@intloom/loom-sdk": "0.4.0",
+    "zod": "4.6.7"
+  }
+}

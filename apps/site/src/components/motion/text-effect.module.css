@@ -1,0 +1,29 @@
+.text {
+  display: inline;
+}
+.word {
+  display: inline-block;
+  white-space: nowrap;
+}
+.character {
+  position: relative;
+  display: inline-block;
+  white-space: pre;
+}
+.measure {
+  visibility: hidden;
+}
+.glyph {
+  position: absolute;
+  inset: 0;
+  text-align: center;
+  user-select: none;
+}
+.accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

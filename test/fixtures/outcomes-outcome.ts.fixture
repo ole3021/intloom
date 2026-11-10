@@ -1,0 +1,37 @@
+import { defineCode, defineLoom, ArtifactRefSchema, AcceptanceRefSchema } from "@intloom/loom-sdk";
+import { z } from "zod";
+const candidate = z.object({ report: ArtifactRefSchema, revision: z.number() });
+export default defineLoom({
+  id: "outcomes-outcome", version: "1.0.0", description: "Immutable reports and explicit quality",
+  outcome: {
+    description: "Reviewed report",
+    artifacts: { report: { at: "/deliverable/report", mediaTypes: ["application/octet-stream"] } },
+    acceptance: { at: "/acceptance", subjectAt: "/deliverable", criteria: [{ id: "complete", description: "Complete candidate" }] },
+  },
+  entry: defineCode({
+    id: "produce", inputSchema: z.object({ mode: z.string(), size: z.number() }),
+    outputSchema: z.object({ deliverable: candidate, acceptance: AcceptanceRefSchema }),
+    async execute({ inputData, context }) {
+      await context.artifacts.write({ name: "report.bin", mediaType: "text/plain", data: "draft" });
+      const bytes = new Uint8Array(inputData.size);
+      for (let i = 0; i < bytes.length; i++) bytes[i] = i % 251;
+      const report = await context.artifacts.write({ name: "report.bin", mediaType: "application/octet-stream", data: bytes });
+      const copy = await context.artifacts.readBytes(report);
+      if (copy.length !== bytes.length || copy.some((v, i) => v !== bytes[i])) throw new Error("Byte mismatch");
+      if (inputData.mode === "binary_text") await context.artifacts.readText(report);
+      const deliverable = { report, revision: 1 };
+      context.logger.info("evaluate_once");
+      if (inputData.mode === "throw") throw new Error("evaluator failed");
+      const checks = [{ criterionId: "complete", status: inputData.mode === "reject" ? "rejected" as const : "passed" as const, evidence: [report] }];
+      if (inputData.mode === "duplicate") checks.push(checks[0]!);
+      if (inputData.mode === "missing_check") checks.length = 0;
+      const acceptance = await context.acceptance.record({
+        subject: deliverable,
+        result: inputData.mode === "error" ? { error: { code: "EVALUATOR_UNAVAILABLE", message: "Evaluator unavailable", details: { nested: [null, { retryable: false }] } } } : { checks },
+      });
+      if (inputData.mode === "changed") deliverable.revision = 2;
+      if (inputData.mode === "wrong_owner") report.runId = "wrong-owner";
+      return { deliverable, acceptance };
+    },
+  }),
+});

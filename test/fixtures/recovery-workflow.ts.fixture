@@ -1,0 +1,5 @@
+import { defineLoom, defineStep, defineWorkflow, withDefault } from "@intloom/loom-sdk";
+import { z } from "zod";
+const before = defineStep({ id: "before", inputSchema: z.number(), outputSchema: z.number(), execute: ({ inputData, context }) => { context.logger.info("before-once"); return inputData + 1; } });
+const review = defineStep({ id: "review", inputSchema: z.number(), outputSchema: z.number(), suspendSchema: z.object({ message: z.string(), value: z.number() }), resumeSchema: z.object({ add: withDefault(z.number(), 3) }), interaction: { message: ({ suspendData }) => suspendData.message, context: ({ suspendData }) => ({ value: suspendData.value }) }, execute: async ({ inputData, suspend, suspendData, resumeData }) => { if (resumeData === undefined) return suspend({ message: "Choose an increment", value: inputData }); return (suspendData?.value ?? 0) + resumeData.add; } });
+export default defineLoom({ id: "consumer-wait", version: "1.0.0", description: "Persistent review", entry: defineWorkflow({ id: "review-flow", inputSchema: z.number(), outputSchema: z.number() }).then(before).then(review).commit() });

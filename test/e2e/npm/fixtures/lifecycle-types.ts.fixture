@@ -1,0 +1,69 @@
+import { serve, type Kernel } from "@intloom/kernel";
+import type { InstalledLoomRef, RunView, JsonValue } from "@intloom/loom-sdk";
+
+async function inspect(host: Kernel, loom: InstalledLoomRef) {
+  const created: RunView = await host.createRun({ loom, input: {} });
+  const receipt = await host.startRun(created.id);
+  const operation: "start" | "resume" | "cancel" = receipt.operation;
+  const result = await host.getRunResult(created.id);
+  const output: JsonValue | undefined = result.output;
+  const events = await host.listRunEvents({ runId: created.id, after: 0 });
+  // @ts-expect-error Run IDs are strings
+  await host.startRun(123);
+  // @ts-expect-error create requires an exact artifact identity
+  await host.createRun({ loom: { id: "test", version: "1.0.0" }, input: {} });
+  // @ts-expect-error a consumer cannot assert a business output type through a generic query
+  await host.getRunResult<{ invented: string }>(created.id);
+  return { operation, output, events };
+}
+const host: Promise<Kernel> = serve({ dataDir: "./data", bindings: {} });
+void inspect; void host;
+
+import type { RuntimeBindings, ModelBindingDescription } from "@intloom/loom-sdk";
+const binding: ModelBindingDescription = { provider: "openai", model: "gpt-4.1-mini", credentialRef: "env:MODEL_API_KEY" };
+const qwenBinding: ModelBindingDescription = { provider: "alibaba", model: "qwen3.8-flash", credentialRef: "env:QWEN_KEY", options: { baseUrl: "https://opencode.ai/inference/openai/v1", api: "chat" } };
+void qwenBinding;
+const bindings: RuntimeBindings = { models: { "example@1.0.0": { model: binding } }, tools: { "*": { remote: { implementation: "remote", revision: "1", execute: ({ input, signal, config }) => ({ input, aborted: signal.aborted, config }) } } } };
+void serve({dataDir:"./data",bindings});
+// @ts-expect-error credential values are not binding descriptions
+const secret: ModelBindingDescription = { ...binding, apiKey: "not-allowed" };
+// @ts-expect-error tool bindings must identify their implementation revision
+const tools: RuntimeBindings = { tools: { "*": { remote: { implementation: "remote", execute: () => null } } } };
+void secret; void tools;
+
+import type { InteractionRequest, InteractionResponse, InteractionReceipt, ResponseSource, ResumeRunOptions } from "@intloom/loom-sdk";
+async function interactions(host: Kernel) {
+  const requests: readonly InteractionRequest[] = await host.listInteractions({runId:"run"});
+  const source: ResponseSource = { kind:"program",via:"api" };
+  const response: InteractionResponse = { action:"submit",value:false };
+  const receipt: InteractionReceipt = await host.respondInteraction("request",response,{source});
+  const target: ResumeRunOptions = { runId:"run",requestId:"request" };
+  await host.resumeRun(target);
+  await host.resumeRun({runId:"run",waitId:"wait",resumeData:0});
+  // @ts-expect-error response source belongs to caller context, not business response
+  const forged: InteractionResponse = {action:"submit",value:true,source};
+  // @ts-expect-error a request resume cannot override an accepted answer
+  await host.resumeRun({runId:"run",requestId:"request",resumeData:true});
+  // @ts-expect-error submit requires an explicit JSON value
+  await host.respondInteraction("request",{action:"submit"},{source});
+  return { requests,receipt,forged };
+}
+void interactions;
+
+import type { ArtifactRecord, AcceptanceRecord, ArtifactRead, OutcomeView, RuntimeContext } from "@intloom/loom-sdk";
+async function outcomes(host: Kernel, context: RuntimeContext) {
+  const artifact = await context.artifacts.write({name:"report.txt",mediaType:"text/plain",data:"report"});
+  const record: ArtifactRecord = await host.getArtifact(artifact.id);
+  const bytes: ArtifactRead = await host.readArtifact({artifactId:artifact.id,offset:0,length:10});
+  const acceptance = await context.acceptance.record({subject:{artifact},result:{checks:[{criterionId:"quality",status:"passed"}]}});
+  const report: AcceptanceRecord = await host.getAcceptance(acceptance.id);
+  const outcome: OutcomeView | undefined = (await host.getRunResult("run")).outcome;
+  // @ts-expect-error Artifact data is explicitly text or bytes, not an arbitrary object
+  await context.artifacts.write({name:"report",mediaType:"application/json",data:{value:1}});
+  // @ts-expect-error metadata is immutable
+  record.name = "replacement";
+  // @ts-expect-error no external acceptance approval operation
+  await host.approveAcceptance(acceptance.id);
+  return {record,bytes,report,outcome};
+}
+void outcomes;

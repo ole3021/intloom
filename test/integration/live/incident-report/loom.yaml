@@ -1,0 +1,15 @@
+name: Incident report
+description: Summarize incident notes for the next shift.
+models:
+  writer: {strength: standard, capabilities: []}
+commands:
+  summarize:
+    description: Deliver an incident handover as a text file.
+    entry: report.ts
+    input:
+      type: object
+      properties:
+        notes: {type: string}
+      required: [notes]
+      additionalProperties: false
+    output: UTF-8 handover.txt

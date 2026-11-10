@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": [
+    "scripts/**/*.ts",
+    "apps/cli/scripts/**/*.ts",
+    "test/**/*.ts",
+    "examples/meeting-notes/*.ts",
+    "packages/loom-sdk/test/*.test.ts"
+  ]
+}

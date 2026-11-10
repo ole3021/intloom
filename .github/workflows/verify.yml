@@ -1,0 +1,110 @@
+name: Framework CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    permissions: {contents: read, pull-requests: read}
+    name: Build and pack on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    env:
+      TURBO_FORCE: "true"
+      TURBO_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: actions/setup-node@v7
+        with: {node-version-file: .node-version, package-manager-cache: false}
+      - uses: oven-sh/setup-bun@v2
+        with: {bun-version-file: package.json}
+      - run: bun install --frozen-lockfile
+      - name: Verify and prepare release candidate
+        env:
+          BASE: ${{ github.event.before || github.event.pull_request.base.sha }}
+        run: bun run release:prepare --base "$BASE"
+      - name: Select candidate and record merged PRs
+        if: matrix.os == 'ubuntu-24.04'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(.release/*/candidate.json)
+          test "${#files[@]}" -eq 1
+          dir=$(dirname "${files[0]}")
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+              | jq --arg sha "$GITHUB_SHA" --arg repo "$GITHUB_REPOSITORY" '[.[] | select(.base.repo.full_name == $repo and .base.ref == "main" and .merged_at != null and .merge_commit_sha == $sha) | .number]' > "$dir/merged-prs.json"
+          fi
+          echo "CANDIDATE=$dir" >> "$GITHUB_ENV"
+      - name: Test isolated npm installations of both CLI entry points
+        if: matrix.os == 'ubuntu-24.04'
+        run: node test/e2e/npm/candidate-registry.mjs "$CANDIDATE"
+      - uses: actions/upload-artifact@v7
+        if: matrix.os == 'ubuntu-24.04'
+        with:
+          name: release-candidate
+          path: ${{ env.CANDIDATE }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  npm-consumers:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+        node: ["22.22.0", "24.0.0", "26.0.0"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v7
+        with: {node-version: "${{ matrix.node }}", package-manager-cache: false}
+      - uses: actions/download-artifact@v8
+        with: {name: release-candidate, path: "${{ runner.temp }}/candidate"}
+      - run: npm run test:e2e
+        env:
+          INTLOOM_CANDIDATE_DIR: ${{ runner.temp }}/candidate
+          INTLOOM_REQUIRE_ARCHIVES: "1"
+  site:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0, persist-credentials: false}
+      - id: changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if ! git diff --quiet "$BASE" HEAD -- apps/site examples/meeting-notes docs/ai/loom-authoring.md package.json bun.lock tsconfig.base.json .github/workflows/site-release.yml; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v7
+        if: steps.changes.outputs.build == 'true'
+        with: {node-version-file: .node-version, package-manager-cache: false}
+      - uses: oven-sh/setup-bun@v2
+        if: steps.changes.outputs.build == 'true'
+        with: {bun-version-file: package.json}
+      - if: steps.changes.outputs.build == 'true'
+        run: |
+          bun install --frozen-lockfile
+          bun run --cwd apps/site typecheck
+          bun run --cwd apps/site test
+      - uses: actions/upload-artifact@v7
+        if: steps.changes.outputs.build == 'true'
+        with: {name: site-dist, path: apps/site/dist, if-no-files-found: error}
+      - if: github.event_name == 'pull_request' && steps.changes.outputs.build == 'true'
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        run: echo "$PR" > "$RUNNER_TEMP/pr-number"
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'pull_request' && steps.changes.outputs.build == 'true'
+        with: {name: site-pr, path: "${{ runner.temp }}/pr-number"}

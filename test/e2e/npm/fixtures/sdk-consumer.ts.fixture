@@ -1,0 +1,49 @@
+import { defineTool, withDefault, type JsonObject, type JsonValue, type SchemaInput, type SchemaOutput } from "@intloom/loom-sdk";
+import { z } from "zod";
+import type { RunSummary, RunView } from "@intloom/loom-sdk";
+
+declare const summary: RunSummary;
+declare const fullRun: RunView;
+const state: RunSummary = fullRun;
+void state;
+// @ts-expect-error Lists expose state summaries; business output belongs to RunView.
+summary.output;
+const businessOutput: JsonValue | undefined = fullRun.output;
+void businessOutput;
+
+const schema = z.object({ count: withDefault(z.number(), 3) });
+const input: SchemaInput<typeof schema> = {};
+const output: SchemaOutput<typeof schema> = { count: 3 };
+void input;
+const json: JsonObject = { output, values: [true, null, "ok"] };
+const value: JsonValue = json;
+void value;
+
+// @ts-expect-error Normalized output requires the defaulted field.
+const missing: SchemaOutput<typeof schema> = {};
+// @ts-expect-error Functions are not JSON data.
+const executable: JsonValue = () => null;
+// @ts-expect-error Undefined is not a top-level JSON value.
+const absent: JsonValue = undefined;
+void missing;
+void executable;
+void absent;
+
+const summarized = defineTool({
+  id: "summarized", description: "Search", inputSchema: z.string(),
+  outputSchema: z.object({ matches: z.number() }),
+  execute: () => ({ matches: 12 }),
+  summarize: (result) => {
+    const count: number = result.matches;
+    // @ts-expect-error Summary receives the declared output, not Tool input.
+    const wrong: string = result.matches;
+    void wrong;
+    return `${count} matches`;
+  },
+});
+void summarized;
+defineTool({
+  id: "invalid-summary", description: "Search", inputSchema: z.string(), outputSchema: z.number(), execute: () => 12,
+  // @ts-expect-error Summary is synchronous display text.
+  summarize: async () => "12 matches",
+});

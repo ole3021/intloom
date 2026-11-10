@@ -1,0 +1,73 @@
+name: CLI Release
+on:
+  workflow_run:
+    workflows: [Framework CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_id: {required: true, type: string, description: Verified main Framework CI run}
+permissions: {contents: read, actions: read}
+concurrency:
+  group: publish-cli
+  queue: max
+  cancel-in-progress: false
+env:
+  RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+jobs:
+  select:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' || github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-24.04
+    outputs:
+      enabled: ${{ steps.input.outputs.enabled }}
+      version: ${{ steps.input.outputs.version }}
+      sha: ${{ steps.input.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with: {persist-credentials: false}
+      - uses: ./.github/actions/release-input
+        id: input
+        with: {run-id: "${{ env.RUN_ID }}", unit: cli}
+  publish:
+    needs: select
+    if: needs.select.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions: {contents: read, actions: read, id-token: write}
+    steps:
+      - uses: actions/checkout@v7
+        with: {ref: "${{ needs.select.outputs.sha }}", persist-credentials: false}
+      - uses: actions/setup-node@v7
+        with: {node-version-file: .node-version, package-manager-cache: false}
+      - uses: actions/download-artifact@v8
+        with: {name: release-candidate, path: "${{ runner.temp }}/candidate", run-id: "${{ env.RUN_ID }}", github-token: "${{ github.token }}"}
+      - run: node .github/scripts/release-npm-packages.mjs publish cli "$RUNNER_TEMP/candidate"
+  verify-registry:
+    needs: [select, publish]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with: {ref: "${{ needs.select.outputs.sha }}", persist-credentials: false}
+      - uses: actions/setup-node@v7
+        with: {node-version-file: .node-version, package-manager-cache: false}
+      - uses: actions/download-artifact@v8
+        with: {name: release-candidate, path: "${{ runner.temp }}/candidate", run-id: "${{ env.RUN_ID }}", github-token: "${{ github.token }}"}
+      - run: node .github/scripts/release-npm-packages.mjs verify cli "$RUNNER_TEMP/candidate"
+  record:
+    needs: [select, verify-registry]
+    runs-on: ubuntu-24.04
+    permissions: {contents: write, actions: read}
+    steps:
+      - uses: actions/checkout@v7
+        with: {ref: "${{ needs.select.outputs.sha }}", persist-credentials: false}
+      - uses: actions/download-artifact@v8
+        with: {name: release-candidate, path: "${{ runner.temp }}/candidate", run-id: "${{ env.RUN_ID }}", github-token: "${{ github.token }}"}
+      - name: Record verified release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.select.outputs.version }}
+          SHA: ${{ needs.select.outputs.sha }}
+        run: |
+          set -euo pipefail
+          node .github/scripts/publish-github-release.mjs cli "@intloom/cli@$VERSION" "$VERSION" "$SHA" "$RUNNER_TEMP/candidate"
+

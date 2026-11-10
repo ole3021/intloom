@@ -1,0 +1,250 @@
+.stage {
+  --wire: #445448;
+  --edge: #82917e;
+  --panel: #101711;
+  --signal: var(--site-color-accent);
+  width: min(100%, 290px);
+  height: auto;
+  display: block;
+  align-self: center;
+  justify-self: center;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.registration,
+.guide {
+  stroke: var(--wire);
+  stroke-width: 1;
+}
+.plate {
+  fill: #111613;
+  stroke: var(--edge);
+}
+.tile,
+.node {
+  fill: var(--panel);
+  stroke: var(--edge);
+}
+.boundary {
+  stroke: var(--edge);
+  stroke-dasharray: 3 4;
+}
+.accent,
+.checkFormat,
+.checkSections,
+.afterGate,
+.explore,
+.dispatch {
+  stroke: var(--signal);
+}
+.contact {
+  fill: var(--signal);
+}
+.glyph {
+  color: #b6d6ad;
+}
+.label,
+.small,
+.name {
+  fill: #d1d9ce;
+  font: 10px var(--site-font-mono);
+  stroke: none;
+}
+.small {
+  fill: #a0af9e;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+.name {
+  fill: var(--site-color-text);
+  font-size: 16px;
+}
+
+.assemble {
+  animation: assemble 5s var(--site-motion-ease) infinite;
+}
+.seal {
+  animation: seal 5s ease-in-out infinite;
+}
+@keyframes assemble {
+  0%,
+  10%,
+  100% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0.65;
+  }
+  38%,
+  86% {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes seal {
+  0%,
+  32%,
+  100% {
+    opacity: 0.18;
+  }
+  48%,
+  86% {
+    opacity: 1;
+  }
+}
+
+.explore {
+  stroke-dasharray: 5 8;
+  animation: explore 5s linear infinite;
+}
+.gate {
+  fill: var(--panel);
+  stroke: var(--edge);
+  animation: approve 5s ease-in-out infinite;
+}
+.afterGate {
+  stroke-dasharray: 1;
+  animation: pass-gate 5s linear infinite;
+}
+.exportDeck {
+  animation: export 5s ease-in-out infinite;
+}
+@keyframes explore {
+  0% {
+    stroke-dashoffset: 52;
+    opacity: 1;
+  }
+  44% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  60%,
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0.2;
+  }
+}
+@keyframes approve {
+  0%,
+  38%,
+  100% {
+    stroke: var(--edge);
+  }
+  52%,
+  90% {
+    stroke: var(--signal);
+  }
+}
+@keyframes pass-gate {
+  0%,
+  52%,
+  100% {
+    stroke-dashoffset: 1;
+  }
+  68%,
+  90% {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes export {
+  0%,
+  62%,
+  100% {
+    opacity: 0.42;
+  }
+  72%,
+  90% {
+    opacity: 1;
+  }
+}
+
+.checkFormat,
+.checkSections {
+  stroke-width: 2;
+  stroke-dasharray: 1;
+  animation: check 5s ease-in-out infinite;
+}
+.checkSections {
+  animation-name: second-check;
+}
+.verified {
+  animation: verify 5s ease-in-out infinite;
+}
+@keyframes check {
+  0%,
+  12%,
+  100% {
+    stroke-dashoffset: 1;
+  }
+  28%,
+  90% {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes second-check {
+  0%,
+  35%,
+  100% {
+    stroke-dashoffset: 1;
+  }
+  51%,
+  90% {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes verify {
+  0%,
+  53%,
+  100% {
+    opacity: 0.18;
+  }
+  66%,
+  90% {
+    opacity: 1;
+  }
+}
+
+.rowHighlight {
+  fill: color-mix(in srgb, var(--signal) 10%, transparent);
+}
+.runCursor {
+  transform: translateY(25px);
+  animation: follow-run 6s linear infinite;
+}
+@keyframes follow-run {
+  0%,
+  12% {
+    transform: translateY(0);
+  }
+  16%,
+  52% {
+    transform: translateY(25px);
+  }
+  56%,
+  69% {
+    transform: translateY(50px);
+  }
+  73%,
+  100% {
+    transform: translateY(75px);
+  }
+}
+
+.dispatch {
+  stroke-width: 2;
+  stroke-dasharray: 0.2 1.2;
+  animation: dispatch 3.4s linear var(--delay) infinite both;
+}
+@keyframes dispatch {
+  0%,
+  12% {
+    stroke-dashoffset: 0.2;
+  }
+  70%,
+  100% {
+    stroke-dashoffset: -1;
+  }
+}
+
+:global([data-paused="true"]) .stage * {
+  animation-name: none;
+}

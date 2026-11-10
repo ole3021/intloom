@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noCheck": true,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "./node_modules/electrobun/dist/api",
+    "outDir": "./.sdk",
+    "types": ["bun"]
+  },
+  "files": [
+    "./node_modules/electrobun/dist/api/bun/core/Updater.ts",
+    "./node_modules/electrobun/dist/api/bun/core/BrowserWindow.ts",
+    "./node_modules/electrobun/dist/api/bun/core/BrowserView.ts",
+    "./node_modules/electrobun/dist/api/bun/core/Utils.ts",
+    "./node_modules/electrobun/dist/api/bun/core/ApplicationMenu.ts",
+    "./node_modules/electrobun/dist/api/bun/events/eventEmitter.ts",
+    "./node_modules/electrobun/dist/api/bun/ElectrobunConfig.ts",
+    "./node_modules/electrobun/dist/api/browser/index.ts"
+  ],
+  "include": [
+    "node_modules/electrobun/dist/api/shared/**/*.ts",
+    "node_modules/electrobun/dist/api/bun/events/**/*.ts",
+    "node_modules/electrobun/dist/api/bun/proc/native.ts"
+  ]
+}

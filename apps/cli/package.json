@@ -1,6 +1,6 @@
 {
   "name": "@intloom/cli",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -15,19 +15,45 @@
   "publishConfig": {
     "access": "public"
   },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
   "files": [
     "dist",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.build.json && node -e \"require('node:fs').chmodSync('dist/bin.js', 0o755)\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test test/*.test.ts"
+  },
+  "engines": {
+    "node": "^22.22.0 || ^24.0.0 || ^26.0.0"
+  },
+  "dependencies": {
+    "@clack/prompts": "1.8.1",
+    "@intloom/kernel": "workspace:*",
+    "@intloom/loom-sdk": "workspace:*",
+    "@modelcontextprotocol/core": "2.4.0",
+    "@modelcontextprotocol/node": "2.1.2",
+    "@modelcontextprotocol/server": "2.4.0",
+    "ansi-escapes": "7.3.0",
+    "log-update": "8.0.0",
+    "string-width": "8.3.0",
+    "wrap-ansi": "10.0.2",
+    "zod": "4.6.7",
+    "semver": "7.8.6"
+  },
+  "bin": {
+    "intloom": "./dist/bin.js"
+  },
+  "devDependencies": {
+    "@intloom/compiler": "workspace:*",
+    "@xterm/headless": "6.0.0"
+  },
+  "exports": {
+    "./bin": "./dist/bin.js",
+    "./local-service": {
+      "types": "./dist/local-service.d.ts",
+      "import": "./dist/local-service.js"
+    }
   }
 }

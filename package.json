@@ -1,27 +1,41 @@
 {
-  "name": "intloom",
-  "version": "0.2.0",
+  "name": "intloom-workspace",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
-  "packageManager": "bun@1.4.0",
+  "packageManager": "bun@1.4.4",
   "engines": {
-    "bun": ">=1.4.0"
+    "node": ">=26.13.0 <27",
+    "bun": "1.4.4"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
+    "clean": "rm -rf apps/*/dist packages/*/dist",
     "build": "turbo run build",
-    "typecheck": "turbo run typecheck",
-    "check": "biome check . && turbo run typecheck",
+    "build:dev": "node scripts/check-dev-toolchain.ts && turbo run @intloom/cli#build && node apps/cli/scripts/install-dev-cli.ts",
+    "typecheck": "turbo run typecheck @intloom/cli#build && tsc -p tsconfig.test.json",
+    "check": "node scripts/check-dev-toolchain.ts && biome check . && bun run typecheck && node --test test/engineering/*.test.ts",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "verify": "bun run check && bun run build"
+    "test": "turbo run @intloom/cli#build && bun run --workspaces --if-present test && node --test test/integration/*.test.ts",
+    "test:intg": "turbo run @intloom/cli#build && node --env-file-if-exists=.env test/integration/live/models.ts",
+    "test:e2e": "node --test test/e2e/npm/*.test.ts",
+    "verify": "bun run check && bun run build && bun run test && bun run test:e2e",
+    "release:prepare": "node scripts/prepare-release-candidate.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
+    "@intloom/loom-sdk": "workspace:*",
+    "@modelcontextprotocol/client": "2.4.0",
+    "@types/bun": "1.4.4",
+    "@types/node": "26.6.6",
+    "@types/semver": "7.8.0",
+    "semver": "7.8.6",
     "turbo": "2.11.7",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "zod": "4.6.7"
   }
 }

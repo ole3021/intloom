@@ -1,0 +1,14 @@
+version: 0.4.0
+commands:
+  generate:
+    input:
+      type: object
+      properties:
+        goal: {type: string, minLength: 1}
+        materials: {type: array, items: {type: string}}
+        template: {type: string}
+        pages: {type: integer, minimum: 1, maximum: 30}
+        audience: {type: string}
+      required: [goal]
+      additionalProperties: false
+    output: Editable presentation.pptx

@@ -1,0 +1,47 @@
+.viewport {
+  position: relative;
+  overflow: hidden;
+  padding-block: 16px;
+  background: var(--site-color-accent);
+  color: #081408;
+  font: var(--site-type-label);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.track,
+.group {
+  display: flex;
+  width: max-content;
+  align-items: center;
+}
+.track {
+  will-change: transform;
+}
+.group {
+  flex-shrink: 0;
+}
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: 36px;
+  padding-right: 36px;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.item::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+}
+.item:first-child::before,
+.item:nth-child(4)::before {
+  width: 29px;
+  height: 15px;
+  background: repeating-linear-gradient(
+    to right,
+    currentColor 0 6px,
+    transparent 6px 10px
+  );
+  transform: skew(-28deg);
+}

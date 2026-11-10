@@ -1,0 +1,20 @@
+.root {
+  position: relative;
+}
+.list {
+  position: relative;
+  list-style: none;
+  padding: 0;
+}
+.highlight {
+  position: absolute;
+  inset: 0 0 auto;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--site-color-surface-raised);
+  border-left: 2px solid var(--site-color-accent);
+  transition:
+    transform 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms;
+}

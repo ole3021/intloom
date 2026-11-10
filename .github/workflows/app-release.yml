@@ -1,0 +1,111 @@
+name: App Release
+on:
+  pull_request:
+    branches: [main]
+    paths: ["apps/app/**", "apps/cli/**", "packages/kernel/**", "packages/compiler/**", ".node-version", "packages/loom-sdk/**", "package.json", "tsconfig.base.json", "bun.lock", ".github/workflows/app-release.yml", ".github/scripts/publish-github-release.mjs"]
+  workflow_run:
+    workflows: [Framework CI]
+    types: [completed]
+    branches: [main]
+permissions: {contents: read, actions: read}
+concurrency:
+  group: app-${{ github.event.pull_request.number || 'release' }}
+  queue: max
+  cancel-in-progress: false
+jobs:
+  select:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-24.04
+    outputs:
+      enabled: ${{ steps.input.outputs.enabled }}
+      version: ${{ steps.input.outputs.version }}
+      sha: ${{ steps.input.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with: {persist-credentials: false}
+      - id: input
+        uses: ./.github/actions/release-input
+        with: {unit: app, run-id: "${{ github.event.workflow_run.id }}"}
+  installers:
+    needs: select
+    if: always() && (github.event_name == 'pull_request' || needs.select.outputs.enabled == 'true')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel, windows-2025, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    environment: ${{ github.event_name == 'pull_request' && 'desktop-build' || 'desktop-release' }}
+    steps:
+      - uses: actions/checkout@v7
+        with: {ref: "${{ needs.select.outputs.sha || github.sha }}", persist-credentials: false}
+      - uses: actions/setup-node@v7
+        with: {node-version-file: .node-version, package-manager-cache: false}
+      - uses: oven-sh/setup-bun@v2
+        with: {bun-version-file: package.json}
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libwebkit2gtk-4.1-0 libgtk-3-0t64 libayatana-appindicator3-1 librsvg2-2 xvfb
+      - run: bun install --frozen-lockfile
+      - run: bun run turbo run @intloom/cli#build
+      - run: bun run --cwd apps/app typecheck
+      - run: bun run --cwd apps/app test
+      - name: Import Developer ID certificate into an ephemeral keychain
+        if: runner.os == 'macOS' && github.event_name == 'workflow_run'
+        env:
+          CERT: ${{ secrets.MAC_CERTIFICATE_P12_BASE64 }}
+          PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          pass=$(openssl rand -hex 24)
+          security create-keychain -p "$pass" "$keychain"
+          security set-keychain-settings -lut 14400 "$keychain"
+          security unlock-keychain -p "$pass" "$keychain"
+          printf '%s' "$CERT" | base64 -D > "$RUNNER_TEMP/release.p12"
+          security import "$RUNNER_TEMP/release.p12" -k "$keychain" -P "$PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$pass" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain"
+      - name: Build signed and notarized macOS installer
+        if: runner.os == 'macOS' && github.event_name == 'workflow_run'
+        env:
+          INTLOOM_SIGN_MAC: "1"
+          ELECTROBUN_DEVELOPER_ID: ${{ secrets.ELECTROBUN_DEVELOPER_ID }}
+          ELECTROBUN_APPLEID: ${{ secrets.ELECTROBUN_APPLEID }}
+          ELECTROBUN_APPLEIDPASS: ${{ secrets.ELECTROBUN_APPLEIDPASS }}
+          ELECTROBUN_TEAMID: ${{ secrets.ELECTROBUN_TEAMID }}
+        run: bun run --cwd apps/app desktop:release
+      - if: runner.os != 'macOS' || github.event_name == 'pull_request'
+        run: bun run --cwd apps/app desktop:release
+      - name: Test delivered installer and native webview
+        shell: bash
+        env:
+          INTLOOM_SIGN_MAC: ${{ runner.os == 'macOS' && github.event_name == 'workflow_run' && '1' || '0' }}
+        run: |
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a node apps/app/test/verify-installer.mjs apps/app/artifacts release-assets
+          else
+            node apps/app/test/verify-installer.mjs apps/app/artifacts release-assets
+          fi
+      - uses: actions/upload-artifact@v7
+        with: {name: "desktop-${{ matrix.os }}", path: release-assets, if-no-files-found: error}
+  publish:
+    needs: [select, installers]
+    if: github.event_name == 'workflow_run' && needs.select.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    permissions: {contents: write}
+    steps:
+      - uses: actions/checkout@v7
+        with: {ref: "${{ needs.select.outputs.sha }}", persist-credentials: false}
+      - uses: actions/setup-node@v7
+        with: {node-version-file: .node-version, package-manager-cache: false}
+      - uses: actions/download-artifact@v8
+        with: {pattern: desktop-*, path: release-assets, merge-multiple: true}
+      - name: Publish verified clients
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.select.outputs.version }}
+          SHA: ${{ needs.select.outputs.sha }}
+        run: |
+          (cd release-assets && sha256sum -c ./*.sha256)
+          node .github/scripts/publish-github-release.mjs app "app-v$VERSION" "$VERSION" "$SHA" release-assets

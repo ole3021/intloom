@@ -1,8 +1,13 @@
 {
   "$schema": "https://v2-11-7.turborepo.dev/schema.json",
-  "globalDependencies": ["tsconfig.base.json", "LICENSE"],
+  "globalDependencies": ["tsconfig.base.json", ".node-version", "LICENSE"],
   "tasks": {
     "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "intloom-site#build": {
+      "cache": false,
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },

@@ -1,0 +1,24 @@
+import { defineAgent, defineCode, defineLoom, defineSkill, defineStep, defineTool, defineWorkflow, resource, withDefault } from "@intloom/loom-sdk";
+import { z } from "zod";
+const unexpected = (): never => { throw new Error("BUSINESS_EXECUTED"); };
+const guide = resource({ id: "guide", path: "guide.md" });
+const skill = defineSkill({ id: "skill", description: "Guide", instructions: guide });
+const tool = defineTool({ id: "lookup", description: "Lookup", binding: "search", inputSchema: z.string(), outputSchema: z.string() });
+const localTool = defineTool({ id: "local", description: "Local", execute: unexpected, inputSchema: z.string(), outputSchema: z.string() });
+const agent = defineAgent({ id: "agent", inputSchema: z.string(), outputSchema: z.strictObject({ text: z.string() }), instructions: guide, model: { slot: "writer" }, tools: [tool, localTool], skills: [skill], outputMode: "structured", prompt: unexpected });
+const code = defineCode({ id: "code", inputSchema: z.number(), outputSchema: z.number(), uses: { agents: [agent], tools: [tool], resources: [guide] }, execute: unexpected });
+const inline = (id: string) => defineStep({ id, inputSchema: z.number(), outputSchema: z.number(), execute: unexpected });
+const a = defineStep({ id: "a", inputSchema: z.number(), outputSchema: z.number(), execute: unexpected });
+const b = defineStep({ id: "b", inputSchema: z.number(), outputSchema: z.number(), execute: unexpected });
+const c = defineStep({ ...a, id: "c" });
+const d = defineStep({ ...a, id: "d" });
+const each = defineStep({ ...a, id: "each" });
+const loop = defineStep({ ...a, id: "loop" });
+const until = defineStep({ ...a, id: "until" });
+const nested = defineWorkflow({ id: "nested", inputSchema: z.number(), outputSchema: z.number() }).then(a).commit();
+const review = defineStep({ id: "review", inputSchema: z.number(), outputSchema: z.number(), suspendSchema: z.strictObject({ question: z.string() }), resumeSchema: z.strictObject({ approved: withDefault(z.boolean(), false) }), interaction: { message: unexpected, context: unexpected, responsePolicy: "human" }, execute: unexpected });
+const entry = defineWorkflow({ id: "flow", inputSchema: z.number(), outputSchema: z.number() })
+  .then(defineStep(code, { id: "code-call" })).parallel([a, b]).map(unexpected)
+  .branch([[unexpected, c], [unexpected, d]]).map((): number[] => unexpected()).foreach(each).map(unexpected)
+  .dowhile(loop, unexpected).dountil(until, unexpected).then(defineStep(nested, { id: "nested-call" })).then(review).commit();
+export default defineLoom({ id: "components", version: "1.0.0", description: "All components", entry });

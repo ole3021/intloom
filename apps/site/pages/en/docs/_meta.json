@@ -1,0 +1,27 @@
+[
+  "index",
+  {
+    "type": "dir",
+    "name": "use",
+    "label": "Use a Loom",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "develop",
+    "label": "Develop a Loom",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "ai",
+    "label": "Develop with AI",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "reference",
+    "label": "Technical reference",
+    "collapsed": false
+  }
+]

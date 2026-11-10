@@ -19,6 +19,7 @@ coverage/
 .design-notes/
 
 # Local website and delivery artifacts.
+.examples/
 .wrangler/
 .rspress/
 .release/

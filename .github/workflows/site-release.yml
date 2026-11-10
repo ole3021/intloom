@@ -1,0 +1,106 @@
+name: Site Release
+on:
+  workflow_run:
+    workflows: [Framework CI]
+    types: [completed]
+permissions: {contents: read, actions: read}
+jobs:
+  select:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    permissions: {contents: read, actions: read, pull-requests: read}
+    outputs:
+      channel: ${{ steps.target.outputs.channel }}
+      pr: ${{ steps.target.outputs.pr }}
+      sha: ${{ github.event.workflow_run.head_sha }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with: {persist-credentials: false}
+      - uses: ./.github/actions/release-input
+        id: release
+        if: github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository
+        with: {unit: site, run-id: "${{ github.event.workflow_run.id }}"}
+      - id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.event.workflow_run.id }}
+          SOURCE: ${{ github.event.workflow_run.event }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          RELEASE: ${{ steps.release.outputs.enabled }}
+        run: |
+          set -euo pipefail
+          if [[ "$RELEASE" == true ]]; then echo "channel=production" >> "$GITHUB_OUTPUT"; exit; fi
+          [[ "$SOURCE" == pull_request ]] || exit 0
+          count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/artifacts" --jq '[.artifacts[] | select(.name=="site-pr" and (.expired|not))] | length')
+          [[ "$count" == 1 ]] || exit 0
+          gh run download "$RUN" -n site-pr -D "$RUNNER_TEMP/pr"
+          pr=$(cat "$RUNNER_TEMP/pr/pr-number")
+          [[ "$pr" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" | jq -e --arg sha "$SHA" --arg repo "$HEAD_REPO" 'select(.state=="open" and .base.ref=="main" and .head.sha==$sha and .head.repo.full_name==$repo)' >/dev/null || exit 0
+          echo "channel=preview" >> "$GITHUB_OUTPUT"
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+  deploy:
+    needs: select
+    if: needs.select.outputs.channel != ''
+    runs-on: ubuntu-24.04
+    permissions: {contents: read, actions: read, statuses: write, pull-requests: read}
+    concurrency:
+      group: site-${{ needs.select.outputs.pr || 'production' }}
+      cancel-in-progress: false
+    environment:
+      name: ${{ needs.select.outputs.channel }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v7
+        with: {ref: "${{ needs.select.outputs.channel == 'production' && needs.select.outputs.sha || github.sha }}", persist-credentials: false}
+      - uses: actions/setup-node@v7
+        with: {node-version-file: .node-version, package-manager-cache: false}
+      - uses: actions/download-artifact@v8
+        with: {name: site-dist, path: apps/site/dist, run-id: "${{ github.event.workflow_run.id }}", github-token: "${{ github.token }}"}
+      - name: Install pinned deployment tool outside the downloaded website
+        working-directory: ${{ runner.temp }}
+        run: npm install --prefix cf-tool --no-audit --no-fund wrangler@4.131.1
+      - id: deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CHANNEL: ${{ needs.select.outputs.channel }}
+          PR: ${{ needs.select.outputs.pr }}
+          SHA: ${{ needs.select.outputs.sha }}
+          VERSION: ${{ needs.select.outputs.version }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/site-output.jsonl
+        run: |
+          set -euo pipefail
+          tool="$RUNNER_TEMP/cf-tool/node_modules/.bin/wrangler"
+          if [[ "$CHANNEL" == preview ]]; then
+            current=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq 'select(.state == "open") | .head.sha')
+            [[ "$current" == "$SHA" ]] || exit 0
+            # A new preview Worker needs an initial deployment before version aliases are available.
+            api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/intloom-site-preview/settings"
+            status=$(curl -sS -o "$RUNNER_TEMP/worker-status.json" -w '%{http_code}' -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api")
+            if [[ "$status" == 404 ]]; then
+              mkdir -p "$RUNNER_TEMP/preview-bootstrap"
+              echo 'Intloom PR previews' > "$RUNNER_TEMP/preview-bootstrap/index.html"
+              "$tool" deploy --config apps/site/wrangler.jsonc --name intloom-site-preview --assets "$RUNNER_TEMP/preview-bootstrap"
+            else
+              [[ "$status" == 200 ]]
+            fi
+            "$tool" versions upload --config apps/site/wrangler.jsonc --name intloom-site-preview --preview-alias "pr-$PR"
+          else
+            current=$(gh api "repos/$GITHUB_REPOSITORY/contents/apps/site/package.json?ref=main" --jq .content | base64 -d | jq -r .version)
+            [[ "$current" == "$VERSION" ]] || exit 0
+            "$tool" deploy --config apps/site/wrangler.jsonc
+          fi
+          release=$(jq -sce 'map(select(.type=="deploy" or .type=="version-upload")) | last' "$WRANGLER_OUTPUT_FILE_PATH")
+          url=$(jq -er 'if .type=="version-upload" then .preview_alias_url else .targets[0] end' <<< "$release")
+          cloud_version=$(jq -er .version_id <<< "$release")
+          [[ "$url" == https://* ]]
+          for path in / /docs/ /zh/docs/ /looms; do curl -fsSL --retry 4 --retry-all-errors -o /dev/null "${url%/}$path"; done
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Site $CHANNEL $VERSION · $SHA · Worker version $cloud_version · $url" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$CHANNEL" == preview ]]; then
+            gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=success -f context='Site preview' -f target_url="$url"
+          fi

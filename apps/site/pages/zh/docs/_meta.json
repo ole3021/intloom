@@ -1,0 +1,27 @@
+[
+  "index",
+  {
+    "type": "dir",
+    "name": "use",
+    "label": "使用 Loom",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "develop",
+    "label": "开发 Loom",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "ai",
+    "label": "用 AI 开发",
+    "collapsed": false
+  },
+  {
+    "type": "dir",
+    "name": "reference",
+    "label": "技术参考",
+    "collapsed": false
+  }
+]

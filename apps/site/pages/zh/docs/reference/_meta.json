@@ -1,0 +1,12 @@
+[
+  "cli",
+  "manifest",
+  "configuration",
+  "mcp",
+  "../use/mcp",
+  "compatibility",
+  "../architecture/overview",
+  "../architecture/package",
+  "../architecture/lifecycle",
+  "../package-to-run"
+]
