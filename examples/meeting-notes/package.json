@@ -1,14 +1,21 @@
 {
-  "name": "meeting-notes",
-  "version": "1.0.0",
+  "name": "@intloom/meeting-notes",
+  "version": "1.0.1",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "build": "intloom-build"
+    "build": "node scripts/prepare.mjs"
   },
   "devDependencies": {
     "@intloom/compiler": "0.4.0",
     "@intloom/loom-sdk": "0.4.0",
     "zod": "4.6.7"
+  },
+  "private": true,
+  "description": "Turn meeting text into source-backed minutes with IntLoom.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ole3021/intloom.git",
+    "directory": "examples/meeting-notes"
   }
 }

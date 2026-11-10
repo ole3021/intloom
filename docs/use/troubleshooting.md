@@ -2,8 +2,8 @@
 
 | What you see | Next step |
 | --- | --- |
-| The commands look different | Run `intloom --version` and `command -v intloom`. The tutorials use 0.4.0. In a candidate installation, repeat the PATH export in each new terminal. |
-| npm cannot find version 0.4.0 | Use your team's registry or the matching [candidate bundle](../maintainers/candidate.md). |
+| The commands look different | Run `intloom --version` and `command -v intloom`. In a candidate installation, repeat the PATH export in each new terminal. |
+| npm cannot find the requested version | Use your team's registry or the matching [candidate bundle](../maintainers/candidate.md). |
 | A Loom appears to do nothing | For npm Looms, the name alone prints usage. Pass a command and valid input. For project installations, run from the project that owns the package. |
 | The input is rejected | Run the package by name to see required fields. Pass a JSON object with the expected field names and types or use `--input @input.json`. |
 | A model or tool is missing | Check the package requirements against the [host configuration](../reference/configuration.md), including credentials visible to the service process. |

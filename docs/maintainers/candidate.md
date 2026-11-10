@@ -28,10 +28,10 @@ export PATH="$PWD/node_modules/.bin:$PATH"
 Continue in the same terminal. The first Run starts the current user’s Intloom service:
 
 ```sh
-intloom install ./looms/order-total-1.0.0.tgz
-intloom run order-total@1.0.0 --input '{"prices":[19,23]}' --plain
-intloom install ./looms/reviewed-report-1.0.0.tgz
-intloom run reviewed-report@1.0.0 --input '{"title":"Delivery","body":"Ready for review."}' --plain
+intloom install ./looms/order-total-*.tgz
+intloom run order-total --input '{"prices":[19,23]}' --plain
+intloom install ./looms/reviewed-report-*.tgz
+intloom run reviewed-report --input '{"title":"Delivery","body":"Ready for review."}' --plain
 ```
 
 The first Run succeeds with output `42`. The second waits for review (exit 3).
@@ -65,7 +65,7 @@ the framework. Run from this directory so dependencies resolve from its
 ```sh
 cd examples/order-total
 intloom dev build
-intloom loom describe ./dist/order-total-1.0.0.tgz
+intloom loom describe ./dist/order-total-*.tgz
 ```
 
 The local `package.json` uses tarball overrides because these exact framework

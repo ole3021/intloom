@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { verifyReleaseAssets } from "./verify-release-assets.mjs";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -82,11 +83,9 @@ const releases = gh(
 const existing = releases.find((release) => release.tag_name === tag);
 const coreVersion = version.split("+")[0];
 const prerelease = coreVersion.includes("-");
-if (existing) {
-  if (!existing.draft) {
-    assert.ok(refs);
-    process.exit(0);
-  }
+if (existing && !existing.draft) {
+  assert.ok(refs);
+} else if (existing) {
   assert.equal(
     existing.target_commitish,
     sha,
@@ -107,7 +106,13 @@ if (existing) {
     ...(prerelease ? ["--prerelease"] : []),
   );
 }
-gh("release", "upload", tag, ...assets, "--clobber");
+if (!existing || existing.draft)
+  gh("release", "upload", tag, ...assets, "--clobber");
+const uploaded = JSON.parse(
+  gh("release", "view", tag, "--json", "assets"),
+).assets;
+verifyReleaseAssets(tag, assets, uploaded);
+if (existing && !existing.draft) process.exit(0);
 // A delayed build or a retried draft may publish after a newer Studio release.
 const latest =
   unit === "app" &&

@@ -37,9 +37,8 @@ function LoomDirectory() {
   const terms = search.toLowerCase().trim().split(/\s+/);
   const matches = catalog.filter((loom) => {
     const text = [
-      `${loom.name}@${loom.version}`,
+      loom.name,
       loom.title,
-      loom.version,
       loom.kind,
       loom.distribution,
       loom.summary,
@@ -123,10 +122,7 @@ function LoomDirectory() {
         </div>
         <AnimatedList className="records">
           {matches.map((loom) => (
-            <li
-              key={`${loom.name}@${loom.version}`}
-              id={`loom-${loom.name}-${loom.version}`}
-            >
+            <li key={loom.name} id={`loom-${loom.name.split("/").at(-1)}`}>
               <button
                 type="button"
                 className="record"
@@ -142,9 +138,7 @@ function LoomDirectory() {
                   <span>{loom.summary}</span>
                 </span>
                 <span className="record-meta">
-                  <span>
-                    {loom.kind} / v{loom.version}
-                  </span>
+                  <span>{loom.kind}</span>
                   <small>{loom.distribution}</small>
                 </span>
                 <ArrowUpRight size={24} aria-hidden="true" />
@@ -202,10 +196,7 @@ function LoomDirectory() {
                 <Close size={18} aria-hidden="true" /> Close
               </button>
             </header>
-            <div
-              className="paper-body"
-              key={`${selected.name}@${selected.version}`}
-            >
+            <div className="paper-body" key={selected.name}>
               <div className="paper-title">
                 <small>Capability record</small>
                 <h2 id="dossier-title">{selected.title}</h2>
@@ -214,7 +205,6 @@ function LoomDirectory() {
               <dl className="spec-table">
                 {[
                   ["Package", selected.name],
-                  ["Version", selected.version],
                   ["Entry", selected.kind],
                   ["Edition", selected.distribution],
                 ].map(([label, value]) => (
@@ -253,11 +243,9 @@ function LoomDirectory() {
                   </dt>
                   <dd>
                     {selected.requirements}{" "}
-                    {selected.archive ? (
+                    {selected.guide ? (
                       <>
-                        <a href={selected.archive} download>
-                          Download the package
-                        </a>
+                        <code>intloom install {selected.name}</code>
                         {" · "}
                         <a href={selected.guide}>Installation and usage</a>
                       </>
@@ -267,10 +255,7 @@ function LoomDirectory() {
                         <a href="/docs/reference/compatibility">
                           local candidate
                         </a>
-                        , install{" "}
-                        <code>
-                          ./looms/{selected.name}-{selected.version}.tgz
-                        </code>{" "}
+                        , install <code>./looms/{selected.name}-*.tgz</code>{" "}
                         before running.
                       </>
                     )}
@@ -281,7 +266,7 @@ function LoomDirectory() {
             <div className="run-command">
               <Command
                 caption="Run command"
-                command={`intloom run ${selected.archive ? selected.name : `${selected.name}@${selected.version}`} --input '${JSON.stringify(selected.input).replaceAll("'", "'\\''")}'`}
+                command={`intloom run ${selected.name} --input '${JSON.stringify(selected.input).replaceAll("'", "'\\''")}'`}
               />
             </div>
             <div className="pager">

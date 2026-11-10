@@ -3,7 +3,7 @@
 | What you see | What to check next |
 | --- | --- |
 | A global CLI rejects a command in this guide | In the candidate directory, check `command -v intloom` and `intloom --version`. Put its `node_modules/.bin` first on `PATH` in both terminals. |
-| The package is missing or the version is unexpected | Run `intloom run file-report` from the owning project. Check its npm installation or install the archive globally. |
+| The package is missing or the version is unexpected | Run `intloom run @intloom/meeting-notes` from the owning project. Check its npm installation or install the npm package globally. |
 | A name and version match more than one build | Inspect the entries from `loom list` and select the intended artifact digest. |
 | The report command exits 3 | Read `status RUN_ID` and `interaction list --run RUN_ID`. Read the draft and submit a decision. |
 | An answer is saved but work has not continued | Check the receipt, `status RUN_ID` and any `recoveryIssue`. Restore the original environment, then resume with the saved request ID. |

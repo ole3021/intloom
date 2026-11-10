@@ -4,10 +4,10 @@ A run can pause to ask for missing information. Find it with `intloom status`, l
 
 ## Review the exact file
 
-With [file-report installed](first-loom.md), ask to review the result before delivery:
+With [@intloom/meeting-notes installed](first-loom.md), ask to review the result before delivery:
 
 ```sh
-intloom run file-report --input '{"message":"Review this note"}' --confirm-delivery
+intloom run @intloom/meeting-notes summarize --files ./notes.md --confirm-delivery
 ```
 
 At the wait, record the run ID. Use `intloom status RUN_ID` and `intloom interaction list --run RUN_ID` to find the request. `intloom interaction get REQUEST_ID` shows its review material. Open the candidate in the review prompt or export its artifact ID to inspect it. Use `intloom interaction respond REQUEST_ID` in an interactive terminal and choose a decision.

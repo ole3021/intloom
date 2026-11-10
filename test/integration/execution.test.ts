@@ -710,28 +710,60 @@ test("native Agent entry and Agent Step use the same execution boundary", async 
 });
 
 test("Workflow failure and cancellation wait for parallel callbacks to finish", async (t) => {
-  const source = `import {defineLoom,defineWorkflow,defineStep} from "@intloom/loom-sdk";import {z} from "zod";
- const input=z.enum(["fail","cancel"]);const slow=defineStep({id:"slow",inputSchema:input,outputSchema:z.boolean(),execute:async({context})=>{context.logger.info("slow-start");await new Promise(r=>setTimeout(r,180));context.logger.info("slow-end");return true;}});
- const control=defineStep({id:"control",inputSchema:input,outputSchema:z.boolean(),execute:async({inputData,context})=>{context.logger.info("control-start");if(inputData==="fail"){await new Promise(r=>setTimeout(r,10));throw Error("expected");}await new Promise<void>(r=>{if(context.signal.aborted)r();else context.signal.addEventListener("abort",()=>r(),{once:true});});await new Promise(r=>setTimeout(r,80));context.logger.info("control-end");return true;}});
- export default defineLoom({id:"parallel-stop",version:"1.0.0",description:"settlement",entry:defineWorkflow({id:"flow",inputSchema:input,outputSchema:z.boolean()}).parallel([slow,control]).map(()=>{throw Error("must not continue");return true;}).commit()});`;
-  const { compiled, dataDir } = await fixture(t, source);
+  const { compiled, dataDir } = await fixture(
+    t,
+    await readFile(
+      join(root, "test/integration/fixtures/parallel-stop.ts.fixture"),
+      "utf8",
+    ),
+  );
   const host = await serve({ dataDir });
   t.after(() => host.close());
   const ref = await host.installLoom({ source: compiled.artifactDir });
   for (const mode of ["fail", "cancel"]) {
-    const run = await host.createRun({ loom: ref, input: mode });
+    const fail = new AbortController();
+    const finish = new AbortController();
+    const server = createServer(async (request, response) => {
+      const { signal } = request.url === "/fail" ? fail : finish;
+      if (!signal.aborted) await once(signal, "abort");
+      response.writeHead(204).end();
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    t.after(() => server.close());
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const signals = `http://127.0.0.1:${address.port}`;
+    const run = await host.createRun({ loom: ref, input: { mode, signals } });
     await host.startRun(run.id);
-    for (let i = 0; i < 100; i++) {
-      const e = await host.listRunEvents({ runId: run.id });
-      if (e.items.filter((e) => e.type === "log").length >= 2) break;
-      await delay(5);
-    }
-    if (mode === "cancel")
-      assert.equal((await host.cancelRun(run.id)).run.status, "stopping");
-    else {
-      await delay(25);
-      assert.equal((await host.getRun(run.id)).status, "stopping");
-      assert.equal((await host.cancelRun(run.id)).disposition, "no_change");
+    try {
+      await t.waitFor(
+        async () => {
+          const { items } = await host.listRunEvents({ runId: run.id });
+          const logs = items.flatMap((e) =>
+            e.type === "log" ? [e.details.message] : [],
+          );
+          assert.ok(
+            logs.includes("slow-start") && logs.includes("control-start"),
+          );
+        },
+        { timeout: 10_000 },
+      );
+      if (mode === "cancel") {
+        assert.equal((await host.cancelRun(run.id)).run.status, "stopping");
+      } else {
+        fail.abort();
+        await t.waitFor(
+          async () => {
+            assert.equal((await host.getRun(run.id)).status, "stopping");
+          },
+          { timeout: 10_000 },
+        );
+        assert.equal((await host.cancelRun(run.id)).disposition, "no_change");
+      }
+    } finally {
+      fail.abort();
+      finish.abort();
     }
     const result = await settled(host, run.id);
     assert.equal(

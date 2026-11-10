@@ -1,6 +1,6 @@
 # Build a Loom someone else can run
 
-Build a greeting Loom that accepts `{"name":"Ada"}` and delivers a UTF-8 file containing `Hello, Ada!`. This Code example needs Node, npm and the [0.4.0 CLI](../use/first-loom.md).
+Build a greeting Loom that accepts `{"name":"Ada"}` and delivers a UTF-8 file containing `Hello, Ada!`. This Code example needs Node, npm and the [CLI](../use/first-loom.md).
 
 ## Create the author project
 
@@ -19,7 +19,7 @@ If your registry serves the pinned dependencies, run `npm install` here. For a l
 npm run build
 ```
 
-The output is `dist/hello-0.1.0.tgz`. The Loom has its own version, independent of the 0.4.0 CLI.
+The output is `dist/hello-*.tgz`. The Loom has its own version, independent of the CLI.
 
 ## Try the archive as a recipient
 
@@ -29,7 +29,7 @@ Create a separate folder outside the author project. From `hello`:
 mkdir ../recipient
 cd ../recipient
 npm init -y
-intloom install ../hello/dist/hello-0.1.0.tgz --project .
+intloom install ../hello/dist/hello-*.tgz --project .
 intloom run hello
 intloom run hello hello --input '{"name":"Ada"}'
 ```

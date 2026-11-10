@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
-import { readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { test } from "node:test";
 import { promisify, stripVTControlCharacters } from "node:util";
+import { verifyCliRelease } from "./verify-cli-release.mjs";
 
 const site = new URL("../", import.meta.url);
 const run = promisify(execFile);
@@ -16,22 +17,6 @@ const pages = [
   ["/docs/use/meeting-notes", "Turn meeting notes into minutes"],
   ["/zh/docs/use/meeting-notes", "从会议原文生成纪要"],
 ];
-const downloads = [
-  ["loom-authoring.md", "../../docs/ai/loom-authoring.md"],
-  [
-    "meeting-notes-preview.md",
-    "../../examples/meeting-notes/samples/action.minutes.md",
-  ],
-  [
-    "file-report-0.4.0.tgz",
-    "pages/public/downloads/0.4.0/file-report-0.4.0.tgz",
-  ],
-  [
-    "meeting-notes-1.0.0.tgz",
-    "pages/public/downloads/0.4.0/meeting-notes-1.0.0.tgz",
-  ],
-];
-
 async function withServer(command, inspect) {
   const child = spawn("bun", ["run", command, "--port", "0"], {
     cwd: site,
@@ -118,20 +103,24 @@ test("bun run build produces working preview pages and downloads", async () => {
       const html = await response.text();
       const h1 = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/)?.[1];
       assert.ok(h1?.includes(heading), `Missing page heading at ${path}`);
-      if (path === "/")
-        assert.ok(
-          html.includes(
-            'href="https://github.com/ole3021/intloom/releases?q=app-v"',
-          ),
-        );
+      if (path === "/") verifyCliRelease(html);
     }
-    for (const [name, source] of downloads) {
-      const response = await get(origin, `/downloads/0.4.0/${name}`, "*/*");
-      assert.deepEqual(
-        Buffer.from(await response.arrayBuffer()),
-        await readFile(new URL(source, site)),
-        name,
+    const files = await readdir(new URL("dist/", site), { recursive: true });
+    assert.ok(
+      !files.some((name) => /\.(?:tgz|zip|dmg|tar\.gz)$/.test(name)),
+      "Website contains downloadable packages",
+    );
+    for (const path of [
+      "/docs/use/meeting-notes",
+      "/zh/docs/use/meeting-notes",
+    ]) {
+      const response = await get(origin, path, "text/html");
+      const html = await response.text();
+      assert.match(
+        html.replace(/<[^>]*>/g, ""),
+        /intloom install @intloom\/meeting-notes/,
       );
+      assert.doesNotMatch(html, /meeting-notes[^<" ]*\.tgz/);
     }
   });
 });

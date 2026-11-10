@@ -10,6 +10,7 @@ export async function verifyInstallSources(
   archive,
   olderArchive,
   ordinaryArchive,
+  meetingNotes,
   verifyRun,
 ) {
   const archiveBytes = await readFile(archive);
@@ -18,46 +19,49 @@ export async function verifyInstallSources(
   const assets = new Map([
     ["file-report.tgz", archiveBytes],
     ["ordinary.tgz", await readFile(ordinaryArchive)],
-    [
-      "meeting-notes.tgz",
-      await readFile(
-        new URL(
-          "../../../apps/site/pages/public/downloads/0.4.0/meeting-notes-1.0.0.tgz",
-          import.meta.url,
-        ),
-      ),
-    ],
+    ["meeting-notes.tgz", await readFile(meetingNotes)],
+  ]);
+  const meeting = JSON.parse(
+    await readFile(
+      new URL("../../../examples/meeting-notes/package.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const registryPackages = new Map([
+    ["file-report", { version: "0.4.0", file: "file-report.tgz" }],
+    [meeting.name, { version: meeting.version, file: "meeting-notes.tgz" }],
   ]);
   const registry = createRegistry((req, res) => {
-    if (
+    const name = decodeURIComponent(req.url.slice(1));
+    const pkg = registryPackages.get(name);
+    if (pkg) {
+      const manifest = {
+        name,
+        version: pkg.version,
+        dist: {
+          tarball: process.env.npm_config_registry + pkg.file,
+          integrity:
+            "sha512-" +
+            createHash("sha512").update(assets.get(pkg.file)).digest("base64"),
+        },
+      };
+      res.setHeader("Content-Type", "application/json");
+      res.end(
+        JSON.stringify({
+          name,
+          "dist-tags": { latest: pkg.version },
+          versions: { [pkg.version]: manifest },
+        }),
+      );
+    } else if (assets.has(name)) {
+      res.end(assets.get(name));
+    } else if (
       req.url.startsWith(releasePath) &&
       assets.has(req.url.slice(releasePath.length))
     ) {
       res.end(assets.get(req.url.slice(releasePath.length)));
-    } else if (req.url === "/file-report") {
-      res.setHeader("Content-Type", "application/json");
-      res.end(
-        JSON.stringify({
-          name: "file-report",
-          "dist-tags": { latest: "0.4.0" },
-          versions: {
-            "0.4.0": {
-              name: "file-report",
-              version: "0.4.0",
-              dist: {
-                tarball: process.env.npm_config_registry + "file-report.tgz",
-                integrity:
-                  "sha512-" +
-                  createHash("sha512").update(archiveBytes).digest("base64"),
-              },
-            },
-          },
-        }),
-      );
-    } else if (req.url === "/file-report.tgz") res.end(archiveBytes);
-    else {
-      res.writeHead(404);
-      res.end();
+    } else {
+      res.writeHead(404).end();
     }
   }).listen(0, "127.0.0.1");
   await new Promise((resolve) => registry.once("listening", resolve));
@@ -89,6 +93,20 @@ export async function verifyInstallSources(
       if (source === "file-report") await verifyRun("Installed from npm");
       await app.act({ type: "catalog", id: local.id, install: false });
     }
+    const [notes] = await app.previewLoom(meeting.name);
+    assert.equal(notes.spec, `${meeting.name}@${meeting.version}`);
+    await app.act({
+      type: "catalog",
+      id: notes.spec,
+      install: true,
+      integrity: notes.integrity,
+    });
+    assert.equal(
+      (await app.snapshot()).catalog.find((p) => p.ref.id === meeting.name)
+        ?.defaultCommand,
+      "summarize",
+    );
+    await app.act({ type: "catalog", id: meeting.name, install: false });
     const fetchRelease = globalThis.fetch;
     const nodeOptions = process.env.NODE_OPTIONS;
     try {

@@ -16,7 +16,7 @@ import { createServer } from "node:net";
 import { once } from "node:events";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
+import { lookupRegistry } from "./npm-registry.mjs";
 
 const [action, unit, folder, testRegistry] = process.argv.slice(2);
 assert.ok(
@@ -40,14 +40,6 @@ const names =
     : ["@intloom/cli", "intloom"];
 const prefix = mkdtempSync(join(tmpdir(), "intloom-registry-"));
 process.on("exit", () => rmSync(prefix, { recursive: true, force: true }));
-async function lookup(name, ver) {
-  const r = await fetch(
-    `${registry}/${encodeURIComponent(name)}/${encodeURIComponent(ver)}`,
-  );
-  if (r.status === 404) return undefined;
-  if (!r.ok) throw new Error(`Registry lookup failed: ${r.status} ${name}`);
-  return r.json();
-}
 for (const name of names) {
   const pkg = candidate.packages.find((p) => p.name === name);
   assert.equal(pkg?.version, version);
@@ -60,53 +52,49 @@ for (const name of names) {
   if (!testRegistry) assert.ok(plan.units[unit].changed);
   for (const [dep, required] of Object.entries(pkg.dependencies ?? {})) {
     if (dep.startsWith("@intloom/"))
-      assert.equal(
-        (await lookup(dep, required))?.version,
-        required,
-        `${dep}@${required} unavailable`,
-      );
+      await lookupRegistry(registry, dep, required, required);
   }
-  let published = await lookup(name, version);
+  let published = await lookupRegistry(
+    registry,
+    name,
+    version,
+    action === "verify" ? version : undefined,
+  );
   if (!published && action === "publish") {
-    // Use the semver dependency of the npm CLI installed on the publishing runner.
-    const npmRoot = execFileSync("npm", ["root", "--global"], {
-      encoding: "utf8",
-    }).trim();
-    const semver = createRequire(join(npmRoot, "npm/package.json"))("semver");
-    const current = await lookup(name, tag);
-    assert.ok(
-      !current || semver.gt(version, current.version),
-      `A newer version already owns ${name}@${tag}`,
-    );
-    execFileSync(
-      "npm",
-      [
-        "publish",
-        archive,
-        `--registry=${registry}`,
-        "--access=public",
-        "--tag",
-        tag,
-        "--ignore-scripts",
-      ],
-      { stdio: "inherit" },
-    );
-  }
-  for (let attempt = 0; !published && attempt < 30; attempt++) {
-    await delay(2000);
-    published = await lookup(name, version);
+    const current = await lookupRegistry(registry, name, tag);
+    if (current?.version !== version) {
+      // Use the semver dependency of the npm CLI installed on the publishing runner.
+      const npmRoot = execFileSync("npm", ["root", "--global"], {
+        encoding: "utf8",
+      }).trim();
+      const semver = createRequire(join(npmRoot, "npm/package.json"))("semver");
+      assert.ok(
+        !current || semver.gt(version, current.version),
+        `A newer version already owns ${name}@${tag}`,
+      );
+      execFileSync(
+        "npm",
+        [
+          "publish",
+          archive,
+          `--registry=${registry}`,
+          "--access=public",
+          "--tag",
+          tag,
+          "--ignore-scripts",
+        ],
+        { stdio: "inherit" },
+      );
+    }
+    published = await lookupRegistry(registry, name, version, version);
   }
   assert.equal(
-    published?.dist.integrity,
+    published.dist.integrity,
     integrity,
     `${name} registry integrity`,
   );
   if (action === "verify") {
-    assert.equal(
-      (await lookup(name, tag))?.version,
-      version,
-      `${name} channel`,
-    );
+    await lookupRegistry(registry, name, tag, version);
     const destination = join(prefix, name.replaceAll("/", "-"));
     execFileSync(
       "npm",

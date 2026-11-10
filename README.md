@@ -2,18 +2,19 @@
 
 IntLoom lets you install a professional capability as a **Loom**, give it input and collect its result. A report writer, for example, can take a message and deliver a text file. Each run gets an ID so you can return to a question, check progress or retrieve the exact file that was delivered.
 
-[0.4.0 documentation](docs/README.md) · [Use a Loom](docs/use/cli.md) · [Build a Loom](docs/author/first-package.md) · [Develop with a coding agent](docs/ai/loom-authoring.md)
+[Documentation](docs/README.md) · [Use a Loom](docs/use/cli.md) · [Build a Loom](docs/author/first-package.md) · [Develop with a coding agent](docs/ai/loom-authoring.md)
 
 ## Try a Loom
 
-With the CLI installed and a built file-report archive in the current directory:
+After the first public npm release, install the official meeting-notes Loom and inspect its commands:
 
 ```sh
-intloom install ./file-report-0.4.0.tgz
-intloom run file-report --input '{"message":"First delivery"}'
+npm install --global intloom
+intloom install @intloom/meeting-notes
+intloom run @intloom/meeting-notes
 ```
 
-Use the returned file reference with `intloom artifact export <artifactId> --out ./report.txt`. [Get the sample archive and run your first Loom](docs/use/first-loom.md).
+[Configure the model and produce meeting minutes](examples/meeting-notes/README.md).
 
 | If you want to… | Start here |
 | --- | --- |

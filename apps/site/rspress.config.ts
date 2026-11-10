@@ -1,35 +1,6 @@
 import looms from "./data/looms.json";
 import { defineConfig } from "@rspress/core";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { repositoryUrl } from "./src/site.ts";
-
-// The repository tags each package separately, so GitHub's latest release may be a sibling package.
-const tags = spawnSync(
-  "git",
-  [
-    "ls-remote",
-    "--tags",
-    "--refs",
-    `${repositoryUrl}.git`,
-    "refs/tags/@intloom/cli@*",
-    "refs/tags/intloom@*",
-  ],
-  { encoding: "utf8", timeout: 5000 },
-);
-const stableTags =
-  (tags.status === 0 ? tags.stdout : "").match(
-    /(?<=\trefs\/tags\/)(?:@intloom\/cli@|intloom@)\d+\.\d+\.\d+$/gm,
-  ) ?? [];
-const latest = stableTags
-  .map((tag) => ({ tag, version: tag.replace(/^\D+/, "") }))
-  .sort((a, b) =>
-    b.version.localeCompare(a.version, "en", { numeric: true }),
-  )[0];
-if (!latest)
-  console.warn(
-    "No stable IntLoom tag available from GitHub. Linking to the releases list.",
-  );
 
 export default defineConfig({
   root: "pages",
@@ -60,30 +31,6 @@ export default defineConfig({
     ...(process.env.NODE_ENV === "development" && {
       performance: { buildCache: false },
     }),
-    output: {
-      copy: [
-        {
-          from: fileURLToPath(
-            new URL(
-              "../../examples/meeting-notes/samples/action.minutes.md",
-              import.meta.url,
-            ),
-          ),
-          to: "downloads/0.4.0/meeting-notes-preview.md",
-        },
-        {
-          from: fileURLToPath(
-            new URL("../../docs/ai/loom-authoring.md", import.meta.url),
-          ),
-          to: "downloads/0.4.0/loom-authoring.md",
-        },
-      ],
-    },
-    source: {
-      define: {
-        __INTLOOM_RELEASE__: JSON.stringify(latest ?? null),
-      },
-    },
   },
   plugins: [
     {
@@ -123,7 +70,7 @@ export default defineConfig({
                 ],
               ]
             : looms.map((loom) => [
-                `loom-${loom.name}-${loom.version}`,
+                `loom-${loom.name.split("/").at(-1)}`,
                 loom.title,
                 [loom.summary, loom.name, loom.kind, ...loom.tags].join(" "),
               ]);

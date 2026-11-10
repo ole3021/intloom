@@ -1,6 +1,6 @@
 # Build your first Loom
 
-The command accepts a name and delivers a text file. Use the [0.4.0 CLI](./setup). Start in a fresh working folder, or inside the installed local candidate when using candidate dependencies.
+The command accepts a name and delivers a text file. Use the [CLI](./setup). Start in a fresh working folder, or inside the installed local candidate when using candidate dependencies.
 
 ```sh
 intloom dev init ./hello --id hello
@@ -14,7 +14,7 @@ npm run build
 mkdir ../recipient
 cd ../recipient
 npm init -y
-intloom install ../hello/dist/hello-0.1.0.tgz --project .
+intloom install ../hello/dist/hello-*.tgz --project .
 intloom run hello
 intloom run hello hello --input '{"name":"Ada"}'
 ```
@@ -27,4 +27,4 @@ intloom artifact export ARTIFACT_ID --out ./greeting.txt
 cat ./greeting.txt
 ```
 
-The file should contain `Hello, Ada!`. Input `{"name":42}` should be rejected. The Loom version is 0.1.0; its author tools are 0.4.0. [Author CLI](../develop/cli) · [Choose an entry](../develop/choose-an-entry)
+The file should contain `Hello, Ada!`. Input `{"name":42}` should be rejected. [Author CLI](../develop/cli) · [Choose an entry](../develop/choose-an-entry)

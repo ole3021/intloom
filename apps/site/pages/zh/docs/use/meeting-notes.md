@@ -4,17 +4,17 @@
 
 ## 安装示例包
 
-准备 [0.4.0 CLI](../start/setup)，并[配置支持结构化输出的模型](../reference/configuration)。会议正文会发送给所配置的模型。<a href="/downloads/0.4.0/meeting-notes-1.0.0.tgz" download>下载 meeting-notes-1.0.0.tgz</a>，在下载目录运行以下命令。
+准备 [CLI](../start/setup)，并[配置支持结构化输出的模型](../reference/configuration)。首个 npm 正式版发布后，使用下面的包名安装。在 Studio 的 Loom 库中也可以输入同一个包名。配置的模型会收到会议正文。
 
 ```sh
-intloom install ./meeting-notes-1.0.0.tgz
-intloom run meeting-notes
+intloom install @intloom/meeting-notes
+intloom run @intloom/meeting-notes
 ```
 
 ## 粘贴原文或使用文件
 
 ```sh
-intloom run meeting-notes summarize --prompt '林：我建议周五上线。
+intloom run @intloom/meeting-notes summarize --prompt '林：我建议周五上线。
 陈：支付回归还没过，日期先别定。
 林：同意，今天只定首批灰度范围，10%。上线日期继续待定。
 陈：我周四下班前把支付回归结果发出来。'
@@ -25,7 +25,7 @@ intloom run meeting-notes summarize --prompt '林：我建议周五上线。
 较长的记录可以保存为 UTF-8 编码的文本或 Markdown 文件。在文件所在目录运行：
 
 ```sh
-intloom run meeting-notes summarize --files ./notes.md
+intloom run @intloom/meeting-notes summarize --files ./notes.md
 ```
 
 每次提供一种来源即可，原文可以没有发言人姓名。格式按会议的主要产出选择。方案评审保留备选和取舍，项目同步突出变化与阻塞，探索会区分想法、假设与验证计划，其余会议使用结论与行动型。行动没有明确负责人时只记录事项本身。
@@ -39,6 +39,6 @@ intloom artifact list --run RUN_ID
 intloom artifact export ARTIFACT_ID --out ./meeting-notes.md
 ```
 
-完整纪要中的 `L3` 表示引文出自原文第 3 行。<a href="/downloads/0.4.0/meeting-notes-preview.md" download>查看上述灰度讨论的一份完整交付样例</a>。
+完整纪要中的 `L3` 表示引文出自原文第 3 行。<a href="https://raw.githubusercontent.com/ole3021/intloom/refs/heads/main/examples/meeting-notes/samples/action.minutes.md">查看上述灰度讨论的一份完整交付样例</a>。
 
 如果输入只有会议邀请和待讨论议程，这次运行会以 `AGENDA_WITHOUT_DISCUSSION` 结束。食谱等无关材料会返回 `NOT_MEETING_CONTENT`。两种情况都不会交付文件，补充实际讨论记录后可重新运行。

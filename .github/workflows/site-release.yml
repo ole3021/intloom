@@ -39,7 +39,8 @@ jobs:
           gh run download "$RUN" -n site-pr -D "$RUNNER_TEMP/pr"
           pr=$(cat "$RUNNER_TEMP/pr/pr-number")
           [[ "$pr" =~ ^[1-9][0-9]*$ ]]
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" | jq -e --arg sha "$SHA" --arg repo "$HEAD_REPO" 'select(.state=="open" and .base.ref=="main" and .head.sha==$sha and .head.repo.full_name==$repo)' >/dev/null || exit 0
+          current=$(bash .github/scripts/site-preview-current.sh "$pr")
+          [[ "$current" == true ]] || exit 0
           echo "channel=preview" >> "$GITHUB_OUTPUT"
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
   deploy:
@@ -72,14 +73,15 @@ jobs:
           CHANNEL: ${{ needs.select.outputs.channel }}
           PR: ${{ needs.select.outputs.pr }}
           SHA: ${{ needs.select.outputs.sha }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
           VERSION: ${{ needs.select.outputs.version }}
           WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/site-output.jsonl
         run: |
           set -euo pipefail
           tool="$RUNNER_TEMP/cf-tool/node_modules/.bin/wrangler"
           if [[ "$CHANNEL" == preview ]]; then
-            current=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq 'select(.state == "open") | .head.sha')
-            [[ "$current" == "$SHA" ]] || exit 0
+            current=$(bash .github/scripts/site-preview-current.sh "$PR")
+            [[ "$current" == true ]] || exit 0
             GITHUB_SHA="$SHA" PULL_REQUEST_NUMBER="$PR" PULL_REQUEST_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/$PR" \
               "$tool" preview --config apps/site/wrangler.jsonc --name "pr-$PR" --tag "${SHA:0:12}" --message "PR #$PR"
             url=$(jq -ser 'map(select(.type == "preview")) | last.preview_urls[0] | select(type == "string")' "$WRANGLER_OUTPUT_FILE_PATH")
@@ -92,7 +94,18 @@ jobs:
             deployment=$(jq -ser 'map(select(.type == "deploy")) | last.version_id' "$WRANGLER_OUTPUT_FILE_PATH")
           fi
           [[ "$url" == https://* ]]
-          for path in / /docs/ /zh/docs/ /looms; do curl -fsSL --retry 4 --retry-all-errors -o /dev/null "${url%/}$path"; done
+          for attempt in 1 2 3 4 5; do
+            curl -fsSL --retry 4 --retry-all-errors -o "$RUNNER_TEMP/home.html" "${url%/}/"
+            if node apps/site/test/verify-cli-release.mjs "$RUNNER_TEMP/home.html"; then break; fi
+            [[ "$attempt" -lt 5 ]] || exit 1
+            sleep 5
+          done
+          for path in /docs/ /zh/docs/ /looms; do curl -fsSL --retry 4 --retry-all-errors -o /dev/null "${url%/}$path"; done
+          curl -fsS --retry 4 --retry-all-errors "${url%/}/api/releases" | jq -e '.studio.version and .cli.version' >/dev/null
+          for platform in macos-arm64 macos-x64 windows-x64 linux-x64; do
+            target=$(curl -fsSI --retry 4 --retry-all-errors -o /dev/null -w '%{http_code} %{redirect_url}' "${url%/}/download/studio/$platform")
+            [[ "$target" == "302 $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/app-v"* ]]
+          done
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Site $CHANNEL $VERSION · $SHA · $deployment · $url" >> "$GITHUB_STEP_SUMMARY"
           if [[ "$CHANNEL" == preview ]]; then

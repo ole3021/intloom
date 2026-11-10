@@ -16,17 +16,17 @@ import type { Inspection } from "./inspect.ts";
 
 const exec = promisify(execFile);
 
-/** Compile the command modules on the author's machine and pack one installable npm package. */
-export async function buildPackage(directory: string, destination: string) {
+export async function withBuiltPackage<T>(
+  directory: string,
+  consume: (staging: string) => Promise<T>,
+) {
   const root = resolve(directory);
-  const output = resolve(destination);
   const metadata = JSON.parse(
     await readFile(join(root, "package.json"), "utf8"),
   );
   const manifest = authorManifest.parse(
     parse(await readFile(join(root, "loom.yaml"), "utf8")),
   );
-  await mkdir(output, { recursive: true });
   // This location also lets Node resolve author-installed npm dependencies during inspection.
   const staging = await mkdtemp(join(root, ".loom-build-"));
   try {
@@ -141,6 +141,17 @@ export async function buildPackage(directory: string, destination: string) {
         2,
       ),
     );
+    return await consume(staging);
+  } finally {
+    await rm(staging, { recursive: true, force: true });
+  }
+}
+
+/** Compile the command modules and return the path to the installable npm archive. */
+export async function buildPackage(directory: string, destination: string) {
+  const output = resolve(destination);
+  await mkdir(output, { recursive: true });
+  return withBuiltPackage(directory, async (staging) => {
     const args = [
       "pack",
       "--ignore-scripts",
@@ -158,7 +169,5 @@ export async function buildPackage(directory: string, destination: string) {
       cwd: staging,
     });
     return join(output, JSON.parse(stdout)[0].filename);
-  } finally {
-    await rm(staging, { recursive: true, force: true });
-  }
+  });
 }

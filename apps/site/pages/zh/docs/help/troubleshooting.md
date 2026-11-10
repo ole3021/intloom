@@ -3,7 +3,7 @@
 | 遇到的现象 | 下一步检查 |
 | --- | --- |
 | 全局 CLI 无法识别指南里的命令 | 在候选目录运行 `command -v intloom` 和 `intloom --version`。确保两个终端都把该目录的 `node_modules/.bin` 放在 `PATH` 首位。 |
-| 找不到包，或运行的不是预期版本 | 在安装包的项目中执行 `intloom run file-report`。确认项目安装是否存在，或将归档安装到全局。 |
+| 找不到包，或运行的不是预期版本 | 在安装包的项目中执行 `intloom run @intloom/meeting-notes`。确认项目安装是否存在，或按 npm 包名安装到全局。 |
 | 名称和版本匹配到多个构建 | 查看 `loom list` 的结果，用目标构建的摘要选择。 |
 | 报告命令退出码为 3 | 查看 `status RUN_ID` 和 `interaction list --run RUN_ID`，阅读草稿后提交决定。 |
 | 答案已保存，但运行尚未继续 | 查看回执、`status RUN_ID` 和可能的 `recoveryIssue`。恢复原执行环境后，使用已保存的请求 ID 继续。 |

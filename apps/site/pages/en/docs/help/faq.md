@@ -1,6 +1,6 @@
 # Common questions
 
-**Do I need a model account?** [The first tutorial](../start/run) writes a file using Code and needs no model. For an Agent, the operator supplies a compatible model and credentials.
+**Do I need a model account?** A pure Code Loom can run without model credentials. For an Agent, the operator supplies a compatible model and credentials.
 
 **Does asking a question require a Workflow?** An Agent with a suitable tool-capable model slot can ask for missing information. Choose a Workflow when the business requires explicit stages.
 

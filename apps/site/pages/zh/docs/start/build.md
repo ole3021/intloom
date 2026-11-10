@@ -1,6 +1,6 @@
 # 制作第一个 Loom 包
 
-这个命令接收姓名，交付一份文本文件。使用 [0.4.0 CLI](./setup)，在新的工作目录开始。使用本地候选依赖时，请从已经安装好依赖的候选目录开始。
+这个命令接收姓名，交付一份文本文件。使用 [CLI](./setup)，在新的工作目录开始。使用本地候选依赖时，请从已经安装好依赖的候选目录开始。
 
 ```sh
 intloom dev init ./hello --id hello
@@ -14,7 +14,7 @@ npm run build
 mkdir ../recipient
 cd ../recipient
 npm init -y
-intloom install ../hello/dist/hello-0.1.0.tgz --project .
+intloom install ../hello/dist/hello-*.tgz --project .
 intloom run hello
 intloom run hello hello --input '{"name":"Ada"}'
 ```
@@ -27,4 +27,4 @@ intloom artifact export ARTIFACT_ID --out ./greeting.txt
 cat ./greeting.txt
 ```
 
-文件正文应为 `Hello, Ada!`。再用 `{"name":42}` 试一次，应收到输入校验错误。问候包自身的版本是 0.1.0，作者工具版本是 0.4.0。[开发者 CLI](../develop/cli) · [选择开发范式](../develop/choose-an-entry)
+文件正文应为 `Hello, Ada!`。再用 `{"name":42}` 试一次，应收到输入校验错误。[开发者 CLI](../develop/cli) · [选择开发范式](../develop/choose-an-entry)
