@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.electrobun.json && tsc --noEmit",
     "test": "bun test test",
     "desktop:build": "bun run build && bun run desktop:prepare && electrobun build --env=dev",
-    "desktop:release": "bun run build && bun run desktop:prepare && electrobun build --env=stable",
+    "desktop:release": "bun run build && bun run desktop:prepare && node scripts/build-installer.mjs",
     "dev:mock": "INTLOOM_STUDIO_MODE=mock bun run dev",
     "desktop:prepare": "node scripts/prepare-runtime.mjs"
   },

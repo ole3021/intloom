@@ -10,6 +10,8 @@ import {
   rmSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
+  statfsSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -60,6 +62,11 @@ if (platform === "macos") {
     wrapped,
   ]);
   try {
+    const { bavail, bsize } = statfsSync(wrapped);
+    const freeMiB = Math.floor((bavail * bsize) / 1024 ** 2);
+    assert.ok(freeMiB >= 32, `Installer volume has only ${freeMiB} MiB free`);
+    console.log(`Mounted installer volume has ${freeMiB} MiB free`);
+    assert.equal(readlinkSync(join(wrapped, "Applications")), "/Applications");
     const app = readdirSync(wrapped).find((f) => f.endsWith(".app"));
     assert.ok(app);
     if (process.env.INTLOOM_SIGN_MAC === "1") {

@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+# Electrobun 1.18 lets hdiutil estimate the volume from its staged installer.
+if [ "${1:-}" = create ]; then
+  previous=
+  for argument do
+    if [ "$previous" = -srcfolder ] && [ "${argument##*/}" = .dmg-staging ]; then
+      usage=$(/usr/bin/du -Aks "$argument")
+      kib=${usage%%[[:space:]]*}
+      content_mib=$(( (kib + 1023) / 1024 ))
+      volume_mib=$(( content_mib + content_mib / 10 + 64 ))
+      echo "Creating HFS+ installer volume of ${volume_mib} MiB for ${kib} KiB of staged content" >&2
+      /bin/df -h "$argument" >&2
+      exec /usr/bin/hdiutil "$@" -fs HFS+ -size "${volume_mib}m"
+    fi
+    previous=$argument
+  done
+fi
+exec /usr/bin/hdiutil "$@"
