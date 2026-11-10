@@ -16,6 +16,7 @@ env:
   RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
 jobs:
   select:
+    name: Check CLI release criteria
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' || github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-24.04
     outputs:
@@ -29,6 +30,7 @@ jobs:
         id: input
         with: {run-id: "${{ env.RUN_ID }}", unit: cli}
   publish:
+    name: Publish CLI to npm
     needs: select
     if: needs.select.outputs.enabled == 'true'
     runs-on: ubuntu-24.04
@@ -43,6 +45,7 @@ jobs:
         with: {name: release-candidate, path: "${{ runner.temp }}/candidate", run-id: "${{ env.RUN_ID }}", github-token: "${{ github.token }}"}
       - run: node .github/scripts/release-npm-packages.mjs publish cli "$RUNNER_TEMP/candidate"
   verify-registry:
+    name: Test CLI installs from npm
     needs: [select, publish]
     runs-on: ubuntu-24.04
     steps:
@@ -54,6 +57,7 @@ jobs:
         with: {name: release-candidate, path: "${{ runner.temp }}/candidate", run-id: "${{ env.RUN_ID }}", github-token: "${{ github.token }}"}
       - run: node .github/scripts/release-npm-packages.mjs verify cli "$RUNNER_TEMP/candidate"
   record:
+    name: Create CLI GitHub release
     needs: [select, verify-registry]
     runs-on: ubuntu-24.04
     permissions: {contents: write, actions: read}

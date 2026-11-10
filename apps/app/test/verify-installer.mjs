@@ -24,6 +24,11 @@ const files = readdirSync(source);
 const platform = { darwin: "macos", win32: "win", linux: "linux" }[
   process.platform
 ];
+// Git Bash's tar treats Windows drive letters as remote hosts.
+const tarExecutable =
+  platform === "win"
+    ? join(process.env.SystemRoot, "System32", "tar.exe")
+    : "tar";
 const prefix = `stable-${platform}-${process.arch}-`;
 const version = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
@@ -75,7 +80,7 @@ if (platform === "macos") {
     execFileSync("hdiutil", ["detach", wrapped]);
   }
 } else {
-  execFileSync("tar", ["-xf", installer, "-C", wrapped]);
+  execFileSync(tarExecutable, ["-xf", installer, "-C", wrapped]);
   if (platform === "linux") {
     const extractor = readFileSync(join(wrapped, "installer"));
     assert.ok(extractor.subarray(-payload.length).equals(payload));
@@ -92,7 +97,7 @@ const tar = zstdDecompressSync(payload);
 writeFileSync(archive, tar);
 const installed = join(work, "installed");
 mkdirSync(installed);
-execFileSync("tar", ["-xf", archive, "-C", installed]);
+execFileSync(tarExecutable, ["-xf", archive, "-C", installed]);
 const launcher = readdirSync(installed, { recursive: true }).find(
   (f) =>
     basename(f) === (platform === "win" ? "launcher.exe" : "launcher") &&

@@ -9,7 +9,7 @@ permissions:
 jobs:
   verify:
     permissions: {contents: read, pull-requests: read}
-    name: Build and pack on ${{ matrix.os }}
+    name: Verify and pack (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -57,6 +57,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   npm-consumers:
+    name: Test npm installs (Node ${{ matrix.node }}, ${{ matrix.os }})
     needs: verify
     strategy:
       fail-fast: false
@@ -76,6 +77,7 @@ jobs:
           INTLOOM_CANDIDATE_DIR: ${{ runner.temp }}/candidate
           INTLOOM_REQUIRE_ARCHIVES: "1"
   site:
+    name: Build and test site
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7

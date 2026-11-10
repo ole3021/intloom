@@ -6,6 +6,7 @@ on:
 permissions: {contents: read, actions: read}
 jobs:
   select:
+    name: Choose deployment target
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     permissions: {contents: read, actions: read, pull-requests: read}
@@ -42,6 +43,7 @@ jobs:
           echo "channel=preview" >> "$GITHUB_OUTPUT"
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
   deploy:
+    name: Deploy site
     needs: select
     if: needs.select.outputs.channel != ''
     runs-on: ubuntu-24.04
