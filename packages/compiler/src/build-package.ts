@@ -141,11 +141,22 @@ export async function buildPackage(directory: string, destination: string) {
         2,
       ),
     );
-    const { stdout } = await exec(
-      "npm",
-      ["pack", "--ignore-scripts", "--json", "--pack-destination", output],
-      { cwd: staging },
-    );
+    const args = [
+      "pack",
+      "--ignore-scripts",
+      "--json",
+      "--pack-destination",
+      output,
+    ];
+    // Windows ships npm.cmd. Invoke its JavaScript entry point without a shell.
+    const windows = process.platform === "win32";
+    if (windows)
+      args.unshift(
+        join(dirname(process.execPath), "node_modules/npm/bin/npm-cli.js"),
+      );
+    const { stdout } = await exec(windows ? process.execPath : "npm", args, {
+      cwd: staging,
+    });
     return join(output, JSON.parse(stdout)[0].filename);
   } finally {
     await rm(staging, { recursive: true, force: true });
