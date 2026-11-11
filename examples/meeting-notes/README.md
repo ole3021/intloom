@@ -4,11 +4,17 @@ Turn one meeting transcript or set of rough notes into a Markdown file in the so
 
 ## Install and run
 
-Install the CLI and configure a model with structured output. After the first npm release, use the package name below in the CLI or in the Studio Loom library. The configured model receives the meeting text.
+Install the IntLoom CLI and the meeting-notes package from npm. In Studio, enter `@intloom/meeting-notes` in the Loom library.
 
 ```sh
+npm install --global intloom
 intloom install @intloom/meeting-notes
 intloom run @intloom/meeting-notes
+```
+
+[Configure a model with structured output](https://github.com/ole3021/intloom/blob/main/docs/reference/configuration.md) before running `summarize`. The configured model receives the meeting text.
+
+```sh
 intloom run @intloom/meeting-notes summarize --prompt 'We agreed to pilot with 10% of accounts. The launch date is still open. Chen will share regression results by Thursday.'
 ```
 

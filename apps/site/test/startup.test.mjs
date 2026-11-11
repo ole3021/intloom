@@ -53,7 +53,13 @@ async function withServer(command, inspect) {
     60_000,
   );
   try {
-    await inspect(await listening);
+    const origin = await listening;
+    const route = await fetch(`${origin}/api/releases`, { method: "POST" });
+    assert.equal(route.status, 405);
+    assert.equal(route.headers.get("allow"), "GET, HEAD");
+    const download = await fetch(`${origin}/download/studio/unknown`);
+    assert.equal(download.status, 404);
+    await inspect(origin);
   } finally {
     clearTimeout(timeout);
     if (child.pid && child.exitCode === null && child.signalCode === null) {

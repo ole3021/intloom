@@ -1,12 +1,10 @@
 import { useScrollAfterNav } from "@rspress/core/theme-original";
 import {
-  ArrowUpRight,
   Activity,
   GroupObjects,
   Cube,
   FlowConnection,
   TaskComplete,
-  ChevronDown,
   WarningAlt,
 } from "@carbon/icons-react";
 import { ReuseVisual } from "../src/components/feature-visuals/reuse.tsx";
@@ -19,6 +17,7 @@ import { IntentField } from "../src/components/intent-field/index.tsx";
 import { ClientPreview } from "../src/components/client-preview.tsx";
 import {
   cliReleasesUrl,
+  latestReleaseUrl,
   readReleases,
   type WebsiteReleases,
 } from "../src/releases.ts";
@@ -27,7 +26,7 @@ import { useHead } from "@rspress/core/runtime";
 import { useEffect, useState } from "react";
 import { SectionLabel } from "../src/components/section-label.tsx";
 import { Command } from "../src/components/command.tsx";
-import { ScrambledText } from "../src/components/motion/scrambled-text.tsx";
+import { SiteLink } from "../src/components/site-link.tsx";
 import { DecryptedText } from "../src/components/motion/decrypted-text.tsx";
 import { ScrollVelocity } from "../src/components/motion/scroll-velocity.tsx";
 import "../src/styles/home.css";
@@ -154,31 +153,21 @@ export default function Home() {
             Build, run and share intelligent capabilities.
           </p>
           <div className="hero-command">
-            <Command command="intloom --version" />
-            <p>Check your installed CLI version.</p>
-            <a href="#cli">
-              <ScrambledText text="Set up the CLI" />
-              <ChevronDown size={16} aria-hidden="true" />
-            </a>
+            <Command command="npx intloom startup" />
+            <p>Start the local IntLoom service and watch run activity.</p>
+            <SiteLink href="#cli">Install the CLI globally</SiteLink>
           </div>
         </div>
         <div className="instrument hero-foot">
-          <a
+          <SiteLink
             className="release-version"
             href={releases.cli?.url ?? cliReleasesUrl}
           >
-            <ScrambledText
-              text={
-                releases.cli
-                  ? `CLI release / v${releases.cli.version}`
-                  : "CLI releases on GitHub"
-              }
-            />
-          </a>
-          <a href={releases.cli?.url ?? cliReleasesUrl}>
-            <ScrambledText text="Release notes" />
-            <ArrowUpRight size={16} aria-hidden="true" />
-          </a>
+            {releases.cli
+              ? `CLI release / v${releases.cli.version}`
+              : "CLI releases on GitHub"}
+          </SiteLink>
+          <SiteLink href={latestReleaseUrl}>Release notes</SiteLink>
         </div>
       </section>
       <ScrollVelocity texts={features.map((feature) => feature.ticker)} />
@@ -352,23 +341,21 @@ export default function Home() {
               <p>
                 Run this from any directory after installation. For a local
                 candidate, see the{" "}
-                <a href="/docs/start/setup">
-                  <ScrambledText text="setup guide" /> →
-                </a>
-                .
+                <SiteLink href="/docs/start/setup">setup guide</SiteLink>.
               </p>
               <Command compact command="intloom startup" />
               <div className="reserved">
-                <a href="/docs/start/run">
-                  <ScrambledText text="Install a Loom from npm" /> →
-                </a>
+                <SiteLink href="/docs/use/meeting-notes">
+                  Install and run meeting-notes
+                </SiteLink>
               </div>
             </div>
           </div>
         </div>
       </section>
+      <ClientPreview release={releases.studio} />
       <section className="module" id="author">
-        <SectionLabel number="04">CREATE A LOOM</SectionLabel>
+        <SectionLabel number="05">CREATE A LOOM</SectionLabel>
         <div className="split">
           <div>
             <h2>
@@ -384,22 +371,19 @@ export default function Home() {
           </div>
           <div className="placeholder">
             <p>Develop a Loom with IntLoom</p>
-            <a href="/docs/ai/loom-authoring">Get the coding agent guide →</a>
-            <a href="/docs/start/build">Build a first package →</a>
+            <SiteLink href="/docs/ai/loom-authoring">
+              Get the coding agent guide
+            </SiteLink>
+            <SiteLink href="/docs/start/build">Build a first package</SiteLink>
           </div>
         </div>
       </section>
-      <ClientPreview release={releases.studio} />
       <section className="closing">
         <h2>
           Stay in <em>the loom.</em>
         </h2>
-        <a href="/looms">
-          <ScrambledText text="Check Looms" /> →
-        </a>
-        <a className="docs-link" href={docsUrl}>
-          <ScrambledText text="Read the documentation" /> ↗
-        </a>
+        <SiteLink href="/looms">Check Looms</SiteLink>
+        <SiteLink href={docsUrl}>Read the documentation</SiteLink>
       </section>
     </main>
   );

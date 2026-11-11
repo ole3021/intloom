@@ -9,7 +9,12 @@ import {
 import { IntloomError } from "@intloom/loom-sdk";
 import { satisfies } from "semver";
 
-export async function installNpmPackage(source: string, project?: string) {
+import { globalPackageRoot, npmPrefix } from "../service/npm-root.ts";
+export async function installNpmPackage(
+  source: string,
+  project?: string,
+  dataDir?: string,
+) {
   const local = await npmArchiveName(resolve(source));
   if (
     !local &&
@@ -19,9 +24,13 @@ export async function installNpmPackage(source: string, project?: string) {
   )
     return undefined;
   const cwd = resolve(project ?? process.cwd());
-  const globalRoot = await npmRoot(true, cwd);
+  const globalRoot = dataDir
+    ? await globalPackageRoot(dataDir)
+    : await npmRoot(true, cwd);
   const root = project ? await npmRoot(false, cwd) : globalRoot;
-  const flags = project ? ["--prefix", dirname(root)] : ["--global"];
+  const flags = project
+    ? ["--prefix", dirname(root)]
+    : ["--global", "--prefix", npmPrefix(globalRoot)];
   async function install(spec: string) {
     await runNpm(
       [

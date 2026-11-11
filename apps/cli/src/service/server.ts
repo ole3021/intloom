@@ -1,5 +1,12 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { createServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -7,6 +14,7 @@ import { IntloomError, type ResponseSource } from "@intloom/loom-sdk";
 import {
   serve,
   readServicePort,
+  kernelVersion,
   npmRoot,
   describeConfiguration,
   type Kernel,
@@ -32,7 +40,16 @@ export async function openService(
 ) {
   const configuredPort = await readServicePort(options.dataDir);
   let runRevision = 0;
+  const recoveryFile = join(options.dataDir, "upgrade-recovery");
+  const recoverUpgrade = await readFile(recoveryFile, "utf8").then(
+    (value) => value === kernelVersion,
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    },
+  );
   const kernel = await serve({
+    recoverUpgrade,
     dataDir: options.dataDir,
     ...(options.projectDir ? { projectDir: options.projectDir } : {}),
     ...(options.bindings ? { bindings: options.bindings } : {}),
@@ -104,6 +121,7 @@ export async function openService(
     serviceStatus: async () => ({
       status: stopping ? "closing" : "ready",
       version,
+      kernelVersion,
       activeRunCount: kernel.activeRunCount,
       runRevision,
       npmGlobalRoot: await npmDirectory,
@@ -303,8 +321,9 @@ export async function openService(
         ? { nativeResponseSource: options.nativeResponseSource }
         : {}),
     });
+    const preparing = descriptor + ".tmp";
     await writeFile(
-      descriptor,
+      preparing,
       JSON.stringify({
         formatVersion: 1,
         endpoint,
@@ -315,7 +334,9 @@ export async function openService(
       } satisfies Endpoint),
       { mode: 0o600 },
     );
-    await chmod(descriptor, 0o600);
+    await chmod(preparing, 0o600);
+    await rename(preparing, descriptor);
+    if (recoverUpgrade) await rm(recoveryFile, { force: true });
     return { close, done, endpoint, kernel, mcpUrl: http.url };
   } catch (error) {
     stopping = true;

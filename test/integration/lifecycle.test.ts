@@ -28,6 +28,7 @@ import { serve, type Kernel } from "../../packages/kernel/dist/index.js";
 import { createIntegrity } from "../../packages/loom-sdk/dist/package-format/index.js";
 import { stableJson } from "../../packages/loom-sdk/dist/schema/json.js";
 import type { RunView } from "../../packages/loom-sdk/dist/index.js";
+import { startLocalService } from "../../apps/cli/dist/local-service.js";
 import { requestService } from "../../apps/cli/dist/service/client.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
@@ -331,6 +332,18 @@ test("failed final transaction cannot report succeeded and restart never replays
   assert.equal((await reopened.startRun(run.id)).disposition, "no_change");
 });
 
+test("simultaneous clients both connect to the first service owner", async (t) => {
+  const dataDir = await mkdtemp(join(tmpdir(), "intloom-simultaneous-"));
+  t.after(async () => {
+    await requestService(dataDir, "serviceShutdown").catch(() => undefined);
+    await rm(dataDir, { recursive: true, force: true });
+  });
+  const [first, second] = await Promise.all([
+    startLocalService(dataDir, 0),
+    startLocalService(dataDir, 0),
+  ]);
+  assert.equal(second.endpoint, first.endpoint);
+});
 test("CLI clients share one authenticated host and disconnect without cancelling accepted Runs", async (t) => {
   const { directory, dataDir } = await fixture(t);
   const build = await exec(process.execPath, [

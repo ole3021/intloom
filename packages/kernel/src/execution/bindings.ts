@@ -29,7 +29,15 @@ export const modelSchema = z.strictObject({
           );
         }, "Use an HTTP(S) base URL without credentials or query parameters.")
         .optional(),
+      requestTimeoutMs: z
+        .number()
+        .int()
+        .positive()
+        .max(2_147_483_647)
+        .optional(),
+      totalTimeoutMs: z.number().int().positive().max(2_147_483_647).optional(),
       api: z.enum(["chat", "responses"]).optional(),
+      reasoningEffort: z.literal("none").optional(),
     })
     .optional(),
 });
@@ -64,6 +72,7 @@ export function selectBindings(
   host: RuntimeBindings,
   savedModels?: RunBindings["models"],
   strengths?: Readonly<Record<string, string>>,
+  harness?: "mastra" | "opencode",
 ): {
   descriptions: RunBindings;
   tools: Readonly<Record<string, RuntimeToolBinding>>;
@@ -100,7 +109,7 @@ export function selectBindings(
         "A required model slot is not bound.",
         { scope, slot },
       );
-    checkModelBinding(model, capabilities);
+    checkModelBinding(model, capabilities, harness);
     models[slot] = model;
   }
   for (const slot of manifest.requirements.tools) {
@@ -130,15 +139,28 @@ export async function resolveCredential(
   host: RuntimeBindings,
   reference: string,
 ): Promise<string> {
-  const value = host.resolveCredential
-    ? await host.resolveCredential(reference)
-    : reference.startsWith("env:")
-      ? process.env[reference.slice(4)]
-      : undefined;
-  if (!value)
+  let value: string | undefined;
+  try {
+    value = host.resolveCredential
+      ? await host.resolveCredential(reference)
+      : reference.startsWith("env:")
+        ? process.env[reference.slice(4)]
+        : undefined;
+  } catch {
+    // A custom resolver's exception may contain the credential.
     throw new IntloomError(
       "BINDING_UNAVAILABLE",
-      "The configured credential reference is unavailable.",
+      "The configured credential could not be read.",
     );
+  }
+  if (!value?.trim()) {
+    const name = /^env:([A-Za-z_][A-Za-z0-9_]*)$/.exec(reference)?.[1];
+    throw new IntloomError(
+      "BINDING_UNAVAILABLE",
+      name
+        ? `Missing credential ${name}. Set it in the service environment or its .env file.`
+        : "The configured credential reference is unavailable.",
+    );
+  }
   return value;
 }

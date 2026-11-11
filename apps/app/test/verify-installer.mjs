@@ -1,4 +1,4 @@
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -14,6 +14,8 @@ import {
   statfsSync,
   writeFileSync,
 } from "node:fs";
+import { createServer } from "node:net";
+import { once } from "node:events";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -123,6 +125,24 @@ assert.equal(
   build.baseUrl,
   "https://github.com/ole3021/intloom/releases/latest/download",
 );
+const serviceDir = join(data, "service");
+mkdirSync(serviceDir, { recursive: true });
+const listener = createServer().listen(0, "127.0.0.1");
+await once(listener, "listening");
+const port = listener.address().port;
+await new Promise((resolve) => listener.close(resolve));
+writeFileSync(
+  join(serviceDir, "intloom.yaml"),
+  `version: 1\nservice:\n  port: ${port}\n`,
+);
+const { createServiceClient } = await import(
+  pathToFileURL(
+    join(
+      dirname(bin),
+      "../Resources/app/bun/runtime/node_modules/@intloom/cli/dist/local-service.js",
+    ),
+  ).href
+);
 for (const mode of ["kernel", "mock"]) {
   const app = spawn(bin, mode === "mock" ? ["--mock"] : [], {
     cwd: dirname(bin),
@@ -130,7 +150,8 @@ for (const mode of ["kernel", "mock"]) {
       ...process.env,
       INTLOOM_STUDIO_MOCK_DIR: join(data, "mock"),
       INTLOOM_STUDIO_DATA_DIR: join(data, "kernel"),
-      INTLOOM_DATA_DIR: join(data, "service"),
+      INTLOOM_DATA_DIR: serviceDir,
+      npm_config_prefix: join(work, "smoke-packages"),
       INTLOOM_STUDIO_SMOKE: "1",
     },
     detached: platform !== "win",
@@ -151,6 +172,8 @@ for (const mode of ["kernel", "mock"]) {
       mode,
     });
   } finally {
+    if (mode === "kernel" && existsSync(join(serviceDir, "service.json")))
+      await createServiceClient(serviceDir)("serviceShutdown");
     if (app.pid && app.exitCode === null) {
       if (platform === "win")
         execFileSync("taskkill", ["/pid", String(app.pid), "/T", "/F"]);

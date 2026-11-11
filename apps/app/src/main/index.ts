@@ -82,7 +82,15 @@ const directory =
 mkdirSync(directory, { recursive: true });
 const backend = mock
   ? mockBackend(directory, changed)
-  : await kernelBackend(directory, changed, join(import.meta.dir, "runtime"));
+  : await kernelBackend(
+      directory,
+      changed,
+      join(import.meta.dir, "runtime"),
+      process.env.INTLOOM_STUDIO_SMOKE === "1"
+        ? process.env.INTLOOM_DATA_DIR
+        : undefined,
+    );
+if ("ensure" in backend) await backend.ensure().catch(() => undefined);
 let returnRoute = updates.returnRoute;
 let initialRoute = "";
 const rpc = BrowserView.defineRPC<StudioRPC>({

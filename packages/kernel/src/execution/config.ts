@@ -37,6 +37,20 @@ async function optionalFile(path: string) {
   });
 }
 
+async function readConfig(directory: string) {
+  const path = join(directory, "intloom.yaml");
+  const content = await optionalFile(path);
+  if (content === undefined) return undefined;
+  try {
+    return configSchema.parse(parse(content));
+  } catch {
+    throw new IntloomError(
+      "BINDING_UNAVAILABLE",
+      `Invalid model configuration in ${path}`,
+    );
+  }
+}
+
 export async function loadConfiguration(
   projectDir: string,
   injected: Pick<RuntimeBindings, "tools" | "resolveCredential">,
@@ -46,18 +60,8 @@ export async function loadConfiguration(
   const profiles: Record<string, string> = Object.create(null);
   const routes: Record<string, Record<string, string>> = Object.create(null);
   for (const directory of new Set([globalDir, projectDir])) {
-    const path = join(directory, "intloom.yaml");
-    const content = await optionalFile(path);
-    if (content === undefined) continue;
-    let config: z.infer<typeof configSchema>;
-    try {
-      config = configSchema.parse(parse(content));
-    } catch {
-      throw new IntloomError(
-        "BINDING_UNAVAILABLE",
-        `Invalid model configuration in ${path}`,
-      );
-    }
+    const config = await readConfig(directory);
+    if (!config) continue;
     Object.assign(models, config.models);
     Object.assign(profiles, config.profiles);
     for (const [scope, slots] of Object.entries(config.bindings ?? {})) {
@@ -108,10 +112,7 @@ export async function loadConfiguration(
 export async function readServicePort(globalDir: string) {
   const path = join(globalDir, "intloom.yaml");
   try {
-    const content = await optionalFile(path);
-    return content === undefined
-      ? 7341
-      : (configSchema.parse(parse(content)).service?.port ?? 7341);
+    return (await readConfig(globalDir))?.service?.port ?? 7341;
   } catch {
     throw new IntloomError(
       "CONFIG_INVALID",
@@ -127,11 +128,8 @@ export async function configuredHarness(
 ) {
   for (const path of new Set([projectDir, globalDir])) {
     if (!path) continue;
-    const content = await optionalFile(join(path, "intloom.yaml"));
-    if (content) {
-      const selected = configSchema.parse(parse(content)).harness;
-      if (selected) return selected;
-    }
+    const selected = (await readConfig(path))?.harness;
+    if (selected) return selected;
   }
   return "mastra" as const;
 }

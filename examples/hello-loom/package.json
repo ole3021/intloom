@@ -1,0 +1,21 @@
+{
+  "name": "@intloom/hello-loom",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Your first IntLoom Workflow, from a name prompt to a local weather greeting card.",
+  "scripts": {
+    "build": "node ../../packages/compiler/dist/bin.js"
+  },
+  "devDependencies": {
+    "@intloom/compiler": "0.4.0",
+    "@intloom/loom-sdk": "0.4.0",
+    "zod": "4.6.7"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ole3021/intloom.git",
+    "directory": "examples/hello-loom"
+  }
+}

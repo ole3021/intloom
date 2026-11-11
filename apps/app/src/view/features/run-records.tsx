@@ -21,6 +21,13 @@ const formatEvent = (e: RunEvent) => {
       return `保存回应 · ${e.details.source.kind}`;
     case "model.invocation.started":
       return `${e.details.provider} / ${e.details.model}`;
+    case "model.request.updated":
+      if (e.details.status === "received") return "已收到模型响应";
+      return e.details.status === "retrying"
+        ? `请求超时，3 秒后进行第 ${e.details.attempt + 1} 次尝试`
+        : e.details.status === "timed_out"
+          ? "模型请求超时，已停止尝试"
+          : `已发起模型请求 · 第 ${e.details.attempt}/2 次尝试`;
     case "model.step.finished":
       return (
         "用量回执 · " +

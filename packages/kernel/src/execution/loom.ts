@@ -1,3 +1,4 @@
+import { effectiveRuntime } from "./versions.ts";
 import { kernelCheckpoint, kernelWait } from "../lifecycle/kernel-wait.ts";
 import { clarificationTurn } from "../harness/clarification.ts";
 import { satisfies } from "semver";
@@ -55,6 +56,21 @@ class BusinessFailure extends IntloomError {
     return { ...super.toJSON(), businessCode: this.businessCode };
   }
 }
+async function checkInputFiles(paths: readonly string[] = []) {
+  for (const path of paths) {
+    const file = await stat(path).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT" || error.code === "ENOTDIR") return undefined;
+      throw error;
+    });
+    if (!file?.isFile())
+      throw new IntloomError(
+        "INPUT_FILE_MISSING",
+        `Input file is unavailable: ${path}`,
+        { path },
+      );
+  }
+}
+
 export function createLoomRuntime(
   packages: PackageStore,
   getBindings: (
@@ -93,6 +109,7 @@ export function createLoomRuntime(
     },
     async init(record, log, stop, services) {
       let engine: Awaited<ReturnType<typeof engineFor>> | undefined;
+      if (!record.checkpoint) await checkInputFiles(record.inputFiles);
       await preparation.check(record);
       const value = await load(
         record.binding.loom,
@@ -100,12 +117,6 @@ export function createLoomRuntime(
           ? record.binding.config.installedDirectory
           : undefined,
       );
-      if (
-        Object.values(value.manifest.components).some(
-          (c) => c.kind === "workflow",
-        )
-      )
-        engine = await engineFor(record);
       const nativeCommand = record.binding.config.command;
 
       const workDir = join(
@@ -120,12 +131,16 @@ export function createLoomRuntime(
       let requirements = value.manifest.requirements;
       let declaredLooms: Readonly<Record<string, string>> = {};
       let strengths: Record<string, string> | undefined;
-      if (nativeCommand) {
-        const root = dirname(
-          dirname(String(record.binding.config.installedDirectory)),
-        );
-        const pkg = await readNpmLoom(root);
-        if (!pkg) throw new Error(`Missing installed Loom: ${root}`);
+      const packageRoot = nativeCommand
+        ? dirname(dirname(String(record.binding.config.installedDirectory)))
+        : undefined;
+      if (packageRoot) {
+        const pkg = await readNpmLoom(packageRoot);
+        if (!pkg)
+          throw new IntloomError(
+            "PACKAGE_INCOMPATIBLE",
+            `Missing installed Loom: ${packageRoot}`,
+          );
         for (const binding of requirements.tools)
           if (!pkg.manifest.permissions?.includes(binding))
             throw new IntloomError(
@@ -155,16 +170,6 @@ export function createLoomRuntime(
             globalDir,
             record.binding.projectDir,
           );
-        if (!record.checkpoint) {
-          await checkInstalledTree(
-            root,
-            await npmRoot(true),
-            record.binding.projectDir,
-          );
-          if (harness === "opencode") await checkOpenCode();
-          await value.check?.();
-        }
-        await mkdir(workDir, { recursive: true });
       }
       const host = await getBindings(
         record.binding.projectDir,
@@ -179,9 +184,8 @@ export function createLoomRuntime(
         host,
         record.binding.bindings?.models,
         strengths,
+        harness,
       );
-      if (nativeCommand && !record.binding.bindings)
-        await services.bindEnvironment(harness, selected.descriptions);
       const binding = {
         ...value.binding,
         ...(record.binding.location
@@ -192,11 +196,57 @@ export function createLoomRuntime(
           : {}),
         ...(record.binding.bindings ? { bindings: selected.descriptions } : {}),
       };
-      if (!nativeCommand && stableJson(binding) !== stableJson(record.binding))
+      if (
+        !nativeCommand &&
+        stableJson(binding) !==
+          stableJson({ ...record.binding, runtime: effectiveRuntime(record) })
+      )
         throw new IntloomError(
           "BINDING_MISMATCH",
           "The saved Run binding does not match this runtime.",
         );
+      const credentials = new Map<string, string>();
+      for (const reference of new Set([
+        ...Object.values(selected.descriptions.models).map(
+          (model) => model.credentialRef,
+        ),
+        ...Object.values(selected.tools).flatMap((tool) =>
+          tool.credentialRef ? [tool.credentialRef] : [],
+        ),
+      ])) {
+        const credential = await resolveCredential(host, reference);
+        credentials.set(reference, credential);
+      }
+      if (packageRoot) {
+        if (!record.checkpoint) {
+          try {
+            await checkInstalledTree(
+              packageRoot,
+              await npmRoot(true),
+              record.binding.projectDir,
+            );
+            if (harness === "opencode") await checkOpenCode();
+            await value.check?.();
+          } catch (error) {
+            throw new IntloomError(
+              "PACKAGE_CHECK_FAILED",
+              redactDiagnostic(
+                error instanceof Error
+                  ? error.message
+                  : "The package prerequisite check failed.",
+                [...credentials.values()],
+              ),
+            );
+          }
+        }
+        await mkdir(workDir, { recursive: true });
+      }
+      if (
+        Object.values(value.manifest.components).some(
+          (c) => c.kind === "workflow",
+        )
+      )
+        engine = await engineFor(record);
       if (record.checkpoint && !kernelCheckpoint(record)) {
         const evidence = await engine?.inspect(
           record.binding.entry.id,
@@ -212,25 +262,8 @@ export function createLoomRuntime(
             "The original checkpoint is unavailable or has changed.",
           );
       }
-      const credentials = new Map<string, string>();
-      for (const reference of new Set([
-        ...Object.values(selected.descriptions.models).map(
-          (model) => model.credentialRef,
-        ),
-        ...Object.values(selected.tools).flatMap((tool) =>
-          tool.credentialRef ? [tool.credentialRef] : [],
-        ),
-      ])) {
-        const credential = await resolveCredential(host, reference).catch(
-          () => {
-            throw new IntloomError(
-              "BINDING_UNAVAILABLE",
-              "The configured credential reference is unavailable.",
-            );
-          },
-        );
-        credentials.set(reference, credential);
-      }
+      if (nativeCommand && !record.binding.bindings)
+        await services.bindEnvironment(harness, selected.descriptions);
       const credentialFor = (reference: string) => {
         const credential = credentials.get(reference);
         if (credential === undefined)
@@ -645,21 +678,7 @@ export function createLoomRuntime(
         observation.begin(resume);
         let boundary: ExecutionBoundary | undefined;
         try {
-          for (const path of record.inputFiles ?? []) {
-            const file = await stat(path).catch(
-              (error: NodeJS.ErrnoException) => {
-                if (error.code === "ENOENT" || error.code === "ENOTDIR")
-                  return undefined;
-                throw error;
-              },
-            );
-            if (!file?.isFile())
-              throw new IntloomError(
-                "INPUT_FILE_MISSING",
-                `Input file is unavailable: ${path}`,
-                { path },
-              );
-          }
+          if (resume) await checkInputFiles(record.inputFiles);
           if (value.entry.kind === "workflow")
             boundary = await observation.run(
               "workflow",

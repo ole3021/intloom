@@ -1,3 +1,4 @@
+import { runtimeVersions } from "../execution/versions.ts";
 import { stableJson } from "@intloom/loom-sdk/json";
 import { IntloomError, type ExecutionError } from "@intloom/loom-sdk";
 import type {
@@ -15,6 +16,7 @@ export async function reconcileRuns({
   transitions,
   now,
   wasStopped,
+  recoverUpgrade,
 }: {
   repository: RunRepository;
   runtime: LoomRuntime;
@@ -22,6 +24,7 @@ export async function reconcileRuns({
     ReturnType<typeof createTransitions>,
     "closedInteractions" | "end" | "boundary"
   >;
+  recoverUpgrade?: boolean;
   now(): string;
   wasStopped(runId: string): boolean;
 }) {
@@ -179,6 +182,23 @@ export async function reconcileRuns({
         const current = sameWait ? record : await get(record.view.id);
         let issue: ExecutionError | undefined;
         try {
+          if (
+            recoverUpgrade &&
+            (current.recoveredKernelVersion ??
+              current.binding.runtime.version) !== runtimeVersions.kernel
+          ) {
+            const migrated = {
+              ...current,
+              recoveredKernelVersion: runtimeVersions.kernel,
+            };
+            await runtime.check(migrated);
+            const { recoveryIssue: _, ...view } = current.view;
+            await repository.save(
+              { ...migrated, view: { ...view, updatedAt: now() } },
+              [{ type: "run.recovery.changed" }],
+            );
+            continue;
+          }
           await runtime.check(current);
         } catch (error) {
           issue = diagnostic(error);
@@ -203,6 +223,24 @@ export async function reconcileRuns({
         );
       }
     } catch (error) {
+      if (
+        recoverUpgrade &&
+        !(
+          error instanceof IntloomError &&
+          ["STORAGE_FAILED", "STORAGE_UNAVAILABLE"].includes(error.code)
+        )
+      ) {
+        const issue = diagnostic(error);
+        const current = await get(saved.view.id);
+        if (current.view.status === "waiting")
+          await updateIssue(current, issue);
+        else if (!terminal(current.view.status))
+          await repository.save(end(current, "interrupted", issue), [
+            ...closedInteractions(current),
+            { type: "run.interrupted" },
+          ]);
+        continue;
+      }
       if (
         !(error instanceof IntloomError) ||
         error.code !== "STORAGE_UNAVAILABLE"

@@ -45,7 +45,71 @@ body {
   font-style: normal;
   color: var(--green);
 }
-.site .skip {
+.site a.site-link {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 44px;
+  padding-block: 8px;
+  border-bottom: 1px solid #48573f;
+  color: var(--green);
+  font: var(--site-type-label);
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.site a.site-link:hover,
+.site a.site-link:focus-visible {
+  border-color: currentColor;
+}
+.site :is(p, dd) a.site-link {
+  min-height: 1.25em;
+  padding-block: 0;
+  vertical-align: baseline;
+}
+.site-link-arrow {
+  display: inline-block;
+  flex: none;
+  vertical-align: -0.18em;
+}
+.site-link-arrow[data-external] {
+  transform: rotate(-45deg);
+}
+.rp-doc .site-link-arrow,
+.rp-toc-item .site-link-arrow {
+  margin-inline-start: 0.25em;
+}
+.rspress-doc a.rp-link:not(.rp-header-anchor) {
+  color: var(--site-color-accent-light);
+  text-decoration: underline;
+  text-decoration-color: #48573f;
+  text-underline-offset: 0.22em;
+}
+.rspress-doc a.rp-link[target="_blank"]::after,
+a.rp-sidebar-item.rp-link[target="_blank"]::after {
+  content: none;
+}
+.rp-sidebar-item.rp-link > .site-link-arrow {
+  margin-inline-start: 6px;
+  color: var(--site-color-accent-light);
+}
+.rp-sidebar-item__right:empty {
+  display: none;
+}
+.rp-prev-next-page__prev .rp-prev-next-page__icon {
+  order: 1;
+  transform: none;
+}
+.rp-toc-item:has(~ .rp-toc-item--active) .site-link-arrow {
+  transform: rotate(180deg);
+}
+.rp-scroll-to-top svg {
+  order: 1;
+}
+.site a.skip {
   position: fixed;
   top: -100px;
   left: 1rem;
@@ -54,7 +118,7 @@ body {
   z-index: 100;
   padding: 10px;
 }
-.site .skip:focus {
+.site a.skip:focus {
   top: 1rem;
 }
 .site .sr-only {
@@ -131,7 +195,6 @@ body {
 .panel-head,
 .status-tag,
 .reserved,
-.closing :is(a, span),
 .file-count small,
 .ledger-heading,
 .ledger-foot,
@@ -235,6 +298,7 @@ body {
     background: none;
   }
   .site-footer {
+    flex-wrap: wrap;
     padding: 12px;
   }
 }

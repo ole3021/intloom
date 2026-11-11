@@ -83,10 +83,17 @@ export function eventLine(
   stream: NodeJS.WriteStream = process.stderr,
   loomId?: string,
 ) {
-  const title =
-    e.type === "interaction.responded" &&
-    e.details.kind === "approval" &&
-    e.details.action === "submit"
+  const request = e.type === "model.request.updated" ? e.details : undefined;
+  if (request?.status === "received") return;
+  const title = request
+    ? request.status === "retrying"
+      ? `Model request timed out · retrying in 3s (attempt ${request.attempt + 1}/2)`
+      : request.status === "timed_out"
+        ? `Model request timed out · attempt ${request.attempt}/2`
+        : `Waiting for model response · attempt ${request.attempt}/2`
+    : e.type === "interaction.responded" &&
+        e.details.kind === "approval" &&
+        e.details.action === "submit"
       ? e.details.approved
         ? "Approved"
         : "Rejected"

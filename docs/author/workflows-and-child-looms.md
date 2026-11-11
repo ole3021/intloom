@@ -6,7 +6,7 @@ A child Loom has its own installed version, public command and Run. For a parent
 
 ```yaml
 looms:
-  "@intloom/meeting-notes": "*"
+  "@intloom/meeting-notes": "1.0.1"
 ```
 
 Point the parent command's `entry` to a module such as `flow.ts`:
@@ -22,4 +22,4 @@ export default defineWorkflow({
 }).then(loomCommandStep("report", "@intloom/meeting-notes", "summarize")).commit();
 ```
 
-After the npm release, install the child using its package name. Install the parent in the recipient environment. The installer resolves required versions; the Kernel checks the installed tree before execution. The child validates its own input and has its own run ID. This parent can deliver the child's frozen file reference directly. Query the child to see which package version and command produced it. The [composition example and assertions](../../test/integration/npm-loom.test.ts) include both package declarations and the export check.
+Install the parent in the recipient environment. The installer resolves `@intloom/meeting-notes@1.0.1` from npm when needed. The Kernel checks the installed tree before execution. The child validates its own input and has its own run ID. This parent can deliver the child's frozen file reference directly. Query the child to see which package version and command produced it. The [composition example and assertions](../../test/integration/npm-loom.test.ts) include both package declarations and the export check.

@@ -4,7 +4,7 @@
 
 ## 安装示例包
 
-准备 [CLI](../start/setup)，并[配置支持结构化输出的模型](../reference/configuration)。首个 npm 正式版发布后，使用下面的包名安装。在 Studio 的 Loom 库中也可以输入同一个包名。配置的模型会收到会议正文。
+用 [CLI](../start/setup) 从 npm 安装 [@intloom/meeting-notes](https://www.npmjs.com/package/@intloom/meeting-notes)。在 Studio 的 Loom 库中也可以输入同一个包名。
 
 ```sh
 intloom install @intloom/meeting-notes
@@ -12,6 +12,8 @@ intloom run @intloom/meeting-notes
 ```
 
 ## 粘贴原文或使用文件
+
+运行 `summarize` 前，先[配置支持结构化输出的模型](../reference/configuration)。该模型会收到会议正文。
 
 ```sh
 intloom run @intloom/meeting-notes summarize --prompt '林：我建议周五上线。

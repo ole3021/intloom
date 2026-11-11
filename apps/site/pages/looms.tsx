@@ -3,12 +3,13 @@ import { useHead, useLocation } from "@rspress/core/runtime";
 import {
   ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
+  View,
   Close,
   Search,
 } from "@carbon/icons-react";
 import { useEffect, useRef, useState } from "react";
 import catalog from "../data/looms.json";
+import { SiteLink } from "../src/components/site-link.tsx";
 import { Command } from "../src/components/command.tsx";
 import { AnimatedList } from "../src/components/motion/animated-list.tsx";
 import { DecryptedText } from "../src/components/motion/decrypted-text.tsx";
@@ -141,7 +142,7 @@ function LoomDirectory() {
                   <span>{loom.kind}</span>
                   <small>{loom.distribution}</small>
                 </span>
-                <ArrowUpRight size={24} aria-hidden="true" />
+                <View size={24} aria-hidden="true" />
               </button>
             </li>
           ))}
@@ -247,14 +248,16 @@ function LoomDirectory() {
                       <>
                         <code>intloom install {selected.name}</code>
                         {" · "}
-                        <a href={selected.guide}>Installation and usage</a>
+                        <SiteLink href={selected.guide}>
+                          Installation and usage
+                        </SiteLink>
                       </>
                     ) : (
                       <>
                         From the{" "}
-                        <a href="/docs/reference/compatibility">
+                        <SiteLink href="/docs/reference/compatibility">
                           local candidate
-                        </a>
+                        </SiteLink>
                         , install <code>./looms/{selected.name}-*.tgz</code>{" "}
                         before running.
                       </>

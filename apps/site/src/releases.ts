@@ -1,6 +1,6 @@
 import { repositoryUrl } from "./site.ts";
 
-export const studioReleasesUrl = `${repositoryUrl}/releases/latest`;
+export const latestReleaseUrl = `${repositoryUrl}/releases/latest`;
 export const cliReleasesUrl = `${repositoryUrl}/releases?q=%40intloom%2Fcli%40`;
 export const studioTargets = [
   {
@@ -19,7 +19,11 @@ interface Release {
 }
 export interface WebsiteReleases {
   cli?: Release;
-  studio?: Release;
+  studio?: Release & {
+    downloads?: Partial<
+      Record<(typeof studioTargets)[number]["id"], string | null>
+    >;
+  };
 }
 
 export async function readReleases(

@@ -12,6 +12,7 @@ import { IntloomError } from "@intloom/loom-sdk";
 import { installNpmPackage } from "../operations/prepare-npm.ts";
 import { installSource } from "../operations/install.ts";
 import { allItems } from "../context.ts";
+import { globalPackageRoot, npmPrefix } from "../service/npm-root.ts";
 import { ensureService } from "../service/process.ts";
 import type { CommandContext } from "../context.ts";
 export async function runPackageCommand(ctx: CommandContext) {
@@ -35,6 +36,7 @@ export async function runPackageCommand(ctx: CommandContext) {
     const npmInstall = await installNpmPackage(
       required(operation, "Specify an npm package or archive."),
       ctx.string("project"),
+      dataDir,
     );
     if (npmInstall) {
       output(npmInstall);
@@ -120,14 +122,18 @@ export async function runPackageCommand(ctx: CommandContext) {
       const id = required(argument, "Specify the Loom ID.");
       await ensureService(dataDir, !plain, mcpPort);
       const project = ctx.string("project");
-      const root = await npmRoot(!project, project);
+      const root = project
+        ? await npmRoot(false, project)
+        : await globalPackageRoot(dataDir);
       const isNpm =
         /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(id) &&
         (await readNpmLoom(join(root, id)));
       if (isNpm)
         await runNpm([
           "uninstall",
-          ...(project ? ["--prefix", resolve(project)] : ["--global"]),
+          ...(project
+            ? ["--prefix", resolve(project)]
+            : ["--global", "--prefix", npmPrefix(root)]),
           "--",
           id,
         ]);

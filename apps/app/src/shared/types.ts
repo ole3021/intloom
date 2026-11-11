@@ -191,6 +191,7 @@ export interface Snapshot {
     syncedAt?: string;
     issue?: string;
     npmRoot?: string;
+    catalogIssue?: string;
     mcpUrl?: string;
     config: string;
   };

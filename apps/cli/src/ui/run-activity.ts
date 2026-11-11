@@ -93,7 +93,17 @@ export function activityText(
       ),
     ].join("\n"),
   );
-  const footer = wrap(`Elapsed ${clock} · ${activitySummary(activity)}`);
+  const requests = activity.activeExecutions.flatMap((call) => {
+    const req = call.request;
+    if (!req || !call.model) return [];
+    const since = duration(Math.max(0, Date.now() - Date.parse(req.time)));
+    return [
+      `${call.model.model} · ${req.status === "retrying" ? "Request timed out · retrying" : req.status === "timed_out" ? "Request timed out" : "Waiting for model response"} · attempt ${req.attempt}/2 · ${since}`,
+    ];
+  });
+  const footer = wrap(
+    [`Elapsed ${clock} · ${activitySummary(activity)}`, ...requests].join("\n"),
+  );
   const calls = [
     ...activity.activeExecutions,
     ...activity.recentExecutions,

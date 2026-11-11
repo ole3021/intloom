@@ -1,5 +1,7 @@
+import { RequestModel } from "./request-model.ts";
 import { randomUUID } from "node:crypto";
 import type { LLMStepResult } from "@mastra/core/stream";
+import { MastraError } from "@mastra/core/error";
 import { Agent } from "@mastra/core/agent";
 import { createTool, isValidationError } from "@mastra/core/tools";
 import {
@@ -18,7 +20,18 @@ import type { AgentHarnessHost } from "../harness/contracts.ts";
 export function checkModelBinding(
   binding: ModelBindingDescription,
   capabilities: readonly ModelCapability[],
+  harness: "mastra" | "opencode" = "mastra",
 ) {
+  if (
+    binding.options?.reasoningEffort !== undefined &&
+    (harness !== "mastra" ||
+      binding.provider !== "alibaba" ||
+      binding.options.api === "responses")
+  )
+    throw new IntloomError(
+      "BINDING_UNAVAILABLE",
+      "reasoningEffort requires the Mastra harness and an Alibaba chat binding.",
+    );
   if (binding.provider === "minimax-cn") {
     if (
       !["MiniMax-M3", "MiniMax-M3.1-Flash"].includes(binding.model) ||
@@ -124,13 +137,18 @@ export async function executeAgent(
       return [tool.id, native];
     }),
   );
-  const agent = new Agent({
-    id: `${definition.id}-${randomUUID()}`,
-    name: definition.id,
-    instructions,
-    tools,
-    maxRetries: 0,
-    model: {
+  const prompt = await definition.prompt({ inputData: input, context });
+  const invocationId = services.id();
+  let stepCount = 0;
+  const parentExecutionId = services.observation.fields().executionId;
+  const began = performance.now();
+  const modelScope = {
+    executionId: invocationId,
+    origin,
+    ...(parentExecutionId ? { parentExecutionId } : {}),
+  };
+  const model = new RequestModel(
+    {
       providerId: binding.provider,
       modelId: binding.model,
       apiKey: await services.credential(),
@@ -143,17 +161,26 @@ export async function executeAgent(
           }
         : {}),
     },
+    services.signal,
+    async (progress) => {
+      await services.recordEvent({
+        ...modelScope,
+        type: "model.request.updated",
+        details: { invocationId, ...progress },
+      });
+    },
+    binding.options?.requestTimeoutMs ?? 300_000,
+    binding.options?.totalTimeoutMs ?? 480_000,
+  );
+  const agent = new Agent({
+    id: `${definition.id}-${randomUUID()}`,
+    name: definition.id,
+    instructions,
+    tools,
+    maxRetries: 0,
+    errorProcessorDefaults: false,
+    model,
   });
-  const prompt = await definition.prompt({ inputData: input, context });
-  const invocationId = services.id();
-  let stepCount = 0;
-  const parentExecutionId = services.observation.fields().executionId;
-  const began = performance.now();
-  const modelScope = {
-    executionId: invocationId,
-    origin,
-    ...(parentExecutionId ? { parentExecutionId } : {}),
-  };
   const options = {
     maxSteps: definition.generation?.maxSteps ?? 5,
     abortSignal: services.signal,
@@ -161,6 +188,11 @@ export async function executeAgent(
       ? { stopWhen: () => hasToolResult || Boolean(waiting?.()) }
       : {}),
     modelSettings: { maxRetries: 0, ...definition.generation },
+    ...(binding.options?.reasoningEffort && {
+      providerOptions: {
+        alibaba: { reasoningEffort: binding.options.reasoningEffort },
+      },
+    }),
     onStepFinish: async (
       result: Pick<LLMStepResult, "usage" | "toolResults"> & {
         response: Record<string, unknown>;
@@ -243,6 +275,7 @@ export async function executeAgent(
       completed = true;
       return undefined;
     }
+    if (model.requestError) return fail(model.requestError);
     if (result.error || result.tripwire)
       return fail(
         new IntloomError("MODEL_EXECUTION_FAILED", "Agent generation failed."),
@@ -286,6 +319,21 @@ export async function executeAgent(
       );
     completed = true;
     return parsed.data as unknown;
+  } catch (error) {
+    if (!failedHere && model.requestError) return fail(model.requestError);
+    if (
+      error instanceof MastraError &&
+      error.id === "STRUCTURED_OUTPUT_TRUNCATED" &&
+      error.details?.finishReason === "length"
+    )
+      return fail(
+        new IntloomError(
+          "MODEL_INCOMPLETE",
+          "The model reached its output limit before completing the structured response.",
+          { finishReason: "length" },
+        ),
+      );
+    throw error;
   } finally {
     const status =
       !failedHere && services.signal.aborted

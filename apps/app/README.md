@@ -1,15 +1,17 @@
 # IntLoom Studio
 
-Studio is a desktop client for the local Intloom service. Its installer includes Node.js, npm and Kernel. Studio can start the service itself or connect to the service that the CLI already started. Closing Studio leaves the service and its runs available to other clients.
+Studio is a desktop client for the local Intloom service. Its installer includes Node.js, npm and Kernel. Studio starts its bundled Kernel on launch and reuses a running service with the same Kernel version. On upgrade it interrupts the older service. The new Kernel reconciles unfinished Runs, continues saved answers and completed child results, and displays a recovery issue for an incompatible or unavailable checkpoint. A Run without a saved execution boundary is marked interrupted. Pending human questions stay open. A newer running Kernel requires a matching Studio update. Closing Studio leaves the service and its runs available to other clients.
+
+Open **运行配置** to see the active model and credential reference. The [host configuration guide](../../docs/reference/configuration.md) covers setting global API keys for Studio on macOS.
 
 ## Run a Loom
 
 1. Open **Loom 库 → 安装 Loom**. Paste an npm package name (optionally with a version or tag), an npm package page URL, or a public GitHub repository URL. You can also choose a built local `.tgz`. Review the name, version and source, then select **安装**. Studio uses npm to install every source into the global directory shown in **服务管理**.
-2. For a first run, install the built `file-report` archive, open its package card, select `write` and choose **填写启动参数**. Enter a message and start the run. The optional project directory applies to that run.
-3. The detail page opens with the Run ID. On completion, select **打开文件** to open an editable copy of `report.txt` in the system application, or **导出到…** to save it elsewhere. Export preserves existing files at the destination.
+2. For a first run, install `@intloom/meeting-notes` by name. [Configure a model with structured output](../../docs/reference/configuration.md), open the package card and select `summarize`. Choose **粘贴文本** to paste meeting notes or **本地文件 → 选择文件…** to select a UTF-8 text or Markdown file. Start the run with your chosen source.
+3. The detail page opens with the Run ID. On completion, select **打开文件** to open an editable copy of `meeting-notes.md` in the system application, or **导出到…** to save it elsewhere. Export preserves existing files at the destination.
 4. Open the same Run ID in the CLI or return to it after restarting Studio. Pending questions from child runs appear on the parent's detail page. **服务管理** previews unfinished runs before shutting down the shared service.
 
-For the official [meeting-notes example](../../examples/meeting-notes/README.md), enter `@intloom/meeting-notes` in the Loom library after its first npm release, then open `summarize`. Choose **粘贴文本** for a transcript or **本地文件 → 选择文件…** for a UTF-8 text or Markdown file. Switching tabs keeps both drafts, and starting the run submits the active source. On completion, export `meeting-notes.md`. If the Loom rejects unrelated material, the detail page shows `NOT_MEETING_CONTENT` and lets you start again with new input.
+The [meeting-notes guide](../../examples/meeting-notes/README.md) includes sample transcripts and minutes. If the Loom rejects unrelated material, the detail page shows `NOT_MEETING_CONTENT` and lets you start again with new input.
 
 A repository URL opens its latest stable GitHub Release. You can paste a specific Release page or its `.tgz` asset URL. If a release contains several built Loom packages, choose one in the preview. The author must provide a built npm archive. An npm version page selects that version. Studio verifies that the archive still matches the preview before npm installs it and prepares its declared child Looms.
 

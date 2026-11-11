@@ -8,7 +8,7 @@
     "scripts/**/*.ts",
     "apps/cli/scripts/**/*.ts",
     "test/**/*.ts",
-    "examples/meeting-notes/*.ts",
+    "examples/*/*.ts",
     "packages/loom-sdk/test/*.test.ts"
   ]
 }

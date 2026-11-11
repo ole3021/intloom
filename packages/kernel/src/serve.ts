@@ -92,6 +92,7 @@ export async function serve(options: ServeOptions): Promise<Kernel> {
     runtime: createLoomRuntime(packages, bindings, engineFor, dataDir),
     id: randomUUID,
     runId: () => `R${runSuffix()}`,
+    recoverUpgrade: options.recoverUpgrade ?? false,
     markStopped: repository.markStopped,
     wasStopped: repository.wasStopped,
     now: () => new Date().toISOString(),

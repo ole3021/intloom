@@ -30,6 +30,10 @@ type Finished = {
   readonly status: "succeeded" | "failed" | "cancelled";
   readonly durationMs: number;
 };
+export interface ModelRequestProgress {
+  readonly status: "started" | "received" | "retrying" | "timed_out";
+  readonly attempt: number;
+}
 type Invocation = { readonly invocationId: string };
 type Payload =
   | {
@@ -85,6 +89,10 @@ type Payload =
         readonly provider: string;
         readonly model: string;
       };
+    }
+  | {
+      readonly type: "model.request.updated";
+      readonly details: Invocation & ModelRequestProgress;
     }
   | {
       readonly type: "model.step.finished";

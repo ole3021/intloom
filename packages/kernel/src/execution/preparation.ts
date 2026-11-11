@@ -16,6 +16,7 @@ import type { InlineStep } from "./types.ts";
 import { selectBindings } from "./bindings.ts";
 import type { PackageStore } from "../packages/store.ts";
 import { readPackageDirectory } from "../packages/source.ts";
+import { effectiveRuntime } from "./versions.ts";
 import { runtimeBinding, type createLoomLoader } from "./loader.ts";
 export function createRunPreparation(
   packages: PackageStore,
@@ -66,7 +67,7 @@ export function createRunPreparation(
       const expected = runtimeBinding(artifact.manifest);
       if (
         stableJson(artifact.ref) !== stableJson(record.binding.loom) ||
-        stableJson(expected) !== stableJson(record.binding.runtime) ||
+        stableJson(expected) !== stableJson(effectiveRuntime(record)) ||
         (record.binding.bindings &&
           stableJson(record.binding.bindings) !==
             stableJson(selected.descriptions))
