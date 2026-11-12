@@ -1,14 +1,19 @@
 import { dirname, join } from "node:path";
-import { locateNpmLoom, npmRoot } from "@intloom/kernel";
+import { locateNpmLoom } from "@intloom/kernel";
 import { IntloomError } from "@intloom/loom-sdk";
 import type { CommandContext } from "../context.ts";
+import { globalPackageRoot } from "../service/npm-root.ts";
 export async function selectNpmCommand(
   ctx: CommandContext,
   name: string,
   command?: string,
 ) {
-  const globalRoot = await npmRoot(true);
-  const found = await locateNpmLoom(name, globalRoot, process.cwd());
+  const globalRoot = await globalPackageRoot(ctx.dataDir);
+  const found = await locateNpmLoom(
+    name,
+    globalRoot,
+    ctx.string("project") ?? process.cwd(),
+  );
   if (!found) return undefined;
   const { manifest } = found;
   const defaultCommand =

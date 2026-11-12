@@ -1,5 +1,5 @@
 export { createServiceClient } from "./service/client.ts";
-export { startLocalService } from "./service/start.ts";
+export { startLocalService, startStudioService } from "./service/start.ts";
 export type {
   ServiceStatus,
   ServiceClient,

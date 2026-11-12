@@ -1,11 +1,12 @@
 import { repositoryUrl } from "./src/site.ts";
 import {
   cliReleasesUrl,
-  studioReleasesUrl,
+  latestReleaseUrl,
   studioTargets,
 } from "./src/releases.ts";
 
-const api = "https://api.github.com/repos/ole3021/intloom/releases";
+const repoApi = "https://api.github.com/repos/ole3021/intloom";
+const api = `${repoApi}/releases`;
 
 const stableCli = /^(?:@intloom\/cli@|intloom@)(\d+\.\d+\.\d+)$/;
 
@@ -42,7 +43,7 @@ function published(release, pattern) {
   }
 }
 
-async function apiRequest(url) {
+async function apiRequest(url, { allowMissing = false } = {}) {
   const response = await github(url);
   if (
     response.status === 429 ||
@@ -52,51 +53,91 @@ async function apiRequest(url) {
     await response.body?.cancel();
     return null;
   }
+  if (allowMissing && response.status === 404) return response;
   if (!response.ok) throw new Error(`GitHub releases: HTTP ${response.status}`);
   return response;
 }
 
-// Public release pages remain available when unauthenticated REST reads are throttled.
+function newestFirst(a, b) {
+  return b.version.localeCompare(a.version, "en", { numeric: true });
+}
+
+// GitHub's public release and branch pages also work when anonymous API reads are throttled.
 async function cliFromReleasePage() {
-  const page = await github(cliReleasesUrl, {
-    headers: { Accept: "text/html", "User-Agent": "intloom-site" },
-  });
-  if (!page.ok) throw new Error(`GitHub release page: HTTP ${page.status}`);
-  let latest;
-  let badge;
-  const selector = "section[data-release-anchor]";
-  const document = new HTMLRewriter()
-    .on(selector, {
-      element(section) {
-        badge = "";
-        const tag = section
-          .getAttribute("data-release-anchor")
-          ?.replace(/^release-/, "");
-        const version = stableCli.exec(tag)?.[1];
-        section.onEndTag(() => {
-          if (
-            version &&
-            !/pre-release|draft/i.test(badge) &&
-            (!latest ||
-              version.localeCompare(latest.version, "en", { numeric: true }) >
-                0)
-          ) {
-            latest = {
-              version,
-              url: `${repositoryUrl}/releases/tag/${encodeURIComponent(tag)}`,
-            };
-          }
-        });
-      },
-    })
-    .on(`${selector} .Label`, {
-      text(chunk) {
-        badge += chunk.text;
-      },
-    })
-    .transform(page);
-  await document.body.pipeTo(new WritableStream());
-  return latest;
+  const candidates = [];
+  for (let pageNumber = 1; ; pageNumber++) {
+    const page = await github(`${cliReleasesUrl}&page=${pageNumber}`, {
+      headers: { Accept: "text/html", "User-Agent": "intloom-site" },
+    });
+    if (!page.ok) throw new Error(`GitHub release page: HTTP ${page.status}`);
+    let badge;
+    let commit;
+    let nextPage = false;
+    const selector = "section[data-release-anchor]";
+    const document = new HTMLRewriter()
+      .on(selector, {
+        element(section) {
+          badge = "";
+          commit = undefined;
+          const tag = section
+            .getAttribute("data-release-anchor")
+            ?.replace(/^release-/, "");
+          const version = stableCli.exec(tag)?.[1];
+          section.onEndTag(() => {
+            if (version && commit && !/pre-release|draft/i.test(badge))
+              candidates.push({
+                version,
+                commit,
+                url: `${repositoryUrl}/releases/tag/${encodeURIComponent(tag)}`,
+              });
+          });
+        },
+      })
+      .on(`${selector} .Label`, {
+        text(chunk) {
+          badge += chunk.text;
+        },
+      })
+      .on(`${selector} a[data-hovercard-type="commit"]`, {
+        element(link) {
+          commit ??= link
+            .getAttribute("href")
+            ?.match(/\/commit\/([a-f0-9]{40})$/)?.[1];
+        },
+      })
+      .on('a[rel="next"]', {
+        element() {
+          nextPage = true;
+        },
+      })
+      .transform(page);
+    await document.body.pipeTo(new WritableStream());
+    if (!nextPage) break;
+  }
+
+  for (const { version, url, commit } of candidates.sort(newestFirst)) {
+    const page = await github(`${repositoryUrl}/branch_commits/${commit}`, {
+      headers: { Accept: "text/html", "User-Agent": "intloom-site" },
+    });
+    if (!page.ok) throw new Error(`GitHub branch list: HTTP ${page.status}`);
+    let onMain = false;
+    let name;
+    const branches = new HTMLRewriter()
+      .on("li.branch a", {
+        element(link) {
+          name = "";
+          link.onEndTag(() => {
+            if (name.trim() === "main") onMain = true;
+          });
+        },
+        text(chunk) {
+          name += chunk.text;
+        },
+      })
+      .transform(page);
+    await branches.body.pipeTo(new WritableStream());
+    if (onMain) return { version, url };
+  }
 }
 
 async function latestStudio() {
@@ -107,7 +148,7 @@ async function latestStudio() {
     if (studio && Array.isArray(record.assets))
       return { studio, assets: record.assets };
   } else {
-    const page = await github(studioReleasesUrl, {
+    const page = await github(latestReleaseUrl, {
       method: "HEAD",
       redirect: "manual",
     });
@@ -120,22 +161,70 @@ async function latestStudio() {
   throw new Error("GitHub Latest is missing a stable Studio release");
 }
 
+async function studioInstaller({ studio, assets }, target) {
+  const names = [
+    `IntLoom-Studio-${studio.version}-${target.suffix}`,
+    `IntLoom-Studio-${target.suffix}`,
+  ];
+  const base = `${repositoryUrl}/releases/download/app-v${studio.version}/`;
+  if (assets) {
+    const asset = assets.find(
+      (a) => a.state === "uploaded" && names.includes(a.name),
+    );
+    if (asset && asset.browser_download_url !== base + asset.name)
+      throw new Error("Unexpected installer URL");
+    return asset?.browser_download_url;
+  }
+  for (const name of names) {
+    const head = await github(base + name, {
+      method: "HEAD",
+      redirect: "manual",
+    });
+    if (head.status === 404) continue;
+    if (head.status !== 302 && !head.ok)
+      throw new Error(`GitHub installer: HTTP ${head.status}`);
+    return base + name;
+  }
+}
+
+async function studioMetadata() {
+  const release = await latestStudio();
+  const links = await Promise.allSettled(
+    studioTargets.map(async (target) => [
+      target.id,
+      (await studioInstaller(release, target)) ?? null,
+    ]),
+  );
+  return {
+    ...release.studio,
+    downloads: Object.fromEntries(
+      links.flatMap((link) =>
+        link.status === "fulfilled" ? [link.value] : [],
+      ),
+    ),
+  };
+}
+
 async function cliRelease() {
-  let latest;
+  const candidates = [];
   for (let page = 1; ; page++) {
     const response = await apiRequest(`${api}?per_page=100&page=${page}`);
     if (!response) return cliFromReleasePage();
     for (const release of await response.json()) {
       const cli = published(release, stableCli);
-      if (
-        cli &&
-        (!latest ||
-          cli.version.localeCompare(latest.version, "en", { numeric: true }) >
-            0)
-      )
-        latest = cli;
+      if (cli) candidates.push({ ...cli, tag: release.tag_name });
     }
-    if (!response.headers.get("link")?.includes('rel="next"')) return latest;
+    if (!response.headers.get("link")?.includes('rel="next"')) break;
+  }
+  for (const { version, url, tag } of candidates.sort(newestFirst)) {
+    const compare = await apiRequest(
+      `${repoApi}/compare/${encodeURIComponent(tag)}...main?per_page=1`,
+      { allowMissing: true },
+    );
+    if (!compare) return cliFromReleasePage();
+    if (compare.status === 404) continue;
+    const { status } = await compare.json();
+    if (status === "ahead" || status === "identical") return { version, url };
   }
 }
 
@@ -156,9 +245,17 @@ export default {
     if (path !== "/api/releases" && !target)
       return new Response(null, { status: 404 });
     try {
-      const { studio, assets } = await latestStudio();
       if (path === "/api/releases") {
-        const metadata = { studio, cli: await cliRelease() };
+        const [cli, desktop] = await Promise.allSettled([
+          cliRelease(),
+          studioMetadata(),
+        ]);
+        if (cli.status === "rejected" && desktop.status === "rejected")
+          throw cli.reason;
+        const metadata = {
+          cli: cli.status === "fulfilled" ? cli.value : undefined,
+          studio: desktop.status === "fulfilled" ? desktop.value : undefined,
+        };
         return new Response(
           request.method === "HEAD" ? null : JSON.stringify(metadata),
           {
@@ -169,32 +266,7 @@ export default {
           },
         );
       }
-      const names = [
-        `IntLoom-Studio-${studio.version}-${target.suffix}`,
-        `IntLoom-Studio-${target.suffix}`,
-      ];
-      const base = `${repositoryUrl}/releases/download/app-v${studio.version}/`;
-      let destination;
-      if (assets) {
-        const asset = assets.find(
-          (a) => a.state === "uploaded" && names.includes(a.name),
-        );
-        if (asset && asset.browser_download_url !== base + asset.name)
-          throw new Error("Unexpected installer URL");
-        destination = asset?.browser_download_url;
-      } else {
-        for (const name of names) {
-          const head = await github(base + name, {
-            method: "HEAD",
-            redirect: "manual",
-          });
-          if (head.status === 404) continue;
-          if (head.status !== 302 && !head.ok)
-            throw new Error(`GitHub installer: HTTP ${head.status}`);
-          destination = base + name;
-          break;
-        }
-      }
+      const destination = await studioInstaller(await latestStudio(), target);
       if (!destination) return new Response(null, { status: 404 });
       return new Response(null, {
         status: 302,

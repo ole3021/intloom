@@ -122,6 +122,10 @@ export function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p>全局配置 · {state.connection.config}</p>
+            <p>
+              全局密钥保存在上述配置同目录的 .env 文件中，每行填写
+              变量名=密钥。模型配置中的 env:变量名 引用该值。
+            </p>
             <p>业务项目 · {project || "未指定"}</p>
             <Button
               variant="outline"

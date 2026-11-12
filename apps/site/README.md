@@ -2,7 +2,11 @@
 
 Use the website to find a Loom and understand what it needs before running it. The Loom directory shows each package's inputs, sample request, expected result and model requirements. Filter by entry type, open a package and copy its terminal command. The command runs on your computer after you install the package.
 
-Install the CLI from npm. The homepage reads stable CLI and Studio releases from GitHub when opened, and links to the four Studio installers. If GitHub is unavailable, the release pages remain accessible. The fixed `/download/studio/<platform>` routes issue HTTP 302 redirects. GitHub serves the installers directly. The website contains no installer files. The meeting-notes guide uses the npm package name `@intloom/meeting-notes`.
+Run `npx intloom startup` in your terminal to start the local service and observe its activity. The homepage also offers a global CLI install option. Its [meeting-notes walkthrough](pages/en/docs/use/meeting-notes.md) covers installing the Loom, running it on a transcript and exporting the minutes.
+
+The homepage shows the highest stable CLI version whose release tag is on the history of `main`. The version links to the CLI release. **Release notes** opens the repository's [latest GitHub release](https://github.com/ole3021/intloom/releases/latest). The local development server and build preview use the same release lookup as the deployed site. Release responses are cached for five minutes.
+
+The Studio section links each platform directly to its installer on the latest desktop release. It resolves the published GitHub filenames when the page opens, so new releases update the links without a site rebuild. While the release data loads, the fixed `/download/studio/<platform>` links redirect to the corresponding GitHub assets. GitHub serves the installers directly.
 
 - [English guides](pages/en/docs/index.md)
 - [Simplified Chinese guides](pages/zh/docs/index.md)

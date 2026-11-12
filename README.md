@@ -6,7 +6,7 @@ IntLoom lets you install a professional capability as a **Loom**, give it input 
 
 ## Try a Loom
 
-After the first public npm release, install the official meeting-notes Loom and inspect its commands:
+Install the CLI and [@intloom/meeting-notes](https://www.npmjs.com/package/@intloom/meeting-notes) from npm, then list the commands available in the Loom.
 
 ```sh
 npm install --global intloom
@@ -14,7 +14,13 @@ intloom install @intloom/meeting-notes
 intloom run @intloom/meeting-notes
 ```
 
-[Configure the model and produce meeting minutes](examples/meeting-notes/README.md).
+[Configure a model with structured output](docs/reference/configuration.md), then try the `summarize` command with a short meeting record.
+
+```sh
+intloom run @intloom/meeting-notes summarize --prompt 'We agreed to pilot with 10% of accounts. The launch date is still open. Chen will share regression results by Thursday.'
+```
+
+The run delivers `meeting-notes.md` with highlights and quotations from the source. [Export the minutes or use a transcript file](examples/meeting-notes/README.md#install-and-run).
 
 | If you want to… | Start here |
 | --- | --- |

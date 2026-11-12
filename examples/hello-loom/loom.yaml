@@ -1,0 +1,13 @@
+name: Hello Loom
+description: Meet a three-step Workflow that asks your name, checks the weather near the running device and delivers a greeting card in your system language.
+permissions: [network, write-run-files]
+commands:
+  hello:
+    description: Start the Workflow, then answer its question with a name or nickname.
+    entry: hello.ts
+    input:
+      type: object
+      properties: {}
+      additionalProperties: false
+      default: {}
+    output: A localized UTF-8 hello.md card with a greeting, available local weather and the meeting-notes tutorial.

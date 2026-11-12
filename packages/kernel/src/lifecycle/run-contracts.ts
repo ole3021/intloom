@@ -44,6 +44,7 @@ export interface RunBinding {
   readonly outcome?: LoomManifest["outcome"];
 }
 export interface RunRecord {
+  readonly recoveredKernelVersion?: string;
   readonly result?: OutcomeProjection;
   readonly view: RunView;
   readonly input: JsonValue;

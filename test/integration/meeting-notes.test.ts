@@ -9,6 +9,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
 import { createServer } from "node:http";
 import { once } from "node:events";
+import { setTimeout as delay } from "node:timers/promises";
+import { createServiceClient } from "../../apps/cli/src/service/client.ts";
 import { cliArgs, shutdown } from "../fixtures/cli.mjs";
 
 const exec = promisify(execFile);
@@ -60,7 +62,6 @@ test("scoped npm package installs by name and exposes the verified meeting-notes
   ]) {
     assert.equal(schema.safeParse(input).success, false);
   }
-  // Serve npm's normal registry wire format while the public package is unreleased.
   const { stdout: json } = await exec(
     "npm",
     [
@@ -84,8 +85,25 @@ test("scoped npm package installs by name and exposes the verified meeting-notes
   );
   const bytes = await readFile(join(output, packed.filename));
   const transcript = "Lin: We agreed to keep the pilot small.";
+  let modelRequests = 0;
+  let permanentTimeout = false;
+  let authError = 0;
+  let finishReason = "stop";
   const registry = createServer((req, res) => {
     if (req.url === "/v1/chat/completions") {
+      if (++modelRequests === 1 || permanentTimeout) return; // Simulate waiting for response headers.
+      if (authError) {
+        res.writeHead(authError, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error: {
+              message: "private provider diagnostic",
+              type: "invalid_api_key",
+            },
+          }),
+        );
+        return;
+      }
       const notes = {
         kind: "action",
         title: "Pilot",
@@ -114,7 +132,7 @@ test("scoped npm package installs by name and exposes the verified meeting-notes
             {
               index: 0,
               message: { role: "assistant", content: JSON.stringify(notes) },
-              finish_reason: "stop",
+              finish_reason: finishReason,
             },
           ],
         }),
@@ -161,7 +179,12 @@ test("scoped npm package installs by name and exposes the verified meeting-notes
           provider: "openai",
           model: "gpt-4.1-mini",
           credentialRef: "env:MEETING_TEST_KEY",
-          options: { baseUrl: origin + "/v1", api: "chat" },
+          options: {
+            baseUrl: origin + "/v1",
+            api: "chat",
+            requestTimeoutMs: 500,
+            totalTimeoutMs: 15000,
+          },
         },
       },
       profiles: { default: "editor", standard: "editor" },
@@ -181,7 +204,7 @@ test("scoped npm package installs by name and exposes the verified meeting-notes
   );
   assert.match(stdout, /summarize/);
   assert.match(stdout, /@intloom\/meeting-notes/);
-  const { stdout: completed } = await exec(
+  const { stdout: completed, stderr: progress } = await exec(
     process.execPath,
     cliArgs(
       bin,
@@ -197,6 +220,9 @@ test("scoped npm package installs by name and exposes the verified meeting-notes
   );
   const run = JSON.parse(completed.trim().split("\n").at(-1)!).data;
   assert.equal(run.status, "succeeded");
+  assert.equal(modelRequests, 2);
+  assert.match(progress, /timed out · retrying/);
+  assert.match(progress, /Waiting for model response · attempt 2/);
   const saved = join(output, "minutes.md");
   await exec(
     process.execPath,
@@ -213,4 +239,126 @@ test("scoped npm package installs by name and exposes the verified meeting-notes
     { cwd: output, env },
   );
   assert.match(await readFile(saved, "utf8"), /Keep the pilot small/);
+
+  const client = createServiceClient(data);
+  const { ref } = await client("getLoom", [
+    { id: manifest.name, command: "summarize" },
+  ]);
+  async function launch() {
+    const run = await client("createRun", [
+      { loom: ref, input: { prompt: transcript } },
+    ]);
+    await client("startRun", [run.id]);
+    return run.id;
+  }
+  async function poll(
+    id: string,
+    until: (view: Awaited<ReturnType<typeof activity>>) => boolean,
+  ) {
+    for (let i = 0; i < 150; i++) {
+      const view = await activity(id);
+      if (until(view)) return view;
+      await delay(50);
+    }
+    throw Error("Model did not reach expected state");
+  }
+  function activity(id: string) {
+    return client("getRunActivity", [id]);
+  }
+  await assert.rejects(client("createRun", [{ loom: ref, input: {} }]), {
+    code: "INPUT_INVALID",
+  });
+  const globalConfig = join(data, "intloom.yaml");
+  const originalConfig = await readFile(globalConfig, "utf8");
+  async function refused(input: object, code: string, message: RegExp) {
+    const run = await client("createRun", [{ loom: ref, input }]);
+    await assert.rejects(client("startRun", [run.id]), { code, message });
+    const saved = await client("getRun", [run.id]);
+    assert.equal(saved.status, "failed");
+    assert.equal(saved.startedAt, undefined);
+    const events = await client("listRunEvents", [{ runId: run.id }]);
+    assert.deepEqual(
+      events.items.map((e) => e.type),
+      ["run.created", "run.failed"],
+    );
+    assert.equal(modelRequests, 2);
+  }
+  await refused(
+    { files: [{ kind: "input-file", path: join(output, "missing.txt") }] },
+    "INPUT_FILE_MISSING",
+    /missing.txt/,
+  );
+  await writeFile(globalConfig, "version: 1\n");
+  await refused(
+    { prompt: transcript },
+    "BINDING_UNAVAILABLE",
+    /profiles.default/,
+  );
+  await writeFile(globalConfig, "version: [");
+  await refused({ prompt: transcript }, "BINDING_UNAVAILABLE", /intloom.yaml/);
+  const openCodeConfig = JSON.parse(originalConfig);
+  openCodeConfig.harness = "opencode";
+  openCodeConfig.models.meeting = {
+    ...openCodeConfig.models.editor,
+    provider: "alibaba",
+    model: "qwen3.8-flash",
+    options: { baseUrl: origin + "/v1", reasoningEffort: "none" },
+  };
+  openCodeConfig.bindings = {
+    [`${manifest.name}@${manifest.version}`]: { editor: "meeting" },
+  };
+  await writeFile(globalConfig, JSON.stringify(openCodeConfig));
+  await refused(
+    { prompt: transcript },
+    "BINDING_UNAVAILABLE",
+    /Mastra.*Alibaba chat/,
+  );
+  await writeFile(globalConfig, originalConfig);
+  for (const envFile of ["", 'MEETING_TEST_KEY="   "']) {
+    await writeFile(join(data, ".env"), envFile);
+    await refused(
+      { prompt: transcript },
+      "BINDING_UNAVAILABLE",
+      /MEETING_TEST_KEY/,
+    );
+  }
+  await writeFile(join(data, ".env"), "MEETING_TEST_KEY=local-test-only\n");
+  permanentTimeout = true;
+  const failed = await launch();
+  const terminal = await poll(failed, (view) => view.run.status === "failed");
+  assert.equal(terminal.run.error?.code, "MODEL_REQUEST_TIMEOUT");
+  assert.equal(modelRequests, 4);
+  const cancelled = await launch();
+  await poll(cancelled, (view) =>
+    view.activeExecutions.some((call) => call.request?.status === "retrying"),
+  );
+  await client("cancelRun", [cancelled]);
+  await poll(cancelled, (view) => view.run.status === "cancelled");
+  assert.equal(modelRequests, 5);
+  permanentTimeout = false;
+  for (const status of [401, 403]) {
+    authError = status;
+    const before: number = modelRequests;
+    const run = await launch();
+    const { run: rejected } = await poll(
+      run,
+      (view) => view.run.status === "failed",
+    );
+    assert.equal(rejected.error?.code, "MODEL_AUTH_FAILED");
+    assert.deepEqual(rejected.error?.details, { status });
+    assert.doesNotMatch(
+      JSON.stringify(rejected.error),
+      /private provider diagnostic|local-test-only/,
+    );
+    assert.equal(modelRequests, before + 1);
+  }
+  authError = 0;
+  finishReason = "length";
+  const truncated = await launch();
+  const { run: incomplete } = await poll(
+    truncated,
+    (view) => view.run.status === "failed",
+  );
+  assert.equal(incomplete.error?.code, "MODEL_INCOMPLETE");
+  assert.deepEqual(incomplete.error?.details, { finishReason: "length" });
 });

@@ -54,6 +54,7 @@ export async function kernelBackend(
   directory: string,
   changed: () => void,
   runtime: string,
+  dataDir = join(homedir(), ".intloom"),
 ) {
   const node = join(
     runtime,
@@ -65,9 +66,12 @@ export async function kernelBackend(
       join(runtime, "node_modules/@intloom/cli/dist/local-service.js"),
     ).href
   );
-  const dataDir = resolve(
-    process.env.INTLOOM_DATA_DIR ?? join(homedir(), ".intloom"),
-  );
+  const targetVersion: string = JSON.parse(
+    readFileSync(
+      join(runtime, "node_modules/@intloom/kernel/package.json"),
+      "utf8",
+    ),
+  ).version;
   const client = host.createServiceClient(dataDir);
   const config = join(dataDir, "intloom.yaml");
   const prefsFile = join(directory, "studio-prefs.json"),
@@ -99,9 +103,9 @@ export async function kernelBackend(
     return client("serviceStatus");
   }
   function compatible(s: ServiceStatus) {
-    if (!s.npmGlobalRoot)
+    if (s.kernelVersion !== targetVersion)
       throw Error(
-        `共享服务 ${s.version} 未提供全局 npm 目录。请检查 npm 或在任务结束后从 Studio 重启服务。`,
+        `共享 Kernel ${s.kernelVersion ?? s.version}，Studio 需要 ${targetVersion}。`,
       );
     return s;
   }
@@ -162,14 +166,32 @@ export async function kernelBackend(
       );
     });
   }
-  async function ensure() {
-    try {
+  let starting: Promise<ServiceStatus> | undefined;
+  let upgradeEndpoint: string | undefined;
+  let startupIssue: string | undefined;
+  function ensure(): Promise<ServiceStatus> {
+    if (starting) return starting;
+    startupIssue = undefined;
+    starting = (async () => {
+      let current: ServiceStatus | undefined;
+      try {
+        current = await status();
+      } catch (e) {
+        if (errorCode(e) !== "SERVICE_NOT_RUNNING") throw e;
+      }
+      if (current?.kernelVersion === targetVersion) return compatible(current);
+      upgradeEndpoint = current?.endpoint;
+      await manage("start", current);
       return compatible(await status());
-    } catch (e) {
-      if (errorCode(e) !== "SERVICE_NOT_RUNNING") throw e;
-    }
-    await manage("start");
-    return compatible(await status());
+    })()
+      .catch((error: unknown) => {
+        startupIssue = String(error);
+        throw error;
+      })
+      .finally(() => {
+        starting = undefined;
+      });
+    return starting;
   }
   async function previewLoom(input: string): Promise<LoomInstallPreview[]> {
     const sources = await resolveInstallSource(input);
@@ -226,15 +248,27 @@ export async function kernelBackend(
     };
     let s: ServiceStatus;
     try {
-      s = compatible(await status());
+      const current = await status();
+      s =
+        current.kernelVersion !== targetVersion &&
+        current.endpoint !== upgradeEndpoint
+          ? await ensure()
+          : compatible(current);
+      startupIssue = undefined;
     } catch (e) {
-      if (errorCode(e) !== "SERVICE_NOT_RUNNING")
-        base.connection = { ...base.connection, config, issue: String(e) };
+      if (startupIssue || errorCode(e) !== "SERVICE_NOT_RUNNING")
+        base.connection = {
+          ...base.connection,
+          config,
+          issue: startupIssue ?? String(e),
+        };
       return base;
     }
     if (s.status === "closing") return { ...base, service: "stopping" };
     const issues = s.storageIssues.map((issue) => issue.message);
+    let catalogIssue: string | undefined;
     const refreshCatalog = async () => {
+      if (!s.npmGlobalRoot) throw Error("当前服务无法读取 npm 全局目录。");
       const looms = await pages((p) => client("listLooms", [p]));
       const key = JSON.stringify(looms.map((l) => l.ref));
       if (key === catalogKey) return;
@@ -249,8 +283,8 @@ export async function kernelBackend(
       pages((p) => client("listUnfinishedRuns", [p])),
       client("getRunOverview"),
       refreshCatalog().catch((e) => {
-        issues.push("读取 Loom 库失败 · " + String(e));
-        catalog = [];
+        catalogIssue = "读取 Loom 库失败 · " + String(e);
+        issues.push(catalogIssue);
         catalogKey = "";
       }),
     ]);
@@ -293,8 +327,9 @@ export async function kernelBackend(
       installed: catalog.map((l) => l.ref.id),
       connection: {
         config,
-        version: s.version,
+        version: s.kernelVersion ?? s.version,
         npmRoot: s.npmGlobalRoot,
+        catalogIssue,
         mcpUrl: s.mcpUrl,
         syncedAt: cache.syncedAt,
         issue: issues.join("\n"),
@@ -443,6 +478,7 @@ export async function kernelBackend(
     }
     if (a.type === "catalog") {
       const s = await ensure();
+      if (!s.npmGlobalRoot) throw Error("当前服务无法读取 npm 全局目录。");
       const source = a.id.trim();
       if (a.install) {
         const sources = await resolveInstallSource(source);
@@ -478,7 +514,7 @@ export async function kernelBackend(
       } catch (e) {
         return {
           createdId: run.id,
-          issue: `Run ${run.id} 已创建，请查看启动状态。 ${String(e)}`,
+          issue: `Run ${run.id} 启动时出错。 ${e instanceof Error ? e.message : String(e)}`,
         };
       }
     }
@@ -592,6 +628,7 @@ export async function kernelBackend(
     }
   }
   return {
+    ensure,
     previewLoom,
     snapshot,
     getRun,

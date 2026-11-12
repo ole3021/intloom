@@ -1,4 +1,5 @@
 export { createPackageStore, type PackageStore } from "./packages/store.ts";
+export { kernelVersion } from "./execution/versions.ts";
 export { serve, type ServeOptions, type Kernel } from "./serve.ts";
 export { inspectNpmLoomArchive } from "./packages/inspect-npm.ts";
 export { inspectLoomPackage } from "./packages/inspect.ts";

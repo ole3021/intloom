@@ -151,3 +151,88 @@ test("Run summaries keep large outputs out of overview IPC and terminal observer
   assert.equal(plain.run.id, ids[0]);
   assert.equal(plain.run.output, payload);
 });
+
+test("run and watch render only delivered Markdown in the terminal", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "intloom-markdown-"));
+  await symlink(
+    join(root, "packages/compiler/node_modules"),
+    join(directory, "node_modules"),
+  );
+  const entry = join(directory, "loom.ts");
+  await writeFile(
+    entry,
+    `
+    import { ArtifactRefSchema, defineCode, defineLoom } from "@intloom/loom-sdk";
+    import { z } from "zod";
+    export default defineLoom({
+      id: "markdown-result", version: "1.0.0", description: "Deliver Markdown",
+      outcome: { artifacts: { files: { at: "/files", multiple: true } } },
+      entry: defineCode({
+        id: "write", inputSchema: z.object({}), outputSchema: z.object({ files: z.array(ArtifactRefSchema), draft: ArtifactRefSchema }),
+        async execute({ context }) {
+          const write = (name: string, mediaType: string, data: string) => context.artifacts.write({name, mediaType, data});
+          const draft = await write("draft.md", "text/markdown", "DRAFT-BODY");
+          const report = await write("report", "text/markdown; charset=utf-8", "# Final report\\n\\n**Rendered finding**\\n\\n> Source\\n\\n[Guide](https://example.org)");
+          const long = await write("notes.MD", "text/plain", "x\\n".repeat(32767) + "你TAIL-OF-FILE");
+          const binary = await write("image.png", "image/png", "BINARY-BODY");
+          return { files: [report, report, binary, long], draft };
+        }
+      })
+    });`,
+  );
+  await writeFixturePackage(entry);
+  const compiled = await compileLoom({
+    entryFile: entry,
+    outDir: join(directory, "compiled"),
+  });
+  assert.ok(compiled.ok, JSON.stringify(compiled));
+  const dataDir = join(directory, "data");
+  const host = await openService({ dataDir, mcpPort: 0 });
+  t.after(async () => {
+    await host.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  await host.kernel.installLoom({ source: compiled.artifactDir });
+  const tty =
+    "Object.defineProperties(process.stdout,{isTTY:{value:true},columns:{value:80}})";
+  const cli = (terminal: boolean, ...args: string[]) =>
+    exec(
+      process.execPath,
+      [
+        ...(terminal
+          ? ["--import", "data:text/javascript," + encodeURIComponent(tty)]
+          : []),
+        ...cliArgs(join(root, "apps/cli/dist/bin.js"), dataDir, ...args),
+      ],
+      {
+        env: {
+          ...process.env,
+          TERM: "dumb",
+          npm_config_prefix: join(directory, "prefix"),
+        },
+        maxBuffer: 2 * 1024 * 1024,
+      },
+    );
+  const args = ["run", "markdown-result", "--input", "{}"];
+  const run = await cli(true, ...args);
+  const id = run.stderr.match(/Run (R[A-Z0-9]+)/)?.[1];
+  assert.ok(id);
+  const watch = await cli(true, "status", id, "--watch");
+  for (const { stdout } of [run, watch]) {
+    assert.equal(stdout.match(/Rendered finding/g)?.length, 1);
+    assert.match(stdout, /Final report/);
+    assert.match(stdout, /https:\/\/example\.org/);
+    assert.match(stdout, /Preview truncated/);
+    assert.doesNotMatch(
+      stdout,
+      /# Final report|\*\*Rendered finding\*\*|DRAFT-BODY|BINARY-BODY|TAIL-OF-FILE|\uFFFD/,
+    );
+  }
+  for (const result of [
+    await cli(false, ...args),
+    await cli(true, ...args, "--plain"),
+  ]) {
+    assert.doesNotMatch(result.stdout, /Rendered finding|Preview truncated/);
+    assert.doesNotThrow(() => JSON.parse(result.stdout));
+  }
+});

@@ -894,7 +894,10 @@ test("CLI, MCP and API track only accepted file references", async (t) => {
       ),
     ];
     for (const run of runs) {
-      await f.call("startRun", [run.id]);
+      const start = f.call("startRun", [run.id]);
+      if (key === "file")
+        await assert.rejects(start, { code: "INPUT_FILE_MISSING" });
+      else await start;
       const settled = await settle(f.call, run.id);
       if (key === "file")
         assert.equal(settled.error?.code, "INPUT_FILE_MISSING");

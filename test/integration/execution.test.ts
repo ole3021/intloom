@@ -974,6 +974,7 @@ test("Alibaba Qwen uses explicit compatible endpoints and native schemas without
               options: {
                 baseUrl: wire.baseUrl,
                 api: mode === "responses" ? "responses" : "chat",
+                ...(mode === "ok" && { reasoningEffort: "none" }),
               },
             },
           },
@@ -1007,6 +1008,10 @@ test("Alibaba Qwen uses explicit compatible endpoints and native schemas without
     );
     assert.equal(wire.requests.length, mode === "ok" ? 4 : 1);
     assert.ok(wire.requests.every((r) => r.model === "qwen3.8-flash"));
+    for (const request of wire.requests) {
+      if (mode === "ok") assert.equal(request.reasoning_effort, "none");
+      else assert.equal("reasoning_effort" in request, false);
+    }
     const request = wire.requests[mode === "ok" ? 1 : 0];
     assert.ok(request);
     const format =
@@ -1044,6 +1049,22 @@ test("Alibaba Qwen uses explicit compatible endpoints and native schemas without
   const wire = await modelServer(t);
   for (const model of [
     { provider: "alibaba", model: "qwen3.8-flash", credentialRef: "test" },
+    {
+      provider: "alibaba",
+      model: "qwen3.8-flash",
+      credentialRef: "test",
+      options: {
+        baseUrl: wire.baseUrl,
+        api: "responses",
+        reasoningEffort: "none",
+      },
+    },
+    {
+      provider: "openai",
+      model: "gpt-4.1-mini",
+      credentialRef: "test",
+      options: { baseUrl: wire.baseUrl, reasoningEffort: "none" },
+    },
     {
       provider: "alibaba",
       model: "qwen3.6-plus",
@@ -1247,11 +1268,15 @@ test("a rejected durable model receipt stops the loop without a second provider 
   const reopened = await serve({ dataDir, bindings });
   t.after(() => reopened.close());
   assert.equal((await reopened.getRun(run.id)).status, "interrupted");
-  assert.equal(
-    (await reopened.listRunEvents({ runId: run.id })).items.filter((e) =>
-      e.type.startsWith("model."),
-    ).length,
-    1,
+  assert.deepEqual(
+    (await reopened.listRunEvents({ runId: run.id })).items
+      .filter((e) => e.type.startsWith("model."))
+      .map((e) => e.type),
+    [
+      "model.invocation.started",
+      "model.request.updated",
+      "model.request.updated",
+    ],
   );
   assert.equal(wire.requests.length, 1);
 });
@@ -1316,6 +1341,8 @@ test("parallel calls to one Agent keep separate receipt paths, IDs and persisted
       rows.map((r) => r.type),
       [
         "model.invocation.started",
+        "model.request.updated",
+        "model.request.updated",
         "model.step.finished",
         "model.invocation.finished",
       ],

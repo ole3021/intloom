@@ -7,7 +7,7 @@ import {
   createServiceClient,
   installGlobalLoom,
   removeGlobalLoom,
-  startLocalService,
+  startStudioService,
 } from "@intloom/cli/local-service";
 import { inspectNpmLoomArchive, npmRoot, runNpm } from "@intloom/kernel";
 
@@ -92,7 +92,7 @@ async function packageOperation(root) {
   }
 }
 
-if (operation === "start") await startLocalService(dataDir);
+if (operation === "start") await startStudioService(dataDir);
 else {
   const root = await npmRoot(true);
   if (operation !== "preview") {

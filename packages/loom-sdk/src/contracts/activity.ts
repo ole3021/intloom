@@ -1,4 +1,8 @@
-import type { ExecutionKind, ExecutionStatus } from "./events.ts";
+import type {
+  ExecutionKind,
+  ExecutionStatus,
+  ModelRequestProgress,
+} from "./events.ts";
 import type { ArtifactRecord, ExecutionOrigin } from "./outcome.ts";
 import type { InteractionRequest } from "./interaction.ts";
 import type { RunResult, RunSummary } from "./run.ts";
@@ -13,6 +17,7 @@ export interface ExecutionActivity {
     readonly provider: string;
     readonly model: string;
   };
+  readonly request?: ModelRequestProgress & { readonly time: string };
   readonly usage?: ModelUsage;
   readonly summary?: string;
   readonly status: ExecutionStatus;

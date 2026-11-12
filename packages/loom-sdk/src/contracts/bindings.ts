@@ -6,7 +6,10 @@ export interface ModelBindingDescription {
   readonly credentialRef: string;
   readonly options?: {
     readonly baseUrl?: string;
+    readonly requestTimeoutMs?: number;
+    readonly totalTimeoutMs?: number;
     readonly api?: "chat" | "responses";
+    readonly reasoningEffort?: "none";
   };
 }
 export interface ToolBindingDescription {

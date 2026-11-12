@@ -1,7 +1,12 @@
 import { useLocation, useNavigate, usePage } from "@rspress/core/runtime";
-import { Layout as BaseLayout } from "@rspress/core/theme-original";
-import { LogoGithub, ArrowUpRight } from "@carbon/icons-react";
+import {
+  Layout as BaseLayout,
+  Link as BaseLink,
+  type LinkProps,
+} from "@rspress/core/theme-original";
+import { LogoGithub } from "@carbon/icons-react";
 import { SiteSearch } from "../src/components/site-search.tsx";
+import { LinkArrow, SiteLink } from "../src/components/site-link.tsx";
 import { ScrambledText } from "../src/components/motion/scrambled-text.tsx";
 import {
   MotionProvider,
@@ -15,6 +20,22 @@ import "../src/styles/base.css";
 import "../src/styles/site.css";
 
 export * from "@rspress/core/theme-original";
+export {
+  ChevronRight as IconArrowRight,
+  ChevronUp as IconScrollToTop,
+} from "@carbon/icons-react";
+
+export function Link({ href = "/", children, ...props }: LinkProps) {
+  const ownIcon =
+    props["aria-hidden"] ||
+    props.className?.includes("rp-prev-next-page__item");
+  return (
+    <BaseLink href={href} {...props}>
+      {children}
+      {!ownIcon && <LinkArrow href={href} />}
+    </BaseLink>
+  );
+}
 
 export function Nav() {
   const { pathname, search } = useLocation();
@@ -66,7 +87,7 @@ export function Nav() {
           aria-label="GitHub repository"
         >
           <LogoGithub size={20} aria-hidden="true" /> <span>GitHub</span>{" "}
-          <ArrowUpRight size={16} aria-hidden="true" />
+          <LinkArrow href={repositoryUrl} />
         </a>
       </nav>
     </header>
@@ -85,10 +106,10 @@ export function Layout() {
 function SiteLayout() {
   const { paused, toggle } = useMotionControl();
   return (
-    <div className="site" data-site-frame="" data-paused={paused}>
-      <a href="#main" className="skip">
+    <div id="top" className="site" data-site-frame="" data-paused={paused}>
+      <SiteLink href="#main" className="skip">
         Skip to content
-      </a>
+      </SiteLink>
       <BaseLayout
         bottom={
           <footer className="site-footer">
@@ -96,6 +117,7 @@ function SiteLayout() {
               <img src={logo} alt="" />
             </a>
             <span>INTLOOM / 0.3.0</span>
+            <SiteLink href="#top">Back to top</SiteLink>
             <button type="button" aria-pressed={paused} onClick={toggle}>
               Pause motion
             </button>

@@ -121,7 +121,11 @@ export function Library() {
         <div className="grid justify-items-center gap-3 py-12">
           <Package className="size-7 text-muted-foreground" />
           <p>
-            {state.installed.length ? "没有匹配的已安装包" : "还没有安装 Loom"}
+            {state.service !== "online" || state.connection?.catalogIssue
+              ? "暂时无法读取 Loom 库"
+              : state.installed.length
+                ? "没有匹配的已安装包"
+                : "还没有安装 Loom"}
           </p>
           {state.installed.length ? (
             <Button

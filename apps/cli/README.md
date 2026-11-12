@@ -6,17 +6,20 @@ Install a Loom, run one of its commands and retrieve the result from your termin
 
 ## Install and run
 
-For a registry carrying 0.4.0, install with `npm install --global intloom@0.4.0`. The matching version of `@intloom/cli` provides the same command. For a source build, follow the [local candidate instructions](../../docs/maintainers/candidate.md).
+Install the CLI from npm with `npm install --global intloom`. For a source build, follow the [local candidate instructions](../../docs/maintainers/candidate.md).
 
-The [file-report walkthrough](../../docs/use/first-loom.md) includes the archive used here. From its directory:
+Install the official [meeting-notes Loom](../../examples/meeting-notes/README.md) and inspect its commands.
 
 ```sh
-intloom install ./file-report-0.4.0.tgz
-intloom run file-report
-intloom run file-report --input '{"message":"First delivery"}'
+intloom install @intloom/meeting-notes
+intloom run @intloom/meeting-notes
 ```
 
-The first invocation displays the package's commands. The second writes a report and returns a run ID and file reference. Use `--project .` on installation to keep the package in one project.
+[Configure a model with structured output](../../docs/reference/configuration.md), then pass meeting text to `summarize`. It returns a run ID and a reference to the Markdown minutes.
+
+```sh
+intloom run @intloom/meeting-notes summarize --prompt 'We agreed to pilot with 10% of accounts. The launch date is still open. Chen will share regression results by Thursday.'
+```
 
 ## Follow a run and collect its files
 
@@ -27,10 +30,12 @@ intloom status <runId>
 intloom interaction list --run <runId>
 intloom interaction respond <requestId>
 intloom artifact list --run <runId>
-intloom artifact export <artifactId> --out ./report.txt
+intloom artifact export <artifactId> --out ./meeting-notes.md
 ```
 
 Respond when the run asks a question or requests approval. Use `intloom status <runId> --watch` to follow progress. Add `--confirm-delivery` when starting a file-producing run to review the candidate before delivery.
+
+When `intloom run` or `intloom status <runId> --watch` observes a successful Markdown delivery in a terminal, it displays the formatted document. Each preview shows up to 64 KiB. Use the artifact export command for the complete original file. Piped and `--plain` output retain their structured format.
 
 ## Use the terminal or a script
 

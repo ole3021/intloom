@@ -132,6 +132,26 @@ function DetailPage({ run }: { run: Detail }) {
           {run.reviews.map((review) => (
             <Review key={review.request.id} {...review} />
           ))}
+          {activity.activeExecutions.map(
+            (call) =>
+              call.request &&
+              call.request.status !== "received" &&
+              call.model && (
+                <p role="status" key={call.id}>
+                  {call.model.model} ·{" "}
+                  {call.request.status === "retrying"
+                    ? "请求超时，3 秒后重试"
+                    : call.request.status === "timed_out"
+                      ? "模型请求超时"
+                      : "正在等待模型响应"}{" "}
+                  · 第 {call.request.attempt}/2 次尝试 ·{" "}
+                  {duration(Math.max(0, now - Date.parse(call.request.time)))}
+                </p>
+              ),
+          )}
+          {run.summary.recoveryIssue && (
+            <p role="alert">恢复异常 · {run.summary.recoveryIssue.message}</p>
+          )}
           <RunArtifact run={run} />
           {run.summary.status === "interrupted" ? (
             <Card>

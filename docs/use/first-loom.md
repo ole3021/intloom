@@ -1,6 +1,6 @@
 # Install a Loom from npm
 
-Install the CLI with `npm install --global intloom`. After the first public release of the official meeting-notes package, use:
+Install the CLI with `npm install --global intloom`. Use it to install [@intloom/meeting-notes](https://www.npmjs.com/package/@intloom/meeting-notes) and inspect the `summarize` command.
 
 ```sh
 intloom install @intloom/meeting-notes

@@ -45,6 +45,7 @@ export function validateServeOptions(options: ServeOptions) {
   parse(
     z.strictObject({
       dataDir: id,
+      recoverUpgrade: z.boolean().optional(),
       onRunEvents: z
         .custom<NonNullable<ServeOptions["onRunEvents"]>>(
           (value) => typeof value === "function",

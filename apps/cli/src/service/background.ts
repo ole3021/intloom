@@ -2,6 +2,7 @@ import { mkdirSync, openSync, closeSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { format, stripVTControlCharacters } from "node:util";
 import { currentExecutionLog } from "@intloom/kernel";
+import { globalPackageRoot, npmPrefix } from "./npm-root.ts";
 import { openService } from "./server.ts";
 import { publicError, type ServiceLogRecord } from "./protocol.ts";
 
@@ -70,6 +71,13 @@ process.once(
         });
     };
     try {
+      const root = await globalPackageRoot(options.dataDir).catch(
+        (error: NodeJS.ErrnoException) => {
+          if (error.code !== "ENOENT") throw error;
+          return undefined;
+        },
+      );
+      if (root) process.env.npm_config_prefix = npmPrefix(root);
       server = await openService({
         ...options,
         logPath,

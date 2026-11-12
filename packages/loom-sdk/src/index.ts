@@ -2,6 +2,7 @@
 export type {
   RunEvent,
   RunEventPage,
+  ModelRequestProgress,
   RunEventInput,
   EventScope,
   ExecutionScope,

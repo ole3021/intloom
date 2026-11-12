@@ -11,6 +11,7 @@ import type { Kernel } from "@intloom/kernel";
 export interface ServiceStatus {
   status: "ready" | "closing";
   version: string;
+  kernelVersion?: string;
   npmGlobalRoot?: string | undefined;
   activeRunCount: number;
   runRevision: number;

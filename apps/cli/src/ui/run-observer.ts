@@ -1,5 +1,6 @@
 import type { CommandContext } from "../context.ts";
-import { observeRun } from "../operations/observe.ts";
+import { observeRun, type ObservationResult } from "../operations/observe.ts";
+import { printMarkdownDeliveries } from "./markdown.ts";
 import { interactive } from "./prompts.ts";
 import { logPage } from "./page.ts";
 import { eventLine } from "./run.ts";
@@ -39,8 +40,9 @@ export async function watchRun(
   process.once("SIGINT", stop);
   if (ctx.plain && mode === "execute")
     page.line(`Watching Run ${id} until ${until}.`);
+  let result: ObservationResult;
   try {
-    const result = await observeRun({
+    result = await observeRun({
       client: ctx.client,
       runId: id,
       until,
@@ -146,7 +148,6 @@ export async function watchRun(
       for (const request of result.run.pendingInteractionIds)
         page.line(`${cliName} interaction respond ${request}`);
     }
-    return result;
   } finally {
     page.close(!finalDetails);
     if (page.dynamic)
@@ -155,4 +156,13 @@ export async function watchRun(
       );
     process.off("SIGINT", stop);
   }
+  if (
+    !ctx.plain &&
+    process.stdout.isTTY &&
+    result.reason === "terminal" &&
+    result.run.status === "succeeded" &&
+    result.activity.result.quality !== "rejected"
+  )
+    await printMarkdownDeliveries(ctx.client, result, process.stdout);
+  return result;
 }

@@ -59,7 +59,6 @@ await writeFile(
   join(dataDir, "intloom.yaml"),
   `version: 1\nservice:\n  port: ${port}\n`,
 );
-process.env.INTLOOM_DATA_DIR = dataDir;
 process.env.INTLOOM_STUDIO_TEST_ACTOR = "1";
 process.env.PATH =
   process.platform === "win32"
@@ -72,7 +71,7 @@ const host = await import(
   )
 );
 const client = host.createServiceClient(dataDir);
-const app = await kernelBackend(studioDir, () => {}, runtime);
+const app = await kernelBackend(studioDir, () => {}, runtime, dataDir);
 assert.equal((await app.snapshot()).service, "offline");
 try {
   await app.act({ type: "service", online: true });

@@ -29,6 +29,7 @@ import { createTransitions } from "./transitions.ts";
 import { reconcileRuns } from "./recovery.ts";
 /** Coordinates accepted operations and stable execution boundaries; the engine owns scheduling. */
 export async function createKernel(dependencies: {
+  recoverUpgrade?: boolean;
   repository: RunRepository;
   runtime: LoomRuntime;
   outcomes: OutcomeServices;
@@ -280,6 +281,7 @@ export async function createKernel(dependencies: {
         bindEnvironment: (harness, bindings) =>
           enqueue(async () => {
             const current = await get(record.view.id);
+            if (terminal(current.view.status)) return;
             await repository.save(
               {
                 ...current,
@@ -564,43 +566,35 @@ export async function createKernel(dependencies: {
     const record = await get(runId);
     if (record.view.status !== "created")
       return { run: record.view, operation: "start", disposition: "no_change" };
-    let inner: RunExecution | undefined,
-      stopped = false;
-    const execution: RunExecution = record.binding.config.command
-      ? {
-          async start(input) {
-            try {
-              inner = await init(record);
-              if (stopped) return { kind: "cancelled" };
-              return await inner.start(input);
-            } catch (error) {
-              return {
-                kind: "failed",
-                error:
-                  error instanceof IntloomError
-                    ? error.toJSON()
-                    : {
-                        code: "EXECUTION_FAILED",
-                        message:
-                          error instanceof Error
-                            ? error.message
-                            : "Command startup failed.",
-                      },
-              };
-            }
-          },
-          async resume() {
-            throw new Error("Use the saved executor checkpoint to resume");
-          },
-          async cancel() {
-            stopped = true;
-            await inner?.cancel();
-          },
-          async release() {
-            await inner?.release();
-          },
-        }
-      : await init(record);
+    let execution: RunExecution;
+    try {
+      execution = await init(record);
+    } catch (cause) {
+      // Keep a compiled Run available when its pinned environment can be restored.
+      if (
+        !record.binding.config.command &&
+        !(cause instanceof IntloomError && cause.code === "INPUT_FILE_MISSING")
+      )
+        throw cause;
+      const error =
+        cause instanceof IntloomError
+          ? cause
+          : new IntloomError(
+              "EXECUTION_FAILED",
+              "The command's startup check failed.",
+            );
+      return enqueue(async () => {
+        const current = await get(runId);
+        if (current.view.status !== "created")
+          return {
+            run: current.view,
+            operation: "start",
+            disposition: "no_change",
+          };
+        await boundary(current, { kind: "failed", error: error.toJSON() });
+        throw error;
+      });
+    }
     let dispatched = false;
     try {
       return await enqueue(async () => {
@@ -902,6 +896,43 @@ export async function createKernel(dependencies: {
       operation: "cancel",
       disposition: "accepted",
     };
+  }
+  if (dependencies.recoverUpgrade) {
+    for (const record of await repository.listUnfinished()) {
+      if (record.view.status !== "waiting" || record.view.recoveryIssue)
+        continue;
+      for (const wait of record.waits ?? []) {
+        if (wait.consumed) continue;
+        try {
+          const child = wait.view.childRunId;
+          if (
+            !wait.accepted &&
+            !(child && terminal((await get(child)).view.status))
+          )
+            continue;
+          await operate(record.view.id, () =>
+            advance(record.view.id, wait.view.waitId),
+          );
+        } catch (error) {
+          await enqueue(async () => {
+            const current = await get(record.view.id);
+            if (!terminal(current.view.status) && !current.view.recoveryIssue)
+              await repository.save(
+                {
+                  ...current,
+                  view: {
+                    ...current.view,
+                    updatedAt: now(),
+                    recoveryIssue: diagnostic(error),
+                  },
+                },
+                [{ type: "run.recovery.changed" }],
+              );
+          });
+          break;
+        }
+      }
+    }
   }
   return {
     createRun(options: {

@@ -147,6 +147,35 @@ test("REC01/02/03 real process restart preserves waits, projections and accepted
     );
   }
 });
+test("an upgrade continues a committed answer once across Kernel versions", async (t) => {
+  const { directory, dataDir } = await fixture(t, simple);
+  phase(directory, "start");
+  phase(directory, "answer_saved");
+  await clearTrigger(dataDir, "fail_resume");
+  const { id, location } = JSON.parse(
+    await readFile(join(directory, "run.json"), "utf8"),
+  );
+  const db = createClient({
+    url: pathToFileURL(join(location.dataDir, "kernel.db")).href,
+  });
+  await db.execute({
+    sql: "UPDATE runs SET record = json_set(record, '$.binding.runtime.version', '0.3.0') WHERE id = ?",
+    args: [id],
+  });
+  db.close();
+  const upgraded = await serve({ dataDir, recoverUpgrade: true });
+  try {
+    const done = await settled(upgraded, id);
+    assert.equal(done.status, "succeeded", JSON.stringify(done));
+    assert.equal(done.output, 5);
+    assert.equal(
+      await readFile(join(directory, "effects"), "utf8"),
+      "before\nprojection\nresume:3:Continue?\n",
+    );
+  } finally {
+    await upgraded.close();
+  }
+});
 test("interaction actions, human policy, invalid answers, false, closure and duplicate resume", async (t) => {
   const { compiled, dataDir } = await fixture(
     t,

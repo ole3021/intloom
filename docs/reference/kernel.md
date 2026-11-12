@@ -45,8 +45,7 @@ definitions to pinned Mastra Core 1.81.0 and LibSQL 1.28.0. It owns the native
 engine store, per-Run registrations, model binding checks and checkpoint reads.
 Kernel supplies execution, prompt, resource, credential and managed-callback
 services through narrow ports. Loom authors import `@intloom/loom-sdk`; the adapter
-has no public package entry point. Native retries and automatic restarts are
-disabled. Kernel waits for managed callbacks to settle before completing a stop.
+has no public package entry point. Kernel controls Mastra model-request retries. Workflow execution and tool calls are never replayed by this retry policy. Kernel waits for managed callbacks to settle before completing a stop.
 
 The Loader verifies installed bytes and compares the loaded definition with the
 static Manifest, including contracts, components, resources and dependency
@@ -60,6 +59,8 @@ resource reads, structured logging, and declared Agent/Tool calls. Input default
 created Run is started after reopening. Code output is already typed business
 data and is not parsed against its Schema a second time. The persistence boundary
 requires finite JSON; an unencodable output fails with `STORAGE_FAILED`.
+
+An npm command's start checks its required input files, model and tool bindings, credentials and package prerequisites before `run.started`. A failed check rejects `startRun` and records `run.failed` on the created Run. The error is available through Run queries even when no execution was started.
 
 Starting persists intent before executing. Repeated starts return `no_change`
 without replaying work. Successful execution becomes `succeeded` only after its
@@ -251,6 +252,8 @@ A model description contains `provider`, `model`, `credentialRef` and optional
 | `alibaba` | `qwen3.8-flash` with an explicit OpenAI-compatible `baseUrl`; `options.api` is `chat` (default) or `responses`. Native JSON Schema output requires the pinned Alibaba registry capability. The configured endpoint may be a gateway such as OpenCode Console; the model is not treated as an OpenAI model. |
 | `minimax-cn` | `MiniMax-M3` / `MiniMax-M3.1-Flash` through the native Messages adapter at `https://api.minimax.cn/anthropic/v1`. An explicit `baseUrl` must equal that endpoint; omit `api`. Native JSON Schema output is unavailable and fails with `MODEL_CAPABILITY_UNSUPPORTED`. |
 
+On the Mastra Alibaba Chat Completions route, set `options.reasoningEffort: none` to disable Qwen's thinking mode. Mastra sends `reasoning_effort: "none"` on each model request. Omitting the option uses the provider default. Other routes reject this setting during binding validation.
+
 Registry compatibility is not a claim that every model has passed live-provider
 acceptance. Text, structured output and tool loops are verified separately.
 Endpoints cannot embed credentials, query parameters or fragments. `env:NAME`
@@ -304,6 +307,7 @@ Use `listRunEvents({runId, after, limit})` and follow `nextAfter` to the last pa
 | Event | Details |
 | --- | --- |
 | `model.invocation.started` | Unique `invocationId`, declared model `slot`, bound `provider` and `model`. Written before dispatching native generation. |
+| `model.request.updated` | Mastra provider request, one-based attempt and status (`started`, `received`, `retrying`, `timed_out`). Retry events have no token usage. |
 | `model.step.finished` | The same invocation ID, one-based observed native `step`, optional `inputTokens`, `outputTokens`, `reportedCost`, and optional reported `currency`. |
 | `model.invocation.finished` | The invocation ID, observed `stepCount`, and `status` of `succeeded`, `failed` or `cancelled`. |
 
@@ -334,7 +338,7 @@ Pass each invocation directory as the second argument to `kernel.createRun(optio
 
 `dataDir/packages.db` and the immutable package cache are global. `dataDir/index.db` stores IDs, storage locations, parent links and durable stop requests. Run records/events/interactions and artifacts live at `dataDir/looms/<loom-id>/` or `<project>/.intloom/`; Mastra snapshots use the same location. Cross-storage parent/child creation commits their records and events in an attached SQLite transaction. Read-only global queries merge the stores without relocating business data.
 
-`kernel.close()` drains active embedded work and retains durable waits for explicit recovery. `kernel.shutdown()` cancels every unfinished Run and owned descendant, waits for callbacks to settle, then closes storage. The CLI service always uses `shutdown()` for intentional termination, its `shutdown` command requires a preview and user confirmation. `startup` is a foreground observer of a detached service; Ctrl+C only exits observation. OS termination signals sent directly to the service request shutdown. Cancellation cannot undo external side effects and does not resume a stopped Run. Code callbacks must settle or cooperate with their abort signal before cancellation completes.
+`kernel.close()` drains active embedded work and retains durable waits for explicit recovery. `kernel.shutdown()` cancels every unfinished Run and owned descendant, waits for callbacks to settle, then closes storage. The CLI shutdown command uses `shutdown()`, its `shutdown` command requires a preview and user confirmation. `startup` is a foreground observer of a detached service; Ctrl+C only exits observation. OS termination signals sent directly to the service request shutdown. Cancellation cannot undo external side effects and does not resume a stopped Run. Code callbacks must settle or cooperate with their abort signal before cancellation completes.
 
 `getStorageIssues()` reports registered stores that are missing or unavailable. Opening those stores never creates replacement databases. They are excluded from merged listings and fail direct access with `STORAGE_UNAVAILABLE`; healthy stores remain usable. Restore the original path/data and restart to reopen them. Shutdown records stop intent in the global index even for inaccessible Runs. On recovery, quiet waits/created Runs become cancelled; active executions whose cleanup was not confirmed become interrupted. Neither resumes automatically.
 

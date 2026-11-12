@@ -9,5 +9,5 @@ if (versionArgs.length === 1 && versionArgs[0] === "--version") {
   );
 } else {
   const { runCli } = await import("./commands.ts");
-  await runCli(args, { serviceDir: process.env.INTLOOM_DATA_DIR });
+  await runCli(args);
 }

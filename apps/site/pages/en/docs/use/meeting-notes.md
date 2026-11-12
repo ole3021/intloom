@@ -4,7 +4,7 @@ Give the official meeting-notes Loom a transcript or rough notes. It returns one
 
 ## Install the package
 
-Install the CLI and configure a model with structured output. After the first npm release, use the package name below in the CLI or in the Studio Loom library. The configured model receives the meeting text.
+With the [CLI](../start/setup), install [@intloom/meeting-notes](https://www.npmjs.com/package/@intloom/meeting-notes) by name. In Studio, enter the same name in the Loom library.
 
 ```sh
 intloom install @intloom/meeting-notes
@@ -12,6 +12,8 @@ intloom run @intloom/meeting-notes
 ```
 
 ## Paste notes or read a file
+
+[Configure a model with structured output](../reference/configuration) before running `summarize`. The model receives the meeting text.
 
 ```sh
 intloom run @intloom/meeting-notes summarize --prompt 'We agreed to pilot with 10% of accounts. The launch date is still open. Chen will share regression results by Thursday.'

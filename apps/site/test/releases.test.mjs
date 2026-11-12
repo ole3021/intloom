@@ -54,16 +54,24 @@ test("all permanent Studio URLs redirect GET and HEAD to the published GitHub as
   );
   assert.equal(lookup.mock.callCount(), 8);
 });
-test("release metadata ignores drafts and prereleases and picks the latest CLI across pages", async (t) => {
+test("release metadata picks the latest stable CLI on main across pages", async (t) => {
   t.mock.method(globalThis, "fetch", async (url) => {
     if (url.endsWith("/latest"))
       return Response.json(release(studio, { assets }));
+    if (url.includes("/compare/")) {
+      const comparison = decodeURIComponent(new URL(url).pathname);
+      assert.ok(comparison.endsWith("...main"));
+      return Response.json({
+        status: comparison.includes("@1.0.0...") ? "diverged" : "ahead",
+      });
+    }
     if (url.endsWith("page=1"))
       return Response.json(
         [
           release("framework-v99.0.0"),
           release("@intloom/cli@9.0.0", { draft: true }),
           release("@intloom/cli@8.0.0", { prerelease: true }),
+          release("@intloom/cli@1.0.0"),
           release("@intloom/cli@0.9.0"),
         ],
         { headers: { link: '<next>; rel="next"' } },
@@ -73,7 +81,28 @@ test("release metadata ignores drafts and prereleases and picks the latest CLI a
   const response = await worker.fetch(request("/api/releases"), {});
   const metadata = await response.json();
   assert.equal(metadata.studio.version, "2.0.0");
+  assert.deepEqual(
+    metadata.studio.downloads,
+    Object.fromEntries(
+      studioTargets.map(({ id, suffix }) => [
+        id,
+        urlFor(`IntLoom-Studio-2.0.0-${suffix}`),
+      ]),
+    ),
+  );
   assert.equal(metadata.cli.version, "0.10.0");
+});
+test("the CLI version is available before Studio has a latest release", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url) => {
+    if (url.endsWith("/latest")) return new Response(null, { status: 404 });
+    if (url.includes("/compare/"))
+      return Response.json({ status: "identical" });
+    return Response.json([release("@intloom/cli@1.0.0")]);
+  });
+  const response = await worker.fetch(request("/api/releases"), {});
+  assert.deepEqual(await response.json(), {
+    cli: { version: "1.0.0", url: release("@intloom/cli@1.0.0").html_url },
+  });
 });
 test("release failures and missing attachments do not redirect to an unverified URL", async (t) => {
   const responses = [

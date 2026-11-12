@@ -27,6 +27,8 @@ import type {
   StorageIssue,
 } from "@intloom/loom-sdk";
 export interface ServeOptions {
+  /** Continue eligible saved operations during a service upgrade. */
+  readonly recoverUpgrade?: boolean;
   readonly onRunEvents?: (notice: RunEventsCommitted) => void;
   readonly projectDir?: string;
   readonly dataDir: string;

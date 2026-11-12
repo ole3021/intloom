@@ -189,6 +189,17 @@ export function projectRunActivity(
       case "validation.finished":
         validation = event.details;
         break;
+      case "model.request.updated": {
+        const call = executions.get(event.details.invocationId);
+        if (call && event.details.status === "received") delete call.request;
+        else if (call)
+          call.request = {
+            attempt: event.details.attempt,
+            status: event.details.status,
+            time: event.time,
+          };
+        break;
+      }
       case "run.created":
       case "run.succeeded":
       case "run.failed":

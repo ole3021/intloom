@@ -1,6 +1,6 @@
 import looms from "./data/looms.json";
 import { defineConfig } from "@rspress/core";
-import { fileURLToPath } from "node:url";
+import worker from "./worker.mjs";
 
 export default defineConfig({
   root: "pages",
@@ -25,7 +25,32 @@ export default defineConfig({
   icon: new URL("./assets/favicon.svg", import.meta.url).href,
   route: { cleanUrls: true, localeRedirect: "never" },
   builderConfig: {
-    server: { host: "127.0.0.1" },
+    server: {
+      host: "127.0.0.1",
+      setup({ server }) {
+        server.middlewares.use(async (req, res, next) => {
+          const url = new URL(req.url ?? "/", "http://localhost");
+          if (
+            url.pathname !== "/api/releases" &&
+            !url.pathname.startsWith("/download/studio/")
+          )
+            return next();
+          try {
+            const response = await worker.fetch(
+              new Request(url, { method: req.method ?? "GET" }),
+              {},
+            );
+            res.writeHead(
+              response.status,
+              Object.fromEntries(response.headers),
+            );
+            res.end(await response.text());
+          } catch (error) {
+            next(error);
+          }
+        });
+      },
+    },
     dev: { lazyCompilation: false },
     // Rspack can abort when restoring cached developer routes after a page change.
     ...(process.env.NODE_ENV === "development" && {
@@ -56,17 +81,17 @@ export default defineConfig({
                 [
                   "cli",
                   "Install the CLI",
-                  "Get started with npm, bun, pnpm or yarn. Check the installed CLI version and run a Loom.",
-                ],
-                [
-                  "author",
-                  "Create a Loom",
-                  "Build a Loom with your coding agent.",
+                  "Start the local service with npx intloom startup or install the CLI globally. Install and run the meeting-notes Loom.",
                 ],
                 [
                   "client",
                   "IntLoom Studio",
                   "Download Studio for macOS, Windows and Linux from GitHub Releases.",
+                ],
+                [
+                  "author",
+                  "Create a Loom",
+                  "Build a Loom with your coding agent.",
                 ],
               ]
             : looms.map((loom) => [

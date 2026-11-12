@@ -1,82 +1,146 @@
-import { useEffect, useRef, useState } from "react";
-
 import {
-  studioReleasesUrl,
+  Activity,
+  Calculator,
+  Catalog,
+  Checkmark,
+  Document,
+  DocumentBlank,
+  PlayFilledAlt,
+} from "@carbon/icons-react";
+import { useEffect, useRef, useState } from "react";
+import logo from "../../assets/logo.svg";
+import { useMotionControl } from "../motion/motion-provider.tsx";
+import {
+  latestReleaseUrl,
   studioTargets,
   type WebsiteReleases,
 } from "../releases.ts";
-import { SectionLabel } from "./section-label.tsx";
-import { useMotionControl } from "../motion/motion-provider.tsx";
 import styles from "./client-preview.module.css";
+import { SiteLink } from "./site-link.tsx";
+import { SectionLabel } from "./section-label.tsx";
 
-const progressStages = ["DRAFT", "SAVE", "REVIEW", "DELIVER"];
-const segmentPath = "M10 0H17L7 14H0Z";
+const scenes = [
+  { label: "Library", Icon: Catalog },
+  { label: "Runs", Icon: Activity },
+  { label: "Result", Icon: Document },
+] as const;
 
-function DevelopmentProgress() {
+function StudioDemo() {
+  const [scene, setScene] = useState(0);
+  const [visible, setVisible] = useState(false);
   const { paused } = useMotionControl();
-  const ref = useRef<HTMLDivElement>(null);
-  const [count, setCount] = useState(24);
-  const [active, setActive] = useState(0);
-  const runningStart = Math.round(count / 2);
-  const runningEnd = Math.round((count * 3) / 4);
-  const runningCount = runningEnd - runningStart;
+  const frame = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const track = ref.current;
-    if (!track) return;
-    const observer = new ResizeObserver(([entry]) => {
-      if (!entry || entry.contentRect.width <= 0) return;
-      const gap = Number.parseFloat(getComputedStyle(track).columnGap);
-      setCount(
-        Math.max(4, Math.floor((entry.contentRect.width + gap) / (17 + gap))),
-      );
-    });
-    observer.observe(track);
+    if (!frame.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(Boolean(entry?.isIntersecting)),
+      { threshold: 0.35 },
+    );
+    observer.observe(frame.current);
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (paused) return;
+    if (paused || !visible) return;
     const timer = setInterval(() => {
-      if (!document.hidden) setActive((slot) => (slot + 1) % runningCount);
-    }, 300);
+      if (!document.hidden && !frame.current?.contains(document.activeElement))
+        setScene((current) => (current + 1) % scenes.length);
+    }, 4200);
     return () => clearInterval(timer);
-  }, [paused, runningCount]);
+  }, [paused, visible]);
 
-  const columns = { gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` };
   return (
-    <div className={styles["stage-progress"]} aria-hidden="true">
-      <div ref={ref} className={styles["progress-track"]} style={columns}>
-        {Array.from({ length: count }, (_, slot) => (
-          <svg
-            // biome-ignore lint/suspicious/noArrayIndexKey: Segments have no independent state or ordering.
-            key={slot}
-            className={`${styles["progress-segment"]} ${slot < runningStart ? styles.complete : ""}`}
-            viewBox="0 0 17 14"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <path d={segmentPath} />
-            {slot === runningStart + (active % runningCount) && (
-              <path className={styles["progress-signal"]} d={segmentPath} />
-            )}
-          </svg>
-        ))}
+    <figure
+      ref={frame}
+      className={styles.preview}
+      aria-label="Studio demo: run a Loom and read its result"
+    >
+      <div className={styles.titlebar}>
+        <img src={logo} alt="" />
+        IntLoom Studio
       </div>
-      <div className={styles["progress-labels"]} style={columns}>
-        {progressStages.map((stage, index) => (
-          <span
-            key={stage}
-            className={index === 2 ? styles["running-label"] : undefined}
-            style={{
-              gridColumn: `${Math.round((index * count) / 4) + 1} / ${Math.round(((index + 1) * count) / 4) + 1}`,
-            }}
-          >
-            {stage}
-          </span>
-        ))}
+      <div className={styles.workspace} id="studio-demo-scene">
+        <div key={scene} className={styles.scene}>
+          {scene === 0 && (
+            <>
+              <h3>Installed Looms</h3>
+              <div className={styles.selected}>
+                <Document size={20} />
+                <div className={styles.detail}>
+                  <strong>Meeting notes</strong>
+                  <small>summarize</small>
+                </div>
+                <button
+                  type="button"
+                  className={styles.run}
+                  onClick={() => setScene(1)}
+                  aria-label="Run meeting-notes in the demo"
+                >
+                  <PlayFilledAlt size={16} /> Run
+                </button>
+              </div>
+              <div className={styles.row}>
+                <Calculator size={20} />
+                <span>Order total</span>
+              </div>
+            </>
+          )}
+          {scene === 1 && (
+            <>
+              <h3>Recent runs</h3>
+              <div className={styles.selected}>
+                <Activity size={20} />
+                <div className={styles.detail}>
+                  <strong>Meeting notes</strong>
+                  <small>notes.md</small>
+                </div>
+                <span className={styles.status}>Running</span>
+                <span className={styles.progress} aria-hidden="true" />
+              </div>
+              <div className={styles.row}>
+                <Checkmark size={20} />
+                <span>Order total</span>
+                <small>Completed</small>
+              </div>
+            </>
+          )}
+          {scene === 2 && (
+            <>
+              <h3>
+                <Checkmark size={16} /> Run completed
+              </h3>
+              <div className={styles.paper}>
+                <div className={styles.filename}>
+                  <DocumentBlank size={16} /> meeting-notes.md
+                </div>
+                <p>
+                  <strong>Decision</strong> Pilot with 10% of accounts.
+                </p>
+                <p>
+                  <strong>Action</strong> Chen to share test results by
+                  Thursday.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+      <fieldset className={styles.steps} aria-label="Choose a demo scene">
+        {scenes.map(({ label, Icon }, index) => (
+          <button
+            key={label}
+            type="button"
+            aria-pressed={scene === index}
+            aria-controls="studio-demo-scene"
+            onClick={() => setScene(index)}
+          >
+            <Icon size={16} />
+            {label}
+          </button>
+        ))}
+      </fieldset>
+    </figure>
   );
 }
 
@@ -87,7 +151,7 @@ export function ClientPreview({
 }) {
   return (
     <section id="client" className="module">
-      <SectionLabel number="05">DESKTOP</SectionLabel>
+      <SectionLabel number="04">DESKTOP</SectionLabel>
       <div className="split">
         <div className={styles.introduction}>
           <h2>
@@ -97,55 +161,27 @@ export function ClientPreview({
             Install Looms, follow runs and export deliveries on macOS, Windows
             or Linux.
           </p>
-          <a href={studioReleasesUrl}>
+          <SiteLink href={latestReleaseUrl}>
             {release
               ? `Studio v${release.version} on GitHub`
               : "Latest Studio release on GitHub"}
-          </a>
+          </SiteLink>
           <ul className={styles.downloads}>
-            {studioTargets.map(({ label, id }) => (
-              <li key={id}>
-                <a href={`/download/studio/${id}`}>{label}</a>
-              </li>
-            ))}
+            {studioTargets.map(({ label, id }) => {
+              const url = release?.downloads?.[id];
+              if (url === null) return null;
+              return (
+                <li key={id}>
+                  <SiteLink href={url ?? `/download/studio/${id}`}>
+                    {label}
+                  </SiteLink>
+                </li>
+              );
+            })}
           </ul>
         </div>
-        <figure
-          className={styles.preview}
-          aria-label="IntLoom Studio workflow illustration"
-        >
-          <div className={styles["preview-title"]}>
-            <span>INTLOOM / STUDIO</span>
-            <span className={styles["preview-beta"]}>PREVIEW</span>
-          </div>
-          <div className={styles.workspace}>
-            <span className={styles.eyebrow}>CURRENT PROJECT</span>
-            <div className={styles["workspace-tabs"]} aria-hidden="true">
-              <span>Looms</span>
-              <span>Runs</span>
-              <span>Results</span>
-            </div>
-            <div className={styles["workflow-row"]}>
-              <ChevronRight size={16} aria-hidden="true" />
-              <div>
-                <strong>Reviewed report</strong>
-                <span>From a saved draft to an explicit review.</span>
-              </div>
-            </div>
-            <div className={styles.activity}>
-              <div className={styles["activity-label"]}>
-                <span>RUN PROGRESS</span>
-                <span aria-hidden="true">···</span>
-              </div>
-              <DevelopmentProgress />
-              <span className={styles["preview-note"]}>
-                Review the delivery before accepting it.
-              </span>
-            </div>
-          </div>
-        </figure>
+        <StudioDemo />
       </div>
     </section>
   );
 }
-import { ChevronRight } from "@carbon/icons-react";

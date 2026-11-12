@@ -128,15 +128,32 @@ export function packageInfo(id: string, loom: InstalledLoom): PackageInfo {
   };
 }
 export function row(summary: RunSummary): RunListItem {
+  const error = summary.error;
+  let message =
+    error?.message ??
+    summary.recoveryIssue?.message ??
+    statusText[summary.status];
+  if (error?.businessCode) message = `${error.businessCode} · ${error.message}`;
+  else if (error?.code === "MODEL_AUTH_FAILED")
+    message =
+      object(error.details) && error.details.status === 403
+        ? "模型服务拒绝访问（HTTP 403），请检查密钥是否有权使用该模型。"
+        : "模型服务拒绝了 API 密钥（HTTP 401），请检查当前配置的密钥。";
+  else if (
+    error &&
+    object(error.details) &&
+    ((error.code === "MODEL_INCOMPLETE" &&
+      error.details.finishReason === "length") ||
+      (error.code === "EXECUTION_FAILED" &&
+        error.details.message ===
+          'Structured output was truncated because the model finished with reason "length".'))
+  )
+    message = "模型输出达到长度上限，结果不完整。";
   return {
     summary,
     title: [summary.loom.id, summary.command].filter(Boolean).join(" / "),
     statusLabel: statusText[summary.status],
-    message: summary.error?.businessCode
-      ? `${summary.error.businessCode} · ${summary.error.message}`
-      : (summary.error?.message ??
-        summary.recoveryIssue?.message ??
-        statusText[summary.status]),
+    message,
     pending: [],
   };
 }
