@@ -8,8 +8,7 @@ permissions:
   contents: read
 jobs:
   verify:
-    permissions: {contents: read, pull-requests: read}
-    name: Verify and pack (${{ matrix.os }})
+    name: Verify authoring and Code runtime (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -18,46 +17,29 @@ jobs:
     env:
       TURBO_FORCE: "true"
       TURBO_TELEMETRY_DISABLED: "1"
+      INTLOOM_ARCHIVES_DIR: .release/authoring
     steps:
       - uses: actions/checkout@v7
-        with: {fetch-depth: 0, persist-credentials: false}
+        with: {persist-credentials: false}
       - uses: actions/setup-node@v7
         with: {node-version-file: .node-version, package-manager-cache: false}
       - uses: oven-sh/setup-bun@v2
         with: {bun-version-file: package.json}
       - run: bun install --frozen-lockfile
-      - name: Verify and prepare release candidate
-        env:
-          BASE: ${{ github.event.before || github.event.pull_request.base.sha }}
-        run: bun run release:prepare --base "$BASE"
-      - name: Select candidate and record merged PRs
-        if: matrix.os == 'ubuntu-24.04'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
+      - name: Prepare workspace compiler links
         run: |
-          set -euo pipefail
-          files=(.release/*/candidate.json)
-          test "${#files[@]}" -eq 1
-          dir=$(dirname "${files[0]}")
-          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
-            gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
-              | jq --arg sha "$GITHUB_SHA" --arg repo "$GITHUB_REPOSITORY" '[.[] | select(.base.repo.full_name == $repo and .base.ref == "main" and .merged_at != null and .merge_commit_sha == $sha) | .number]' > "$dir/merged-prs.json"
-          fi
-          echo "CANDIDATE=$dir" >> "$GITHUB_ENV"
-      - name: Test isolated npm installations of both CLI entry points
-        if: matrix.os == 'ubuntu-24.04'
-        run: node test/e2e/npm/candidate-registry.mjs "$CANDIDATE"
+          bun run --cwd packages/loom-sdk build
+          bun run --cwd packages/compiler build
+          bun install --frozen-lockfile
+      - run: bun run verify
       - uses: actions/upload-artifact@v7
         if: matrix.os == 'ubuntu-24.04'
         with:
-          name: release-candidate
-          path: ${{ env.CANDIDATE }}
-          include-hidden-files: true
+          name: authoring-archives
+          path: .release/authoring
           if-no-files-found: error
-          retention-days: 30
   npm-consumers:
-    name: Test npm installs (Node ${{ matrix.node }}, ${{ matrix.os }})
+    name: Consume authoring and Code runtime (Node ${{ matrix.node }}, ${{ matrix.os }})
     needs: verify
     strategy:
       fail-fast: false
@@ -71,42 +53,8 @@ jobs:
       - uses: actions/setup-node@v7
         with: {node-version: "${{ matrix.node }}", package-manager-cache: false}
       - uses: actions/download-artifact@v8
-        with: {name: release-candidate, path: "${{ runner.temp }}/candidate"}
+        with: {name: authoring-archives, path: "${{ runner.temp }}/authoring"}
       - run: npm run test:e2e
         env:
-          INTLOOM_CANDIDATE_DIR: ${{ runner.temp }}/candidate
+          INTLOOM_ARCHIVES_DIR: ${{ runner.temp }}/authoring
           INTLOOM_REQUIRE_ARCHIVES: "1"
-  site:
-    name: Build and test site
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-        with: {fetch-depth: 0, persist-credentials: false}
-      - id: changes
-        env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          if ! git diff --quiet "$BASE" HEAD -- apps/site examples/meeting-notes docs/ai/loom-authoring.md package.json bun.lock tsconfig.base.json .node-version .github/workflows/site-release.yml .github/scripts/site-preview-current.sh; then
-            echo "build=true" >> "$GITHUB_OUTPUT"
-          fi
-      - uses: actions/setup-node@v7
-        if: steps.changes.outputs.build == 'true'
-        with: {node-version-file: .node-version, package-manager-cache: false}
-      - uses: oven-sh/setup-bun@v2
-        if: steps.changes.outputs.build == 'true'
-        with: {bun-version-file: package.json}
-      - if: steps.changes.outputs.build == 'true'
-        run: |
-          bun install --frozen-lockfile
-          bun run --cwd apps/site typecheck
-          bun run --cwd apps/site test
-      - uses: actions/upload-artifact@v7
-        if: steps.changes.outputs.build == 'true'
-        with: {name: site-dist, path: apps/site/dist, if-no-files-found: error}
-      - if: github.event_name == 'pull_request' && steps.changes.outputs.build == 'true'
-        env:
-          PR: ${{ github.event.pull_request.number }}
-        run: echo "$PR" > "$RUNNER_TEMP/pr-number"
-      - uses: actions/upload-artifact@v7
-        if: github.event_name == 'pull_request' && steps.changes.outputs.build == 'true'
-        with: {name: site-pr, path: "${{ runner.temp }}/pr-number"}

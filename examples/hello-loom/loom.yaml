@@ -1,13 +1,15 @@
+schemaVersion: "0.5"
 name: Hello Loom
-description: Meet a three-step Workflow that asks your name, checks the weather near the running device and delivers a greeting card in your system language.
-permissions: [network, write-run-files]
-commands:
-  hello:
-    description: Start the Workflow, then answer its question with a name or nickname.
-    entry: hello.ts
-    input:
-      type: object
-      properties: {}
-      additionalProperties: false
-      default: {}
-    output: A localized UTF-8 hello.md card with a greeting, available local weather and the meeting-notes tutorial.
+description: Ask your name, check nearby weather and write a localized greeting card.
+entry: ./src/hello.ts
+execution:
+  scope: intloom
+input:
+  prompt:
+    description: Optional BCP 47 locale, such as en-US or zh-CN; defaults to the runtime locale
+output:
+  summary:
+    type: markdown
+    path: hello.md
+resources:
+  - ./README.md

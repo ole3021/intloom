@@ -1,0 +1,14 @@
+schemaVersion: "0.5"
+name: Code report
+description: Write a Markdown report from a prompt using Code.
+entry: ./src/main.ts
+execution:
+  scope: intloom
+input:
+  prompt:
+    required: true
+    description: The report content
+output:
+  summary:
+    type: markdown
+    path: summary.md

@@ -13,7 +13,8 @@
       "!!**/.turbo",
       "!!**/node_modules",
       "!!**/coverage",
-      "!!.design-notes"
+      "!!.design-notes",
+      "!!backup"
     ]
   },
   "formatter": {

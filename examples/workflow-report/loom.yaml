@@ -1,0 +1,13 @@
+schemaVersion: "0.5"
+name: Reviewed report
+description: Draft, review, optionally revise, and save a Markdown report.
+entry: ./src/report.ts
+execution:
+  scope: workspace
+input:
+  prompt:
+    required: true
+output:
+  summary:
+    type: markdown
+    path: summary.md

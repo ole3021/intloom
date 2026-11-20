@@ -19,8 +19,7 @@ export default {
       icons: "assets/IntLoom.iconset",
     },
     linux: { icon: "assets/IntLoom.iconset/icon_256x256.png" },
-    copy: { dist: "views/studio", ".runtime": "bun/runtime" },
+    copy: { dist: "views/studio" },
   },
-  scripts: { postBuild: "scripts/wrap-launcher.mjs" },
-  runtime: { exitOnLastWindowClosed: false },
+  runtime: { exitOnLastWindowClosed: true },
 } satisfies ElectrobunConfig;

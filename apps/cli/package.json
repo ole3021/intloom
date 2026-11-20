@@ -1,6 +1,6 @@
 {
   "name": "@intloom/cli",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -29,32 +29,14 @@
     "node": "^22.22.0 || ^24.0.0 || ^26.0.0"
   },
   "dependencies": {
-    "@clack/prompts": "1.8.1",
+    "@intloom/compiler": "workspace:*",
     "@intloom/kernel": "workspace:*",
-    "@intloom/loom-sdk": "workspace:*",
-    "@modelcontextprotocol/core": "2.4.0",
-    "@modelcontextprotocol/node": "2.1.2",
-    "@modelcontextprotocol/server": "2.4.0",
-    "ansi-escapes": "7.3.0",
-    "log-update": "8.0.0",
-    "markdansi": "0.3.8",
-    "string-width": "8.3.0",
-    "wrap-ansi": "10.0.2",
-    "zod": "4.6.7",
-    "semver": "7.8.6"
+    "@intloom/loom-sdk": "workspace:*"
   },
   "bin": {
     "intloom": "./dist/bin.js"
   },
-  "devDependencies": {
-    "@intloom/compiler": "workspace:*",
-    "@xterm/headless": "6.0.0"
-  },
   "exports": {
-    "./bin": "./dist/bin.js",
-    "./local-service": {
-      "types": "./dist/local-service.d.ts",
-      "import": "./dist/local-service.js"
-    }
+    "./bin": "./dist/bin.js"
   }
 }

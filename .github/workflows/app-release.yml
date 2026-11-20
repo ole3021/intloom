@@ -31,7 +31,8 @@ concurrency:
 jobs:
   select:
     name: Check app release criteria
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    # Paused during the 0.5.0 rebuild; restore after release acceptance is implemented.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     outputs:
       enabled: ${{ steps.input.outputs.enabled }}
@@ -46,7 +47,8 @@ jobs:
   installers:
     name: Build and test installer (${{ matrix.os }})
     needs: select
-    if: ${{ !cancelled() && (github.event_name == 'pull_request' || needs.select.outputs.enabled == 'true') }}
+    # The former installer acceptance suite belongs to the archived implementation.
+    if: ${{ false }}
     strategy:
       fail-fast: false
       matrix:

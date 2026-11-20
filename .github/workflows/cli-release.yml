@@ -17,7 +17,8 @@ env:
 jobs:
   select:
     name: Check CLI release criteria
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' || github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    # Paused during the 0.5.0 rebuild; restore after release acceptance is implemented.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     outputs:
       enabled: ${{ steps.input.outputs.enabled }}
@@ -74,4 +75,3 @@ jobs:
         run: |
           set -euo pipefail
           node .github/scripts/publish-github-release.mjs cli "@intloom/cli@$VERSION" "$VERSION" "$SHA" "$RUNNER_TEMP/candidate"
-

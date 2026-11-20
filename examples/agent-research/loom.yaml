@@ -1,0 +1,18 @@
+schemaVersion: "0.5"
+name: Research assistant
+description: Research a topic and write a report, guided by a packaged Skill.
+entry: ./src/assistant.ts#researcher
+agent: ./src/assistant.ts#researcher
+execution:
+  scope: intloom
+input:
+  prompt:
+    required: true
+  files:
+    description: Source material at complete execution-environment paths
+output:
+  summary:
+    type: markdown
+    path: summary.md
+resources:
+  - ./assets/report-template.md

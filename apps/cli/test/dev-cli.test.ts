@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-test("the development launcher runs in the caller's project and respects an existing command", (t) => {
+test("the development launcher runs outside the checkout and preserves another command", (t) => {
   const cwd = mkdtempSync(join(tmpdir(), "intloom-dev-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const binDir = join(cwd, "dev bin");
@@ -20,32 +20,15 @@ test("the development launcher runs in the caller's project and respects an exis
   execFileSync(process.execPath, args, options);
   execFileSync(process.execPath, args, options);
   const help = execFileSync(launcher, ["--help"], options);
-  assert.match(help, /intloom-dev status --watch/);
+  assert.match(help, /Usage: intloom-dev <check \| build> \[directory\]/);
   assert.ok(!help.includes("\x1b"));
-  const helpJson = JSON.parse(
-    execFileSync(launcher, ["dev", "build", "--help", "--plain"], options),
+  const { version } = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
   );
-  assert.equal(helpJson.ok, true);
-  assert.match(helpJson.data.help, /intloom-dev dev build/);
-  assert.equal(execFileSync(launcher, ["--version"], options).trim(), "0.4.0");
-  assert.equal(
-    JSON.parse(execFileSync(launcher, ["--version", "--plain"], options)).data
-      .version,
-    "0.4.0",
-  );
-  const removed = spawnSync(launcher, ["status", "--json"], options);
+  assert.equal(execFileSync(launcher, ["--version"], options).trim(), version);
+  const removed = spawnSync(launcher, ["run", "example"], options);
   assert.equal(removed.status, 2);
-  assert.match(removed.stderr, /Invalid command options/);
-  assert.doesNotMatch(help, /--json/);
-  execFileSync(
-    launcher,
-    ["dev", "init", "my project", "--id", "my-loom", "--name", "My Loom"],
-    options,
-  );
-  assert.match(
-    readFileSync(join(cwd, "my project", "loom.yaml"), "utf8"),
-    /My Loom/,
-  );
+  assert.match(removed.stderr, /Unsupported command/);
 
   const other = readFileSync(launcher, "utf8").replace(
     /^# Entry: .*$/m,

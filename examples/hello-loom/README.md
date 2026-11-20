@@ -1,41 +1,9 @@
 # Hello Loom
 
-Run a three-step Workflow that asks what to call you, checks nearby weather and delivers a greeting card. The card explains what happened and includes a working meeting-notes example. Hello Loom needs no model account or API key.
+A 0.5 Workflow with three Code steps: ask a name, fetch nearby weather, and write `hello.md`. It needs no model. Ten locale sets cover English, simplified/traditional Chinese, Japanese, Korean, Spanish, French, German, Portuguese and Arabic.
 
-## Install and run
+From the example's source directory, run `bun run typecheck` and `bun run build`. The resulting `dist/` is a standalone npm package; run `npm pack` there to archive it.
 
-Install the IntLoom CLI with `npm install --global intloom`. From the folder containing the built archive, run
+The standard Loom input accepts an optional locale in `prompt` (for example, `{"prompt":"zh-CN"}`). Without it, the runtime locale is used. The name comes from `context.user.ask` in text mode with a Zod answer schema; blank or multiline answers keep the same question pending for retry. Weather comes from wttr.in with a five-second timeout and graceful fallback. Execution cancellation propagates through `context.signal` instead of becoming offline weather. Location is estimated from the runtime's network connection.
 
-```sh
-intloom install ./intloom-hello-loom-1.0.0.tgz
-intloom run @intloom/hello-loom hello
-```
-
-Answer the question with a name or nickname. The question belongs to the Run, so you can leave and answer it later. In Studio, choose the installed **Hello Loom** in the Loom library, launch **hello**, answer the question and open **hello.md** in the completed Run. The terminal records the card in the Run log and gives the export command for its artifact.
-
-```sh
-intloom artifact list --run RUN_ID
-intloom artifact export ARTIFACT_ID --out ./hello.md
-```
-
-The first question sets the card language from the Kernel process's system locale. The package includes Simplified and Traditional Chinese, English, Japanese, Korean, Spanish, French, German, Portuguese and Arabic. Other locales use English. The Run keeps the chosen language when it resumes.
-
-## How the Workflow works
-
-| Step | What it does |
-| --- | --- |
-| `ask-name` | Suspends with a localized question. A valid answer resumes the same Run. |
-| `local-weather` | Makes one HTTPS request to wttr.in for nearby weather. Only the connection's public network location is used. A VPN or a remote Kernel can change the reported area. Your name stays with the Run. |
-| `write-greeting` | Writes the greeting and available weather to the activity log and delivers the same card as a UTF-8 Markdown file. If the service is unavailable after five seconds, the card still includes the greeting, available system time zone and tutorial. |
-
-The [Workflow entry](hello.ts) connects the steps. The [weather reader](weather.ts) interprets the service response, and the [translations](messages.ts) provide the words for each language. The card links to the [meeting-notes tutorial](https://intloom.ai/docs/use/meeting-notes). Running that separate Loom requires a configured model with structured output.
-
-## Build from this repository
-
-With workspace dependencies and the Compiler built, run
-
-```sh
-bun run --cwd examples/hello-loom build
-```
-
-Install the archive from `examples/hello-loom/dist/` using the commands above.
+The greeting is the declared Markdown `summary`. Its onboarding section includes a localized source text for the Meeting Notes example. The current CLI checks and builds definitions; a runtime must supply user interaction and Workflow execution. The archived-package tests use scripted answers and weather responses.

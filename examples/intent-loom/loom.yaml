@@ -1,0 +1,39 @@
+schemaVersion: "0.5"
+name: Intent Loom
+description: Review requirements and a solution, implement a candidate, then independently verify its evidence.
+entry: ./src/workflow.ts
+execution:
+  scope: intloom
+input:
+  prompt:
+    required: true
+    description: The requested project change
+  files:
+    required: true
+    maxItems: 1
+    extensions: [".json"]
+    description: Exactly one JSON file declaring editable/protected paths and trusted verification commands
+  folders:
+    required: true
+    maxItems: 1
+    description: Exactly one project directory to read as the baseline
+output:
+  summary:
+    type: markdown
+    path: summary.md
+  evidence:
+    type: files
+    paths:
+      - baseline.json
+      - specification.json
+      - solution.json
+      - implementation.json
+      - validation.json
+      - acceptance.json
+  revisions:
+    type: folder
+    path: revisions
+resources:
+  - ./README.md
+  - ./agents
+  - ./samples

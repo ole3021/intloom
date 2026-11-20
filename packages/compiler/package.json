@@ -1,6 +1,6 @@
 {
   "name": "@intloom/compiler",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -29,23 +29,18 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json && node -e \"require('node:fs').chmodSync('dist/bin.js', 0o755)\"",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test test/*.test.ts"
   },
   "engines": {
     "node": "^22.22.0 || ^24.0.0 || ^26.0.0"
   },
   "dependencies": {
     "@intloom/loom-sdk": "workspace:*",
+    "es-module-lexer": "^3.0.4",
     "typescript": "7.0.2",
-    "esbuild": "0.28.2",
-    "tar": "7.5.22",
-    "semver": "7.8.6",
-    "zod": "4.6.7",
     "yaml": "2.9.1",
-    "@babel/parser": "7.29.9"
-  },
-  "devDependencies": {
-    "@babel/types": "7.29.8"
+    "zod": "4.6.7"
   },
   "bin": {
     "intloom-build": "./dist/bin.js"

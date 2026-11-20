@@ -13,6 +13,16 @@
 - Keep single-use logic at its point of use. Introduce a helper when it earns its place.
 - Use exception handling when recovery or cleanup requires it. Keep a function together when it reads clearly as one operation.
 
+## Code organization
+
+- Keep package responsibilities explicit: `loom-sdk` owns shared author contracts and definitions, `compiler` owns preparation and build output, and `kernel` owns host/runtime capabilities and resources. SDK uses `loom/`, `exec/` and `tools/`; Compiler groups project reading, code inspection, resources and output around its shared preparation flow.
+- Group Kernel code by implemented capability: `installations/`, `runs/`, `executions/`, `store/` and `tools/`. Runs own task lifecycle and outputs; executions own component invocation facts and the execution-process boundary. Keep each capability's data contracts and boundary schemas together. Derive types from schemas where this preserves the intended public type semantics; keep resource interfaces explicit.
+- Put shared database connections, transactions, system schema/migrations and persistence utilities in `kernel/src/persistence/`. Capability modules own their record operations and may use SQL directly. Keep transaction boundaries explicit.
+- Use named composition modules such as `data.ts` and `runtime.ts` to assemble capabilities and own their resource lifetimes. Data owns connections; runtime owns scheduling, active Runs and shutdown. Keep `index.ts` focused on public exports, and use concrete internal module imports. Public declarations must remain consumable without leaking implementation-specific dependency types.
+- Give shared path rules a single owner in `kernel/src/paths.ts`. Keep path containment, filesystem resolution and authorization as distinct operations.
+- Add directories and abstractions as implemented responsibilities require them. Keep cohesive single-use operations together; introduce additional layers, adapters or workspace packages when actual consumers or implementations justify them.
+- Group package tests by capability, with reusable fixtures under the package's `test/fixtures/`. Keep cross-package and archived-consumer verification under the root `test/` hierarchy. Update internal references and verify fresh build output when moving modules.
+
 <!-- BEGIN:turborepo-agent-rules -->
 
 # This is NOT the Turborepo you know

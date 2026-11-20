@@ -1,6 +1,6 @@
 {
   "name": "@intloom/loom-sdk",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -19,35 +19,23 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./package-format": {
-      "types": "./dist/package-format/index.d.ts",
-      "import": "./dist/package-format/index.js"
-    },
-    "./json": {
-      "types": "./dist/schema/json.d.ts",
-      "import": "./dist/schema/json.js"
     }
   },
   "files": [
     "dist",
     "README.md",
-    "LICENSE",
-    "author-files.d.ts"
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test test/*.test.ts"
+    "test": "node --test test/*.test.mjs"
   },
   "engines": {
     "node": "^22.22.0 || ^24.0.0 || ^26.0.0"
   },
-  "dependencies": {},
-  "peerDependencies": {
-    "zod": "~4.6.7"
-  },
-  "devDependencies": {
-    "zod": "4.6.7"
+  "dependencies": {
+    "semver": "7.8.6",
+    "zod": "^4.6.7"
   }
 }

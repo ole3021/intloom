@@ -1,0 +1,14 @@
+{
+  "files": [
+    { "path": "greet.mjs", "editable": true },
+    { "path": "greeting.test.mjs", "editable": false }
+  ],
+  "checks": [
+    {
+      "id": "greeting",
+      "description": "Exact greetings for Ada and 陈🌍",
+      "command": "node",
+      "args": ["greeting.test.mjs"]
+    }
+  ]
+}

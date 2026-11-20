@@ -15,28 +15,5 @@
       "!!**/artifacts",
       "!!**/node_modules"
     ]
-  },
-  "overrides": [
-    {
-      "includes": ["src/view/components/ui/breadcrumb.tsx"],
-      "linter": {
-        "rules": {
-          "a11y": {
-            "useFocusableInteractive": "off",
-            "useSemanticElements": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/view/components/ui/sidebar.tsx"],
-      "linter": {
-        "rules": {
-          "correctness": {
-            "useExhaustiveDependencies": "off"
-          }
-        }
-      }
-    }
-  ]
+  }
 }

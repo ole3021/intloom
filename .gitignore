@@ -15,6 +15,7 @@ coverage/
 .dev.vars.*
 .intloom/
 .intloom-build-*/
+.intloom-prepare-*/
 .intloom-build.lock
 .design-notes/
 
